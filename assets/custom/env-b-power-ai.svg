@@ -1,0 +1,175 @@
+<svg width="1384" height="778" viewBox="0 0 1384 778" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="1384" y2="778" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#07091E"/>
+      <stop offset="55%" stop-color="#0D1136"/>
+      <stop offset="100%" stop-color="#15194D"/>
+    </linearGradient>
+    <radialGradient id="glowB1" cx="0.65" cy="0.38" r="0.5">
+      <stop offset="0%" stop-color="#4C37F6" stop-opacity="0.38"/>
+      <stop offset="60%" stop-color="#2233EE" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#07091E" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB2" cx="0.35" cy="0.65" r="0.45">
+      <stop offset="0%" stop-color="#D37BF5" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#07091E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4C37F6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#D37BF5" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="1384" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2233EE" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#EAE2FC" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#D37BF5" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="solarGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2233EE" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#0B0C2A" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed 16:9 Canvas -->
+  <rect width="1384" height="778" rx="16" fill="url(#bgB)"/>
+  <rect width="1384" height="778" rx="16" fill="url(#glowB1)"/>
+  <rect width="1384" height="778" rx="16" fill="url(#glowB2)"/>
+
+  <!-- Perspective 3D Terrain Grid -->
+  <g stroke="#4C37F6" stroke-opacity="0.18" stroke-width="1">
+    <line x1="0" y1="560" x2="1384" y2="560"/>
+    <line x1="0" y1="600" x2="1384" y2="600"/>
+    <line x1="0" y1="645" x2="1384" y2="645"/>
+    <line x1="0" y1="695" x2="1384" y2="695"/>
+    <line x1="0" y1="750" x2="1384" y2="750"/>
+    <line x1="692" y1="420" x2="-100" y2="778"/>
+    <line x1="692" y1="420" x2="180" y2="778"/>
+    <line x1="692" y1="420" x2="440" y2="778"/>
+    <line x1="692" y1="420" x2="692" y2="778"/>
+    <line x1="692" y1="420" x2="944" y2="778"/>
+    <line x1="692" y1="420" x2="1204" y2="778"/>
+    <line x1="692" y1="420" x2="1484" y2="778"/>
+  </g>
+
+  <!-- Background Wind Turbines (Right Horizon) -->
+  <g transform="translate(1060, 210)" stroke="#A5B4FC" stroke-opacity="0.55" stroke-width="3" fill="none">
+    <line x1="0" y1="0" x2="0" y2="350" stroke-width="4"/>
+    <circle cx="0" cy="0" r="6" fill="#EAE2FC"/>
+    <path d="M0 0 L-85 -65 L-75 -75 Z" fill="#A5B4FC" fill-opacity="0.35"/>
+    <path d="M0 0 L95 -40 L90 -25 Z" fill="#A5B4FC" fill-opacity="0.35"/>
+    <path d="M0 0 L-10 105 L5 105 Z" fill="#A5B4FC" fill-opacity="0.35"/>
+    <!-- AI Scan Ring on Wind Blade -->
+    <circle cx="-48" cy="-42" r="24" stroke="#34D399" stroke-width="2" stroke-dasharray="6 4"/>
+    <circle cx="-48" cy="-42" r="5" fill="#34D399"/>
+  </g>
+
+  <g transform="translate(1210, 270) scale(0.78)" stroke="#A5B4FC" stroke-opacity="0.4" stroke-width="3" fill="none">
+    <line x1="0" y1="0" x2="0" y2="370" stroke-width="4"/>
+    <circle cx="0" cy="0" r="6" fill="#EAE2FC"/>
+    <path d="M0 0 L-75 -70 L-65 -80 Z" fill="#A5B4FC" fill-opacity="0.3"/>
+    <path d="M0 0 L90 -30 L85 -15 Z" fill="#A5B4FC" fill-opacity="0.3"/>
+    <path d="M0 0 L-5 100 L10 100 Z" fill="#A5B4FC" fill-opacity="0.3"/>
+  </g>
+
+  <!-- Utility-Scale Solar PV Array (Left/Mid Ground) -->
+  <g transform="translate(110, 520)">
+    <polygon points="0,90 60,20 290,20 250,90" fill="url(#solarGrad)" stroke="#4C37F6" stroke-width="2"/>
+    <line x1="75" y1="20" x2="40" y2="90" stroke="#4C37F6" stroke-opacity="0.6"/>
+    <line x1="130" y1="20" x2="98" y2="90" stroke="#4C37F6" stroke-opacity="0.6"/>
+    <line x1="185" y1="20" x2="155" y2="90" stroke="#4C37F6" stroke-opacity="0.6"/>
+    <line x1="240" y1="20" x2="212" y2="90" stroke="#4C37F6" stroke-opacity="0.6"/>
+    <line x1="30" y1="55" x2="270" y2="55" stroke="#4C37F6" stroke-opacity="0.6"/>
+    <!-- Thermal Hotspot Highlight on Solar Cell -->
+    <polygon points="114,55 168,55 155,90 98,90" fill="#F59E0B" fill-opacity="0.45" stroke="#FBBF24" stroke-width="2"/>
+    <circle cx="134" cy="72" r="6" fill="#FBBF24"/>
+    <circle cx="134" cy="72" r="16" stroke="#FBBF24" stroke-width="1.5" stroke-dasharray="4 3"/>
+  </g>
+
+  <!-- High-Voltage Overhead Transmission Tower (Center Focal Structure) -->
+  <g transform="translate(510, 95)">
+    <!-- Main Lattice Legs -->
+    <path d="M180 0 L90 540 M180 0 L270 540" stroke="#CBD5E1" stroke-width="4" stroke-linecap="round"/>
+    <path d="M135 270 L225 270 M115 390 L245 390 M95 510 L265 510" stroke="#94A3B8" stroke-width="2.5"/>
+    <!-- Cross Bracing -->
+    <path d="M155 140 L205 270 M205 140 L155 270" stroke="#64748B" stroke-width="2"/>
+    <path d="M135 270 L245 390 M225 270 L115 390" stroke="#64748B" stroke-width="2"/>
+    <path d="M115 390 L265 510 M245 390 L95 510" stroke="#64748B" stroke-width="2"/>
+    <!-- Upper & Lower Cross-Arms -->
+    <path d="M20 140 L340 140 L180 85 Z" stroke="#CBD5E1" stroke-width="3.5" fill="rgba(34,51,238,0.12)"/>
+    <path d="M-15 245 L375 245 L180 185 Z" stroke="#CBD5E1" stroke-width="3.5" fill="rgba(34,51,238,0.12)"/>
+
+    <!-- Glass/Porcelain Insulator Strings -->
+    <!-- Left Upper Insulator -->
+    <g transform="translate(30, 140)">
+      <line x1="0" y1="0" x2="0" y2="72" stroke="#E2E8F0" stroke-width="3"/>
+      <ellipse cx="0" cy="16" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <ellipse cx="0" cy="30" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <ellipse cx="0" cy="44" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <ellipse cx="0" cy="58" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+    </g>
+
+    <!-- Right Upper Insulator (Highlighted AI Defect Detection Bounding Box) -->
+    <g transform="translate(330, 140)">
+      <line x1="0" y1="0" x2="0" y2="85" stroke="#E2E8F0" stroke-width="3"/>
+      <ellipse cx="0" cy="16" rx="16" ry="5.5" fill="#4C37F6" stroke="#EAE2FC" stroke-width="1.8"/>
+      <ellipse cx="0" cy="32" rx="16" ry="5.5" fill="#D37BF5" stroke="#FFFFFF" stroke-width="2"/>
+      <ellipse cx="0" cy="48" rx="16" ry="5.5" fill="#EF4444" stroke="#FCA5A5" stroke-width="2"/>
+      <ellipse cx="0" cy="64" rx="16" ry="5.5" fill="#4C37F6" stroke="#EAE2FC" stroke-width="1.8"/>
+      <!-- AI Bounding Box Reticle (Visual Only, No Text) -->
+      <rect x="-34" y="-8" width="68" height="92" rx="8" fill="#4C37F6" fill-opacity="0.18" stroke="#D37BF5" stroke-width="2.5" stroke-dasharray="8 4"/>
+      <path d="M-34 8 V-8 H-18 M34 8 V-8 H18 M-34 68 V84 H-18 M34 68 V84 H18" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="0" cy="48" r="24" stroke="#EF4444" stroke-width="2" stroke-opacity="0.85"/>
+    </g>
+
+    <!-- Lower Right Insulator & Damper -->
+    <g transform="translate(365, 245)">
+      <line x1="0" y1="0" x2="0" y2="68" stroke="#E2E8F0" stroke-width="3"/>
+      <ellipse cx="0" cy="18" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <ellipse cx="0" cy="34" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <ellipse cx="0" cy="50" rx="14" ry="5" fill="#38BDF8" fill-opacity="0.7" stroke="#BAE6FD" stroke-width="1.5"/>
+      <!-- Stockbridge Damper Detection Box -->
+      <rect x="24" y="52" width="56" height="36" rx="6" fill="#F59E0B" fill-opacity="0.18" stroke="#FBBF24" stroke-width="2"/>
+      <circle cx="36" cy="70" r="7" fill="#FBBF24"/>
+      <circle cx="68" cy="70" r="7" fill="#FBBF24"/>
+      <line x1="36" y1="70" x2="68" y2="70" stroke="#FFFFFF" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <!-- High-Voltage Power Conductors Across Span -->
+  <path d="M0 360 Q 540 430 840 310 Q 1120 420 1384 350" stroke="url(#lineGrad)" stroke-width="3" fill="none"/>
+  <path d="M0 440 Q 510 510 875 410 Q 1150 490 1384 430" stroke="url(#lineGrad)" stroke-width="2.5" fill="none"/>
+
+  <!-- Autonomous Inspection Drone & LiDAR / Computer Vision Cone (Upper Right) -->
+  <g transform="translate(980, 125)">
+    <!-- LiDAR Cone -->
+    <polygon points="0,20 -140,110 -140,195" fill="url(#beamGrad)"/>
+    <line x1="0" y1="20" x2="-140" y2="152" stroke="#D37BF5" stroke-width="2" stroke-dasharray="6 6"/>
+    <!-- Drone Body -->
+    <rect x="-26" y="-8" width="52" height="18" rx="9" fill="#FFFFFF" stroke="#4C37F6" stroke-width="2.5"/>
+    <circle cx="0" cy="14" r="8" fill="#4C37F6" stroke="#FFFFFF" stroke-width="2"/>
+    <line x1="-48" y1="-16" x2="48" y2="-16" stroke="#A5B4FC" stroke-width="3"/>
+    <ellipse cx="-48" cy="-20" rx="22" ry="4" fill="#D37BF5" fill-opacity="0.7"/>
+    <ellipse cx="48" cy="-20" rx="22" ry="4" fill="#D37BF5" fill-opacity="0.7"/>
+  </g>
+
+  <!-- Clean Visual Telemetry Waveform & Circular Signal Rings (Bottom Overlay, Zero Text) -->
+  <g transform="translate(86, 650)">
+    <rect x="0" y="0" width="1212" height="86" rx="14" fill="#0B0C2A" fill-opacity="0.82" stroke="#4C37F6" stroke-opacity="0.45" stroke-width="1.5"/>
+    <!-- Visual Signal Bars -->
+    <g transform="translate(36, 22)">
+      <rect x="0" y="18" width="8" height="24" rx="4" fill="#2233EE"/>
+      <rect x="16" y="8" width="8" height="34" rx="4" fill="#4C37F6"/>
+      <rect x="32" y="2" width="8" height="40" rx="4" fill="#D37BF5"/>
+      <rect x="48" y="12" width="8" height="30" rx="4" fill="#4C37F6"/>
+      <rect x="64" y="6" width="8" height="36" rx="4" fill="#34D399"/>
+      <rect x="80" y="16" width="8" height="26" rx="4" fill="#2233EE"/>
+    </g>
+    <!-- Continuous Telemetry Waveform -->
+    <path d="M160 56 C 220 20, 260 68, 320 42 C 380 16, 430 62, 490 34 C 550 10, 600 64, 660 38 C 720 14, 770 58, 830 28 C 890 8, 940 54, 1000 36" stroke="#4C37F6" stroke-width="3" fill="none"/>
+    <path d="M160 62 C 220 44, 260 30, 320 52 C 380 68, 430 24, 490 48 C 550 64, 600 22, 660 50 C 720 66, 770 28, 830 46 C 890 62, 940 26, 1000 48" stroke="#D37BF5" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+    <!-- Status Indicator Rings on Right -->
+    <circle cx="1075" cy="43" r="22" stroke="#34D399" stroke-width="4" stroke-dasharray="105 35"/>
+    <circle cx="1075" cy="43" r="8" fill="#34D399"/>
+    <circle cx="1145" cy="43" r="22" stroke="#4C37F6" stroke-width="4" stroke-dasharray="95 45"/>
+    <circle cx="1145" cy="43" r="8" fill="#D37BF5"/>
+  </g>
+</svg>

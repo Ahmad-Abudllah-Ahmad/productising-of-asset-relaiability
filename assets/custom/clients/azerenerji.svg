@@ -1,0 +1,14 @@
+<svg width="240" height="54" viewBox="0 0 240 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cg" x1="0" y1="0" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2233EE"/>
+      <stop offset="100%" stop-color="#2233EE"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="238" height="52" rx="12" fill="#FFFFFF" fill-opacity="0.95" stroke="#2233EE" stroke-opacity="0.35" stroke-width="1.5"/>
+  <g transform="translate(8, 5)">
+    <path d="M22 8L12 23H21L18 36L30 20H21L22 8Z" fill="url(#cg)"/><circle cx="21" cy="22" r="16" stroke="url(#cg)" stroke-width="2" stroke-dasharray="4 3"/>
+  </g>
+  <text x="54" y="25" fill="#0B0C2A" font-family="DM Sans, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="0.4">AZERENERJİ</text>
+  <text x="54" y="40" fill="#2233EE" font-family="DM Sans, Arial, sans-serif" font-size="8.5" font-weight="700" letter-spacing="0.6">NATIONAL POWER GRID &amp; OHTL AI</text>
+</svg>

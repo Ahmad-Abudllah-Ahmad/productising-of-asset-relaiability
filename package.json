@@ -1,0 +1,12 @@
+{
+  "name": "productising-of-asset-relaiability",
+  "version": "1.0.0",
+  "description": "NEXUS OS asset reliability site. Static files for Vercel; node server.js is only for local preview.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "node scripts/export-static.js"
+  }
+}
+

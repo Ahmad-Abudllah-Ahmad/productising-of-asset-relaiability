@@ -1,0 +1,95 @@
+<svg width="1384" height="778" viewBox="0 0 1384 778" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgC" x1="0" y1="0" x2="1384" y2="778" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#07091E"/>
+      <stop offset="55%" stop-color="#0E1238"/>
+      <stop offset="100%" stop-color="#161A52"/>
+    </linearGradient>
+    <linearGradient id="isoTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4C37F6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#2233EE" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="isoSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D37BF5" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#121644" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1384" height="778" rx="16" fill="url(#bgC)"/>
+
+  <!-- Left Visual Panel: 3D Isometric BIM Structure & ADICC Floor Plan Grid -->
+  <g transform="translate(80, 125)">
+    <rect x="0" y="0" width="585" height="565" rx="22" fill="#0B0E2E" stroke="#4C37F6" stroke-opacity="0.45" stroke-width="2"/>
+
+    <!-- Isometric Floor Plan Base Grid -->
+    <g transform="translate(292, 415)" stroke="#4C37F6" stroke-opacity="0.35" stroke-width="1.5">
+      <polygon points="0,-130 220,-15 0,100 -220,-15" fill="#10143E"/>
+      <line x1="-110" y1="-72" x2="110" y2="42"/>
+      <line x1="-110" y1="42" x2="110" y2="-72"/>
+      <line x1="-55" y1="-101" x2="165" y2="14"/>
+      <line x1="-165" y1="-44" x2="55" y2="71"/>
+    </g>
+
+    <!-- Isometric 3D Structural Towers (BIM Digital Twin) -->
+    <!-- Left Tower -->
+    <g transform="translate(195, 225)">
+      <polygon points="0,-40 70,-5 0,30 -70,-5" fill="url(#isoTop)" stroke="#A5B4FC" stroke-width="2"/>
+      <polygon points="-70,-5 0,30 0,165 -70,130" fill="#1A2163" stroke="#4C37F6" stroke-width="2"/>
+      <polygon points="70,-5 0,30 0,165 70,130" fill="url(#isoSide)" stroke="#D37BF5" stroke-width="2"/>
+      <line x1="-70" y1="40" x2="0" y2="75" stroke="#A5B4FC" stroke-opacity="0.5"/>
+      <line x1="0" y1="75" x2="70" y2="40" stroke="#A5B4FC" stroke-opacity="0.5"/>
+      <line x1="-70" y1="85" x2="0" y2="120" stroke="#A5B4FC" stroke-opacity="0.5"/>
+      <line x1="0" y1="120" x2="70" y2="85" stroke="#A5B4FC" stroke-opacity="0.5"/>
+    </g>
+
+    <!-- Right Tall Tower -->
+    <g transform="translate(365, 165)">
+      <polygon points="0,-45 80,-5 0,35 -80,-5" fill="url(#isoTop)" stroke="#EAE2FC" stroke-width="2"/>
+      <polygon points="-80,-5 0,35 0,225 -80,185" fill="#1A2163" stroke="#4C37F6" stroke-width="2"/>
+      <polygon points="80,-5 0,35 0,225 80,185" fill="url(#isoSide)" stroke="#D37BF5" stroke-width="2"/>
+      <line x1="-80" y1="45" x2="0" y2="85" stroke="#EAE2FC" stroke-opacity="0.5"/>
+      <line x1="0" y1="85" x2="80" y2="45" stroke="#EAE2FC" stroke-opacity="0.5"/>
+      <line x1="-80" y1="95" x2="0" y2="135" stroke="#EAE2FC" stroke-opacity="0.5"/>
+      <line x1="0" y1="135" x2="80" y2="95" stroke="#EAE2FC" stroke-opacity="0.5"/>
+      <line x1="-80" y1="145" x2="0" y2="185" stroke="#EAE2FC" stroke-opacity="0.5"/>
+      <line x1="0" y1="185" x2="80" y2="145" stroke="#EAE2FC" stroke-opacity="0.5"/>
+    </g>
+
+    <!-- Laser Scan Plane Sweeping Across BIM -->
+    <polygon points="65,240 520,240 480,290 105,290" fill="#34D399" fill-opacity="0.18" stroke="#34D399" stroke-width="2" stroke-dasharray="8 4"/>
+  </g>
+
+  <!-- Right Visual Panel: Regional Drone IaaS & Corridor Network Graph -->
+  <g transform="translate(705, 125)">
+    <rect x="0" y="0" width="600" height="565" rx="22" fill="#0B0E2E" stroke="#4C37F6" stroke-opacity="0.45" stroke-width="2"/>
+
+    <!-- Radar / Geodesic Rings -->
+    <g transform="translate(300, 280)" stroke="#4C37F6" stroke-opacity="0.22" stroke-width="1.5">
+      <circle cx="0" cy="0" r="85"/>
+      <circle cx="0" cy="0" r="165" stroke-dasharray="6 6"/>
+      <circle cx="0" cy="0" r="235"/>
+      <line x1="-250" y1="0" x2="250" y2="0"/>
+      <line x1="0" y1="-240" x2="0" y2="240"/>
+    </g>
+
+    <!-- Curved Expansion Corridor Arcs from Hub -->
+    <path d="M135 335 Q 240 165 395 145" stroke="#4C37F6" stroke-width="4" fill="none"/>
+    <path d="M135 335 Q 290 270 465 265" stroke="#D37BF5" stroke-width="4" fill="none"/>
+    <path d="M135 335 Q 280 410 435 415" stroke="#34D399" stroke-width="3.5" stroke-dasharray="9 5" fill="none"/>
+    <path d="M395 145 L 465 265 L 435 415" stroke="#A5B4FC" stroke-opacity="0.4" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+
+    <!-- Primary Anchor Hub Node (Left) -->
+    <circle cx="135" cy="335" r="34" fill="#2233EE" fill-opacity="0.28" stroke="#4C37F6" stroke-width="2.5"/>
+    <circle cx="135" cy="335" r="14" fill="#FFFFFF" stroke="#4C37F6" stroke-width="4"/>
+
+    <!-- Destination Network Nodes (Right) -->
+    <circle cx="395" cy="145" r="24" fill="#4C37F6" fill-opacity="0.28" stroke="#A5B4FC" stroke-width="2.5"/>
+    <circle cx="395" cy="145" r="10" fill="#EAE2FC"/>
+
+    <circle cx="465" cy="265" r="26" fill="#D37BF5" fill-opacity="0.28" stroke="#D37BF5" stroke-width="2.5"/>
+    <circle cx="465" cy="265" r="11" fill="#D37BF5"/>
+
+    <circle cx="435" cy="415" r="24" fill="#34D399" fill-opacity="0.25" stroke="#34D399" stroke-width="2.5"/>
+    <circle cx="435" cy="415" r="10" fill="#34D399"/>
+  </g>
+</svg>

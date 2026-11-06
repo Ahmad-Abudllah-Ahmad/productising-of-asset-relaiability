@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node scripts/export-static.js",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/blogs", "destination": "/", "permanent": true },
+    { "source": "/about", "destination": "/", "permanent": true },
+    { "source": "/case-studies", "destination": "/", "permanent": true }
+  ]
+}

@@ -1,0 +1,14 @@
+<svg width="240" height="54" viewBox="0 0 240 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cg" x1="0" y1="0" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2233EE"/>
+      <stop offset="100%" stop-color="#EAE2FC"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="238" height="52" rx="12" fill="#0B0C2A" fill-opacity="0.9" stroke="#2233EE" stroke-width="1.5"/>
+  <g transform="translate(8, 5)">
+    <circle cx="21" cy="22" r="15" stroke="url(#cg)" stroke-width="2.4"/><path d="M12 28V16L21 24L30 16V28" stroke="url(#cg)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="54" y="25" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="0.4">BAKU METRO</text>
+  <text x="54" y="40" fill="#EAE2FC" font-family="DM Sans, Arial, sans-serif" font-size="8.5" font-weight="700" letter-spacing="0.6">TUNNEL &amp; TRANSIT INFRASTRUCTURE</text>
+</svg>

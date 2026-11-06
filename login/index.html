@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Log in | NEXUS OS</title>
+  <link rel="icon" href="/assets/custom/favicon.svg" type="image/svg+xml"/>
+  <style>
+    @font-face {
+      font-family: "DM Sans";
+      src: url("/assets/cdn.prod.website-files.com/68c12a5987c0cd3e02e9e53f/68c12ca0bb61be6d27a1bb34_DMSans-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "DM Sans";
+      src: url("/assets/cdn.prod.website-files.com/68c12a5987c0cd3e02e9e53f/68c12ca036654a4f0a914ca0_DMSans-Bold.ttf") format("truetype");
+      font-weight: 700;
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh;
+      font-family: "DM Sans", Arial, sans-serif;
+      color: #f4f1ea;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      background: #0b1020;
+    }
+    .visual {
+      position: relative;
+      padding: 36px 56px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background:
+        radial-gradient(900px 480px at 18% 78%, rgba(120, 140, 255, 0.16), transparent 60%),
+        linear-gradient(180deg, #0c1224 0%, #090d18 100%);
+      overflow: hidden;
+    }
+    .dot-field {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .mark, .visual-copy, .foot { z-index: 1; }
+    .mark { position: relative; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+    .mark a { color: #fff; text-decoration: none; }
+    .visual-copy { position: relative; max-width: 34rem; margin-bottom: 12vh; }
+    .eyebrow {
+      margin: 0 0 14px;
+      color: #b7c0d6;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .visual h1 {
+      margin: 0 0 16px;
+      font-size: clamp(2.4rem, 4vw, 3.5rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+    .visual p { margin: 0; color: #c5cad8; font-size: 16px; line-height: 1.5; max-width: 32rem; }
+    .foot { position: relative; color: #8b93a7; font-size: 11px; letter-spacing: 0.14em; }
+    .panel {
+      background: #171c25;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 22px 28px 32px;
+    }
+    .panel-top { display: flex; justify-content: space-between; align-items: center; }
+    .panel-top a { color: #b7b3c7; font-size: 13px; text-decoration: none; }
+    .card { width: min(420px, 100%); margin: auto; }
+    .modes { display: flex; gap: 8px; margin-bottom: 18px; }
+    .modes button {
+      flex: 1;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid rgba(234, 226, 252, 0.22);
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modes button.is-on { background: #EAE2FC; color: #12151c; border-color: #EAE2FC; }
+    h2 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.03em; }
+    p.lead { margin: 0 0 20px; color: #b7b3c7; font-size: 14px; }
+    label { display: block; margin: 0 0 12px; font-size: 13px; color: #d9d4e6; }
+    label[hidden] { display: none; }
+    input {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #12161e;
+      color: #fff;
+      font: inherit;
+      padding: 0 12px;
+    }
+    input:focus { outline: 2px solid #c4b5fd; outline-offset: 1px; }
+    .submit, .dummy {
+      width: 100%;
+      height: 46px;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .submit {
+      margin-top: 6px;
+      border: 0;
+      background: linear-gradient(180deg, #d8cffc, #b7a6f6);
+      color: #1a1430;
+      box-shadow: 0 10px 28px -12px rgba(180, 160, 255, 0.9);
+    }
+    .dummy {
+      margin-top: 10px;
+      border: 1px solid rgba(234, 226, 252, 0.35);
+      background: transparent;
+      color: #EAE2FC;
+    }
+    .dummy:hover { background: rgba(234, 226, 252, 0.08); }
+    .error { min-height: 18px; margin: 8px 0 0; color: #f0a3a8; font-size: 13px; }
+    .hint { margin: 0 0 12px; color: #EAE2FC; font-size: 13px; }
+    .hint[hidden] { display: none; }
+    @media (max-width: 860px) {
+      body { grid-template-columns: 1fr; }
+      .visual { min-height: 42vh; padding: 28px 24px; }
+      .visual-copy { margin-bottom: 0; }
+      .panel { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <section class="visual">
+    <canvas class="dot-field" id="dot-field" aria-hidden="true"></canvas>
+    <div class="mark"><a href="/">NEXUS OS</a></div>
+    <div class="visual-copy">
+      <p class="eyebrow">NEXUS OS</p>
+      <h1 id="module-title">Asset Reliability Intelligence</h1>
+      <p id="module-copy">Sign in to open this module.</p>
+    </div>
+    <div class="foot">NEXUS OS / ENTERPRISE AI</div>
+  </section>
+  <section class="panel">
+    <div class="panel-top"><a href="/">Back to the site</a></div>
+    <main class="card">
+      <div class="modes" role="tablist">
+        <button type="button" id="show-login" class="is-on" role="tab" aria-selected="true">Log in</button>
+        <button type="button" id="show-signup" role="tab" aria-selected="false">Sign up</button>
+      </div>
+      <h2 id="form-title">Sign in</h2>
+      <p class="lead" id="lead">Open this module.</p>
+      <form id="auth">
+        <label id="name-field" hidden>Full name
+          <input id="name" name="name" type="text" autocomplete="name"/>
+        </label>
+        <label>Email
+          <input id="email" name="email" type="email" autocomplete="email" required/>
+        </label>
+        <label>Password
+          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="6"/>
+        </label>
+        <label id="code-field" hidden>Dummy code
+          <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="482910"/>
+        </label>
+        <p class="hint" id="code-hint" hidden>Use dummy code 482910</p>
+        <p class="error" id="error" role="alert"></p>
+        <button class="submit" id="submit" type="submit">Sign in</button>
+        <button class="dummy" id="dummy" type="button">Dummy login</button>
+      </form>
+    </main>
+  </section>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var next = params.get("next") || "/";
+      var allowed = next === "https://powerlines-management.onrender.com/" ||
+        (next.charAt(0) === "/" && next.charAt(1) !== "/" && next.indexOf("\\") === -1);
+      if (!allowed) next = "/";
+
+      var modules = {
+        "/reliability/index.html": ["Asset Reliability Intelligence", "Review tower health, linked evidence, and the engineering queue for Corridor North."],
+        "/operations/index.html": ["Field Operations Optimization", "Group the approved repairs into one planned inspection-and-repair visit."],
+        "/grid/index.html": ["Energy & Grid Performance", "Read the 220 kV corridor beside its recent operational events."],
+        "/inventory/index.html": ["Supply Chain & Inventory", "Check replacement hardware for the three approved repair jobs."],
+        "/forecast/index.html": ["Risk & Maintenance Forecasting", "See the inspections that need manual engineering review next quarter."],
+        "/finance/index.html": ["Financial Intelligence", "Compare the approved budget with the remaining repair backlog."],
+        "/workforce/index.html": ["Workforce & Safety", "Confirm work authorization and a qualified crew before the repair starts."],
+        "https://powerlines-management.onrender.com/": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."]
+      };
+      var chosen = modules[next] || ["NEXUS OS", "Sign in to open this module."];
+      document.getElementById("module-title").textContent = chosen[0];
+      document.getElementById("module-copy").textContent = chosen[1];
+      document.title = "Sign in | " + chosen[0];
+
+      var mode = "login";
+      var nameField = document.getElementById("name-field");
+      var nameInput = document.getElementById("name");
+      var codeField = document.getElementById("code-field");
+      var codeInput = document.getElementById("code");
+      var codeHint = document.getElementById("code-hint");
+      var lead = document.getElementById("lead");
+      var submit = document.getElementById("submit");
+      var error = document.getElementById("error");
+      var formTitle = document.getElementById("form-title");
+
+      function enter(kind, email, name) {
+        try {
+          localStorage.setItem("nexus-session", JSON.stringify({ email: email, name: name || "", mode: kind }));
+        } catch (err) {}
+        window.location.assign(next);
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        var signup = mode === "signup";
+        nameField.hidden = !signup;
+        nameInput.required = signup;
+        codeField.hidden = !signup;
+        codeInput.required = signup;
+        codeHint.hidden = !signup;
+        document.getElementById("password").setAttribute("autocomplete", signup ? "new-password" : "current-password");
+        document.getElementById("show-login").classList.toggle("is-on", !signup);
+        document.getElementById("show-signup").classList.toggle("is-on", signup);
+        document.getElementById("show-login").setAttribute("aria-selected", String(!signup));
+        document.getElementById("show-signup").setAttribute("aria-selected", String(signup));
+        formTitle.textContent = signup ? "Sign up" : "Sign in";
+        lead.textContent = signup ? "Create an account for " + chosen[0] + "." : "Open " + chosen[0] + ".";
+        submit.textContent = signup ? "Sign up" : "Sign in";
+        error.textContent = "";
+      }
+
+      document.getElementById("show-login").addEventListener("click", function () { setMode("login"); });
+      document.getElementById("show-signup").addEventListener("click", function () { setMode("signup"); });
+      document.getElementById("dummy").addEventListener("click", function () { enter("dummy", "demo@nexus.os", "Demo"); });
+
+      document.getElementById("auth").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var email = document.getElementById("email").value.trim();
+        var password = document.getElementById("password").value;
+        var name = nameInput.value.trim();
+        var code = codeInput.value.trim();
+        if (!email || password.length < 6 || (mode === "signup" && !name)) {
+          error.textContent = mode === "signup"
+            ? "Enter your name, email, and a password of at least 6 characters."
+            : "Enter your email and a password of at least 6 characters.";
+          return;
+        }
+        if (mode === "signup" && code !== "482910") {
+          error.textContent = "Enter the dummy code 482910.";
+          return;
+        }
+        enter(mode, email, name);
+      });
+
+      setMode("login");
+
+      var visual = document.querySelector(".visual");
+      var canvas = document.getElementById("dot-field");
+      var ctx = canvas.getContext("2d");
+      var dots = [];
+      var pointer = { x: -9999, y: -9999, on: false, strength: 0 };
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var gap = 22;
+      var reach = 112;
+      var hole = 54;
+      var travelX = 0;
+      var travelY = 0;
+      var orbit = 0;
+      var last = 0;
+
+      function addLayer(spacing, alpha, size) {
+        var rect = visual.getBoundingClientRect();
+        var cols = Math.ceil(rect.width / spacing) + 4;
+        var rows = Math.ceil(rect.height / spacing) + 4;
+        for (var row = -2; row < rows; row++) {
+          for (var col = -2; col < cols; col++) {
+            dots.push({
+              x: col * spacing + (row % 2 ? spacing * 0.5 : 0),
+              y: row * spacing,
+              alpha: alpha,
+              size: size,
+              shiftX: 0,
+              shiftY: 0
+            });
+          }
+        }
+      }
+
+      function layoutDots() {
+        var rect = visual.getBoundingClientRect();
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        dots = [];
+        addLayer(gap, 0.5, 1.15);
+        addLayer(36, 0.3, 1);
+      }
+
+      function drawDots(now) {
+        if (!last) last = now;
+        var dt = Math.min(0.034, (now - last) / 1000);
+        last = now;
+        if (!reduce) {
+          travelX += 14 * dt;
+          travelY += 7 * dt;
+          orbit += dt * 0.7;
+        }
+        var aim = pointer.on ? 1 : 0;
+        pointer.strength += (aim - pointer.strength) * (1 - Math.exp(-dt * 9));
+        if (pointer.strength < 0.001) pointer.strength = 0;
+
+        var w = canvas.clientWidth;
+        var h = canvas.clientHeight;
+        ctx.clearRect(0, 0, w, h);
+        var driftA = reduce ? 0 : travelX % gap;
+        var driftB = reduce ? 0 : travelY % gap;
+        var driftC = reduce ? 0 : (-travelX * 0.72) % 36;
+        var driftD = reduce ? 0 : (travelY * 0.85) % 36;
+
+        for (var i = 0; i < dots.length; i++) {
+          var dot = dots[i];
+          var homeX = dot.x + (dot.size > 1.05 ? driftA : driftC);
+          var homeY = dot.y + (dot.size > 1.05 ? driftB : driftD);
+          var targetX = 0;
+          var targetY = 0;
+          var alpha = dot.alpha;
+          var size = dot.size;
+          if (pointer.strength > 0) {
+            var dx = homeX - pointer.x;
+            var dy = homeY - pointer.y;
+            var dist = Math.hypot(dx, dy);
+            if (dist < reach && dist > 0.001) {
+              var nx = dx / dist;
+              var ny = dy / dist;
+              if (dist < hole) {
+                var ang = Math.atan2(dy, dx) + orbit * pointer.strength;
+                var ring = hole + 5;
+                targetX = pointer.x + Math.cos(ang) * ring - homeX;
+                targetY = pointer.y + Math.sin(ang) * ring - homeY;
+                alpha = dot.alpha + 0.45;
+                size = dot.size + 0.35;
+              } else {
+                var lift = Math.pow(1 - (dist - hole) / (reach - hole), 2) * 8;
+                targetX = nx * lift;
+                targetY = ny * lift;
+              }
+            }
+          }
+          var ease = 1 - Math.exp(-dt * 14);
+          dot.shiftX += (targetX - dot.shiftX) * ease;
+          dot.shiftY += (targetY - dot.shiftY) * ease;
+          var x = homeX + dot.shiftX;
+          var y = homeY + dot.shiftY;
+          if (pointer.strength > 0.45) {
+            var px = x - pointer.x;
+            var py = y - pointer.y;
+            var pd = Math.hypot(px, py);
+            var clear = (hole - 2) * pointer.strength;
+            if (pd < clear && pd > 0.001) {
+              x = pointer.x + (px / pd) * (hole + 5);
+              y = pointer.y + (py / pd) * (hole + 5);
+            }
+          }
+          var edge = Math.min(x / 70, y / 90, (w - x) / 70, (h - y) / 90, 1);
+          if (edge <= 0) continue;
+          ctx.beginPath();
+          ctx.fillStyle = "rgba(198, 208, 255," + (alpha * edge).toFixed(3) + ")";
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        requestAnimationFrame(drawDots);
+      }
+
+      function placePointer(event) {
+        var rect = visual.getBoundingClientRect();
+        pointer.x = event.clientX - rect.left;
+        pointer.y = event.clientY - rect.top;
+        pointer.on = true;
+      }
+      visual.addEventListener("pointermove", placePointer);
+      visual.addEventListener("pointerleave", function () { pointer.on = false; });
+      window.addEventListener("resize", layoutDots);
+      layoutDots();
+      requestAnimationFrame(drawDots);
+    })();
+  </script>
+</body>
+</html>
