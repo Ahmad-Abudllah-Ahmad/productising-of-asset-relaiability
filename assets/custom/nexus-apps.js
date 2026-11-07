@@ -71,7 +71,8 @@
     safety: icon('<path d="M9 2.5 15 5v4.2c0 3.2-2.4 5.4-6 6.3-3.6-.9-6-3.1-6-6.3V5l6-2.5Z" stroke="currentColor"/>'),
     permit: icon('<rect x="4" y="2.5" width="10" height="13" rx="1.2" stroke="currentColor"/><path d="M7 7h4M7 10h4M7 13h2" stroke="currentColor"/>'),
     phone: icon('<rect x="5" y="2" width="8" height="14" rx="1.6" stroke="currentColor"/><path d="M8 13.5h2" stroke="currentColor"/>'),
-    audit: icon('<path d="M5 3h6l3 3v9H5V3Z" stroke="currentColor"/><path d="M11 3v3h3M7 9l1.2 1.2L11 7.5" stroke="currentColor"/>')
+    audit: icon('<path d="M5 3h6l3 3v9H5V3Z" stroke="currentColor"/><path d="M11 3v3h3M7 9l1.2 1.2L11 7.5" stroke="currentColor"/>'),
+    sheet: icon('<rect x="3" y="2.5" width="12" height="13" rx="1.2" stroke="currentColor"/><path d="M6 6h6M6 9h6M6 12h4" stroke="currentColor"/>')
   };
 
   function filters(names) {
@@ -1426,6 +1427,12 @@
       { l: "Linked evidence", v: "98%", s: "Image, GPS, tower id", tip: "Share of findings with an image, GPS, and tower id. Not a model-accuracy score.", spark: [90, 92, 94, 95, 97, 98], color: GREEN }
     ];
     return [
+      drawingScreen([
+        { tab: "SS-North", src: "/pids/nx-ari-sld-0104-corridor-north.svg", kicker: "SS-North · 220 kV", note: "Corridor North. Illustrative. Not for construction." },
+        { tab: "SS-East", src: "/pids/nx-ari-sld-0132-ss-east.svg", kicker: "SS-East · 132 kV", note: "Same corridor. T-104 still has the two verified findings." },
+        { tab: "East angle", src: "/pids/nx-ari-sld-0230-east-angle.svg", kicker: "East angle", note: "Registry cut from SS-North to the east angle." },
+        { tab: "T-110 side", src: "/pids/nx-ari-sld-0110-t110.svg", kicker: "T-110 side", note: "T-110 is stable and outside this package." }
+      ]),
       screen("registry", "Asset Registry", "registry", [
         tab("Production", function () {
           return prodBoard({
@@ -2089,6 +2096,12 @@
       { l: "Days since confirm", v: "11", s: "Steel + cotter", tip: "Clock starts at engineering confirmation, not at the flight.", spark: [2, 4, 6, 8, 10, 11], color: RED }
     ];
     return [
+      drawingScreen([
+        { tab: "One visit", src: "/pids/nx-ops-pfd-0104-one-visit.svg", kicker: "One planned visit", note: "Five tasks. Orders are staged, not written back." },
+        { tab: "Pumps", src: "/pids/nx-ops-pid-0301-pumps.svg", kicker: "Task package", note: "Steel, cotter, and the damper hold." },
+        { tab: "Train", src: "/pids/nx-ops-pid-0201-visit.svg", kicker: "Visit sequence", note: "11 days since confirmation. No field start." },
+        { tab: "Package", src: "/pids/nx-ops-pid-1001-package.svg", kicker: "Visit package", note: "The damper stays on hold until the location is confirmed." }
+      ]),
       screen("command", "Operations Command Center", "pulse", [
         tab("Production", function () {
           return prodBoard({
@@ -2750,6 +2763,13 @@
       { l: "Linked findings", v: "1", s: "T-104 beside March", tip: "High-priority findings sit next to the 12 Mar thermal window.", spark: [0, 0, 1, 1, 1, 1], color: RED }
     ];
     return [
+      drawingScreen([
+        { tab: "Operating", src: "/pids/nx-grd-sld-0220-corridor-north.svg", kicker: "SS-North · operating record", note: "Loading and voltage are from the historian and the EMS." },
+        { tab: "GIS yard", src: "/pids/nx-grd-sld-0400-gis.svg", kicker: "SS-North · 220 kV", note: "Loading is 78% of rating." },
+        { tab: "Distribution", src: "/pids/nx-grd-sld-0132-distribution.svg", kicker: "SS-North yard", note: "219.4 kV at SS-North." },
+        { tab: "Corridor bus", src: "/pids/nx-grd-sld-0330-corridor.svg", kicker: "Corridor bus", note: "12 March reached 92% of rating for 46 min. The line stayed in service." },
+        { tab: "Outages", src: "/pids/nx-grd-sld-0110-yard.svg", kicker: "Outage record", note: "19 January, 22 min, and 02 February, 38 min. Neither is attributed to T-104." }
+      ]),
       screen("overview", "Grid Overview", "grid", [
         tab("Production", function () {
           return prodBoard({
@@ -3350,6 +3370,12 @@
       { l: "Ready to reserve", v: "2", s: "Cotter, damper", tip: "Stock exists. Reservation is not confirmed.", spark: [0, 1, 1, 2, 2, 2], color: TEAL }
     ];
     return [
+      drawingScreen([
+        { tab: "Hardware", src: "/pids/nx-inv-pfd-0104-hardware.svg", kicker: "Replacement hardware", note: "Warehouse confirmation is still open." },
+        { tab: "Stock", src: "/pids/nx-inv-pfd-1002-stock.svg", kicker: "On hand", note: "Plate is short. Cotter and damper are in stock." },
+        { tab: "Requests", src: "/pids/nx-inv-pid-4001-requests.svg", kicker: "Three requests", note: "The plate order is draft and has not been placed." },
+        { tab: "Stores", src: "/pids/nx-inv-sld-0011-stores.svg", kicker: "Stores", note: "Lead time on the plate is 18 days." }
+      ]),
       screen("catalog", "Parts Catalog", "parts", [
         tab("Production", function () {
           return prodBoard({
@@ -3982,6 +4008,11 @@
       { l: "Zones", v: "4", s: "11 · 4 · 2 · 1", tip: "North 11, Coastal 4, Inland 2, angle towers 1.", spark: [4, 4, 4, 4, 4, 4], color: TEAL }
     ];
     return [
+      drawingScreen([
+        { tab: "Reviews", src: "/pids/nx-fct-pfd-0018-reviews.svg", kicker: "Next quarter", note: "18 inspections need manual engineering review." },
+        { tab: "Zones", src: "/pids/nx-fct-pfd-1001-zones.svg", kicker: "By zone", note: "North 11, Coastal 4, Inland 2, Angle 1." },
+        { tab: "Flights", src: "/pids/nx-fct-pfd-1001-flights.svg", kicker: "Risk flights", note: "46 risk-based flights. A calendar would schedule 22." }
+      ]),
       screen("risk", "Risk Forecast", "forecast", [
         tab("Production", function () {
           return prodBoard({
@@ -4561,6 +4592,10 @@
       { l: "Repair backlog", v: "$1.26M", s: "Estimated", tip: "Estimated cost of the remaining repair backlog, including this visit.", spark: [0.9, 1.0, 1.1, 1.15, 1.2, 1.26], color: AMBER }
     ];
     return [
+      drawingScreen([
+        { tab: "Budget", src: "/pids/nx-fin-pfd-0480-budget.svg", kicker: "Corridor North budget", note: "Headroom is unspent budget minus the backlog. It is not a saving." },
+        { tab: "Cost flow", src: "/pids/nx-fin-pfd-1001-cost.svg", kicker: "This visit", note: "Labor $8.3k, equipment $14.4k, materials $6.2k. Visit $28.8k." }
+      ]),
       screen("cost", "Maintenance Cost Dashboard", "cost", [
         tab("Production", function () {
           return prodBoard({
@@ -5148,6 +5183,10 @@
       { l: "Incidents", v: "0", s: "This quarter", tip: "No recorded incident on Corridor North this quarter.", spark: [0, 0, 0, 0, 0, 0], color: GREEN }
     ];
     return [
+      drawingScreen([
+        { tab: "Authorization", src: "/pids/nx-wfs-pfd-0220-authorization.svg", kicker: "Work authorization", note: "PTW-220-18 is requested. HV-04 and HV-07 are not assigned." },
+        { tab: "Crew", src: "/pids/nx-wfs-pfd-1002-crew.svg", kicker: "Qualified crew", note: "VEG-02 is assigned to span N-19 only." }
+      ]),
       screen("home", "Workforce Dashboard", "people", [
         tab("Production", function () {
           return prodBoard({
@@ -5754,6 +5793,42 @@
     ];
   }
 
+  function drawingBoard(src, kicker, note) {
+    return '<section class="screen dwg-stage" data-dwg="' + esc(src) + '"><div class="dwg-bar"><b>' + esc(kicker) + '</b><span>' + esc(note) + '</span></div><div class="dwg-sheet"><p class="dwg-wait">Loading drawing…</p></div></section>';
+  }
+
+  function drawingScreen(sheets) {
+    return screen("drawing", "Drawing", "sheet", sheets.map(function (item) {
+      return tab(item.tab, function () {
+        return drawingBoard(item.src, item.kicker, item.note);
+      });
+    }));
+  }
+
+  function paintDrawings(root) {
+    var host = root.querySelector("[data-dwg]");
+    if (!host || host.getAttribute("data-loaded")) return;
+    host.setAttribute("data-loaded", "1");
+    var sheet = host.querySelector(".dwg-sheet");
+    fetch(host.getAttribute("data-dwg")).then(function (res) {
+      if (!res.ok) throw new Error("missing");
+      return res.text();
+    }).then(function (svg) {
+      sheet.innerHTML = svg;
+    }).catch(function () {
+      sheet.innerHTML = '<p class="dwg-wait">The drawing file is not available.</p>';
+    });
+  }
+
+  function placeDwgCard(card, event) {
+    var x = event.clientX + 16;
+    var y = event.clientY + 16;
+    if (x + 280 > window.innerWidth) x = event.clientX - 280;
+    if (y + 120 > window.innerHeight) y = event.clientY - 110;
+    card.style.left = x + "px";
+    card.style.top = y + "px";
+  }
+
   function screen(id, name, iconName, tabs) {
     var lead = [];
     var rest = [];
@@ -5787,11 +5862,15 @@
     var rail = app.screens.map(function (item, index) {
       return '<button type="button" data-go="' + index + '"' + (index === 0 ? ' class="is-on"' : "") + ' aria-label="' + esc(item.name) + '">' + item.icon + "</button>";
     }).join("");
-    document.body.innerHTML = '<div class="shell"><header class="top"><a class="brand" href="' + esc(app.back) + '" aria-label="NEXUS OS">' + brandMark() + '<span class="brand-name">NEXUS OS</span></a><h1 id="app-title"></h1><div class="tabs" id="tabs"></div><a class="back" href="' + esc(app.back) + '">Back to suite</a></header><nav class="rail" aria-label="Applications">' + rail + '</nav><main class="work"><div class="stage" id="stage"></div></main></div><div class="tip" id="tip"></div>';
+    document.body.innerHTML = '<div class="shell"><header class="top"><a class="brand" href="' + esc(app.back) + '" aria-label="NEXUS OS">' + brandMark() + '<span class="brand-name">NEXUS OS</span></a><h1 id="app-title"></h1><div class="tabs" id="tabs"></div><a class="back" href="' + esc(app.back) + '">Back to suite</a><button type="button" class="logout" id="logout">Log out</button></header><nav class="rail" aria-label="Applications">' + rail + '</nav><main class="work"><div class="stage" id="stage"></div></main></div><div class="tip" id="tip"></div><aside id="dwg-card" hidden><b></b><p></p></aside>';
   }
 
   function mount(app) {
     shell(app);
+    document.getElementById("logout").addEventListener("click", function () {
+      localStorage.removeItem("nexus-session");
+      location.assign("/login/");
+    });
     var current = 0;
     var tabIndex = 0;
     var titleEl = document.getElementById("app-title");
@@ -5806,7 +5885,10 @@
         return '<button type="button" data-tab="' + index + '"' + (index === tabIndex ? ' class="is-on"' : "") + ">" + esc(item.name) + "</button>";
       }).join("");
       stage.innerHTML = screenSpec.tabs[tabIndex].render();
+      var dwgCard = document.getElementById("dwg-card");
+      if (dwgCard) dwgCard.hidden = true;
       paintBakuMaps(stage);
+      paintDrawings(stage);
     }
 
     document.querySelector(".rail").addEventListener("click", function (event) {
@@ -6556,8 +6638,30 @@
       if (panel) applyCut(panel);
     });
 
+    document.addEventListener("click", function (event) {
+      var gear = event.target.closest(".dwg-stage [data-tip]");
+      if (!gear) return;
+      var board = gear.closest(".dwg-stage");
+      board.querySelectorAll("[data-tip].is-on").forEach(function (node) {
+        if (node !== gear) node.classList.remove("is-on");
+      });
+      gear.classList.add("is-on");
+    });
+
     document.addEventListener("mouseover", function (event) {
+      var card = document.getElementById("dwg-card");
       var el = event.target.closest("[data-tip]");
+      if (el && el.closest(".dwg-stage")) {
+        tipEl.style.display = "none";
+        var raw = el.getAttribute("data-tip") || "";
+        var cut = raw.indexOf(" — ");
+        card.querySelector("b").textContent = cut < 0 ? raw : raw.slice(0, cut);
+        card.querySelector("p").textContent = cut < 0 ? "" : raw.slice(cut + 3);
+        card.hidden = false;
+        placeDwgCard(card, event);
+        return;
+      }
+      if (card) card.hidden = true;
       if (!el) {
         tipEl.style.display = "none";
         return;
@@ -6571,6 +6675,8 @@
     });
 
     document.addEventListener("mousemove", function (event) {
+      var card = document.getElementById("dwg-card");
+      if (card && !card.hidden) placeDwgCard(card, event);
       if (tipEl.style.display !== "block") return;
       var x = event.clientX + 14;
       var y = event.clientY + 16;

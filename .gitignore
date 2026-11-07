@@ -4,3 +4,10 @@ public/
 .DS_Store
 firebase-debug.log
 *.log
+**/.env
+**/.env.*
+!**/.env.example
+**/venv/
+**/__pycache__/
+**/*.pt
+**/*.pth

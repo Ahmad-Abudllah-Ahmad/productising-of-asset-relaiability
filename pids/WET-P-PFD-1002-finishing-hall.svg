@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1100" preserveAspectRatio="xMinYMin meet" class="dwg-svg" data-w="1700" data-h="1100"><defs>
+  <linearGradient id="g-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6ebf2"></stop><stop offset=".45" stop-color="#b9c3d1"></stop><stop offset="1" stop-color="#8794a8"></stop></linearGradient>
+  <linearGradient id="g-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c6779"></stop><stop offset="1" stop-color="#2b3445"></stop></linearGradient>
+  <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd0f2"></stop><stop offset="1" stop-color="#3c8fd0"></stop></linearGradient>
+  <linearGradient id="g-green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd39a"></stop><stop offset="1" stop-color="#2a9d57"></stop></linearGradient>
+  <linearGradient id="g-warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"></stop><stop offset="1" stop-color="#ef7d2d"></stop></linearGradient>
+  <linearGradient id="g-cloth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4efe4"></stop><stop offset="1" stop-color="#d9cfb8"></stop></linearGradient>
+</defs><style>
+  .sh-frame { fill: none; stroke: #1b2433; }
+  .sh-thin { stroke-width: .6; } .sh-heavy { stroke-width: 1.8; }
+  .sh-zone { font: 500 10px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .sh-label { font: 500 7.5px 'IBM Plex Mono', ui-monospace, monospace; fill: #5b6578; letter-spacing: .06em; }
+  .sh-value { font: 500 11px 'IBM Plex Mono', ui-monospace, monospace; fill: #1b2433; }
+  .sh-title { font: 700 15px var(--k-font); fill: #1b2433; letter-spacing: .02em; }
+  .sh-sub { font: 500 10.5px var(--k-font); fill: #1b2433; letter-spacing: .03em; }
+  .sh-org { font: 700 12px var(--k-font); fill: #1b2433; letter-spacing: .08em; }
+  .sh-note { font: 400 9.5px var(--k-font); fill: #2b3445; }
+  .sh-head { font: 700 9.5px var(--k-font); fill: #1b2433; letter-spacing: .1em; }
+  .sh-stamp { font: 700 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #9b2c2c; letter-spacing: .06em; }
+
+  .sy { stroke: #1b2433; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
+  .f-steel { fill: url(#g-steel); } .f-dark { fill: url(#g-dark); } .f-water { fill: url(#g-water); } .f-green { fill: url(#g-green); }
+  .f-warm { fill: url(#g-warm); } .f-cloth { fill: url(#g-cloth); } .f-white { fill: #fff; }
+  .pl-root { font: 700 13px var(--k-font); fill: #1b2433; letter-spacing: .08em; }
+  .pl-lane { font: 700 11px var(--k-font); fill: #1b2433; letter-spacing: .1em; }
+  .pl-rule { stroke: #8a94a6; stroke-width: .7; fill: none; }
+  .pl-link { stroke: #5a6475; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; }
+  .pl-arrow { stroke: none; }
+  .pl-card { fill: #fff; stroke: #8a94a6; stroke-width: .8; }
+  .pl-name { font: 700 10.5px var(--k-font); fill: #1b2433; letter-spacing: .02em; }
+  .pl-tag { font: 600 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-k { font: 500 8.6px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-v { font: 600 9.4px 'IBM Plex Mono', ui-monospace, monospace; fill: #0f3d8c; }
+  .pl-hit { fill: transparent; stroke: none; }
+</style>
+  <g class="sh-sheet">
+    <rect x="0" y="0" width="1700" height="1100" fill="#fff"></rect>
+    <rect class="sh-frame sh-thin" x="10" y="10" width="1680" height="1080"></rect>
+    <rect class="sh-frame sh-heavy" x="30" y="30" width="1640" height="1040"></rect>
+    <text class="sh-zone" x="132.5" y="24" text-anchor="middle">8</text><text class="sh-zone" x="132.5" y="1085" text-anchor="middle">8</text><text class="sh-zone" x="337.5" y="24" text-anchor="middle">7</text><text class="sh-zone" x="337.5" y="1085" text-anchor="middle">7</text><path class="sh-frame sh-thin" d="M235 10V30M235 1070V1090"></path><text class="sh-zone" x="542.5" y="24" text-anchor="middle">6</text><text class="sh-zone" x="542.5" y="1085" text-anchor="middle">6</text><path class="sh-frame sh-thin" d="M440 10V30M440 1070V1090"></path><text class="sh-zone" x="747.5" y="24" text-anchor="middle">5</text><text class="sh-zone" x="747.5" y="1085" text-anchor="middle">5</text><path class="sh-frame sh-thin" d="M645 10V30M645 1070V1090"></path><text class="sh-zone" x="952.5" y="24" text-anchor="middle">4</text><text class="sh-zone" x="952.5" y="1085" text-anchor="middle">4</text><path class="sh-frame sh-thin" d="M850 10V30M850 1070V1090"></path><text class="sh-zone" x="1157.5" y="24" text-anchor="middle">3</text><text class="sh-zone" x="1157.5" y="1085" text-anchor="middle">3</text><path class="sh-frame sh-thin" d="M1055 10V30M1055 1070V1090"></path><text class="sh-zone" x="1362.5" y="24" text-anchor="middle">2</text><text class="sh-zone" x="1362.5" y="1085" text-anchor="middle">2</text><path class="sh-frame sh-thin" d="M1260 10V30M1260 1070V1090"></path><text class="sh-zone" x="1567.5" y="24" text-anchor="middle">1</text><text class="sh-zone" x="1567.5" y="1085" text-anchor="middle">1</text><path class="sh-frame sh-thin" d="M1465 10V30M1465 1070V1090"></path><text class="sh-zone" x="20" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="1680" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="20" y="345.5" text-anchor="middle">D</text><text class="sh-zone" x="1680" y="345.5" text-anchor="middle">D</text><path class="sh-frame sh-thin" d="M10 238H30M1670 238H1690"></path><text class="sh-zone" x="20" y="553.5" text-anchor="middle">C</text><text class="sh-zone" x="1680" y="553.5" text-anchor="middle">C</text><path class="sh-frame sh-thin" d="M10 446H30M1670 446H1690"></path><text class="sh-zone" x="20" y="761.5" text-anchor="middle">B</text><text class="sh-zone" x="1680" y="761.5" text-anchor="middle">B</text><path class="sh-frame sh-thin" d="M10 654H30M1670 654H1690"></path><text class="sh-zone" x="20" y="969.5" text-anchor="middle">A</text><text class="sh-zone" x="1680" y="969.5" text-anchor="middle">A</text><path class="sh-frame sh-thin" d="M10 862H30M1670 862H1690"></path>
+    
+  <path class="sh-frame sh-heavy" d="M30 930H1290"></path>
+  <path class="sh-frame sh-thin" d="M700 930V1070"></path>
+  <text class="sh-head" x="40" y="948">GENERAL NOTES</text>
+  <text class="sh-note" x="40" y="966">1.  MATERIAL MOVES LEFT TO RIGHT ALONG EACH LINE.</text><text class="sh-note" x="40" y="980">2.  DATA BLOCKS SHOW SIMULATED READINGS.</text><text class="sh-note" x="40" y="994">3.  RATINGS AND SPEEDS ARE ILLUSTRATIVE AND NOT FOR SETTINGS.</text><text class="sh-note" x="40" y="1008">4.  NOT FOR CONSTRUCTION.</text>
+  <text class="sh-head" x="710" y="948">LEGEND</text>
+  <g transform="translate(710 956)"><g transform="translate(0 0)"><g transform="scale(.3)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><text class="sh-note" x="66" y="16">MACHINE, WITH ITS LIVE READINGS</text></g><g transform="translate(290 0)"><rect class="pl-card" x="0" y="2" width="30" height="20" rx="3"></rect><text class="sh-note" x="66" y="16">READOUT CARD (SIMULATED DATA)</text></g><g transform="translate(0 34)"><path d="M0 12H24" stroke="#5a6475" stroke-width="7"></path><path d="M0 12H24" stroke="#aeb7c5" stroke-width="3"></path><path d="M32 12l-10 -6v12z" fill="#5a6475"></path><text class="sh-note" x="66" y="16">DIRECTION OF MATERIAL FLOW</text></g><g transform="translate(290 34)"><path class="pl-link" d="M0 12H30"></path><text class="sh-note" x="66" y="16">DRIVER OR SERVICE UNDER A MACHINE</text></g></g>
+    
+  <g class="sh-revisions">
+    <path class="sh-frame sh-thin" d="M1290 860H1670M1290 878H1670M1290 896H1670M1290 914H1670M1324 860V930M1394 860V930M1590 860V930M1630 860V930"></path>
+    <path class="sh-frame sh-heavy" d="M1290 860V930"></path>
+    <text class="sh-label" x="1296" y="872">REV</text><text class="sh-label" x="1330" y="872">DATE</text><text class="sh-label" x="1400" y="872">DESCRIPTION</text><text class="sh-label" x="1596" y="872">BY</text><text class="sh-label" x="1636" y="872">CHK</text>
+    <text class="sh-note" x="1298" y="890">A</text><text class="sh-note" x="1330" y="890">2026-09-28</text><text class="sh-note" x="1400" y="890">ISSUED FOR INFORMATION</text><text class="sh-note" x="1596" y="890">HLX</text><text class="sh-note" x="1636" y="890">TBA</text>
+  </g>
+  <g class="sh-titleblock">
+    <path class="sh-frame sh-heavy" d="M1290 930H1670M1290 930V1070"></path>
+    <path class="sh-frame sh-thin" d="M1290 962H1670M1290 1012H1670M1290 1040H1670M1480 1012V1040M1590 1012V1040M1380 1040V1070M1560 1040V1070"></path>
+    <text class="sh-org" x="1298" y="951">HELIX</text><text class="sh-label" x="1348" y="950">ASSET RELIABILITY · ILLUSTRATIVE DRAWING</text>
+    <text class="sh-label" x="1298" y="973">WET PROCESSING · Dyehouse and finishing hall</text>
+    <text class="sh-title" x="1298" y="990">WET PROCESSING · FINISHING HALL</text>
+    <text class="sh-sub" x="1298" y="1005">PRINTING, STENTERS AND EFFLUENT · PROCESS FLOW</text>
+    <text class="sh-label" x="1295" y="1022">DRAWING NO.</text><text class="sh-value" x="1295" y="1036">WET-P-PFD-1002</text>
+    <text class="sh-label" x="1485" y="1022">REV</text><text class="sh-value" x="1485" y="1036">A</text>
+    <text class="sh-label" x="1595" y="1022">SHEET</text><text class="sh-value" x="1595" y="1036">1 OF 1</text>
+    <text class="sh-label" x="1295" y="1050">SCALE</text><text class="sh-value" x="1295" y="1064">NONE</text>
+    <text class="sh-label" x="1385" y="1050">STATUS</text><text class="sh-stamp" x="1385" y="1064">NOT FOR CONSTRUCTION</text>
+    <text class="sh-label" x="1565" y="1050">ISSUED</text><text class="sh-value" x="1565" y="1064">2026-09-28</text>
+  </g>
+  </g><g class="dwg-content"><g id="FIN-LN" class="dwg-equipment dwg-bay dwg-bound"><text class="pl-root" x="58" y="66">FINISHING HALL · FIN-LN</text><rect class="pl-hit" x="50" y="46" width="420" height="28"></rect></g><circle id="mk:FIN-LN" class="dwg-anchor" cx="480" cy="60" r="0"></circle><text class="pl-lane" x="190" y="103">PRINTING AND FINISHING</text><path class="pl-rule" d="M190 109H1510"></path><g id="RS-601" class="dwg-equipment dwg-bound"><g transform="translate(204 115) scale(1.7)">
+    <path class="sy f-dark" d="M6 56H114" stroke-width="6" fill="none"></path>
+    <rect class="sy f-steel" x="12" y="14" width="24" height="30" rx="12"></rect><circle class="sy f-warm" cx="24" cy="29" r="5"></circle><rect class="sy f-steel" x="40" y="14" width="24" height="30" rx="12"></rect><circle class="sy f-warm" cx="52" cy="29" r="5"></circle><rect class="sy f-steel" x="68" y="14" width="24" height="30" rx="12"></rect><circle class="sy f-warm" cx="80" cy="29" r="5"></circle>
+    <path class="sy f-cloth" d="M4 62H116V68H4z"></path>
+    <path class="sy" d="M16 68v12M104 68v12M10 80H110" fill="none"></path></g><rect class="pl-card" x="190" y="275.4" width="232" height="77" rx="4"></rect>
+    <text class="pl-name" x="197" y="288.4">Rotary printing</text>
+    <text class="pl-tag" x="197" y="301.4">RS-601</text>
+    <path class="pl-rule" d="M190 306.4H422"></path><text class="pl-k" x="197" y="317.4">SPEED</text><text class="pl-v" x="415" y="317.4" text-anchor="end" data-live="ST-6011" data-compact="1" data-state="normal">44 m/min</text><text class="pl-k" x="197" y="330.4">REG</text><text class="pl-v" x="415" y="330.4" text-anchor="end" data-live="XT-6012" data-compact="1" data-state="spike">0.02 mm</text><text class="pl-k" x="197" y="343.4">T DRYER</text><text class="pl-v" x="415" y="343.4" text-anchor="end" data-live="TT-6013" data-compact="1" data-state="normal">125 °C</text><rect class="pl-hit" x="190" y="115" width="232" height="237.4"></rect></g><circle id="mk:RS-601" class="dwg-anchor" cx="404" cy="121" r="0"></circle><g id="ST-710" class="dwg-equipment dwg-bound"><g transform="translate(476 115) scale(1.7)">
+    <rect class="sy f-steel" x="6" y="30" width="108" height="36" rx="3"></rect>
+    <rect class="sy f-warm" x="14" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="36" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="58" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="80" y="36" width="16" height="24" rx="2"></rect>
+    <rect class="sy f-steel" x="92" y="8" width="12" height="24"></rect><rect class="sy f-dark" x="90" y="4" width="16" height="5"></rect>
+    <path class="sy" d="M0 48H6M114 48H120" stroke="#d9cfb8" stroke-width="6" fill="none"></path>
+    <path class="sy" d="M6 70H114" stroke-dasharray="3 3" fill="none"></path>
+    <path class="sy" d="M18 66v14M100 66v14M12 80H106" fill="none"></path></g><rect class="pl-card" x="462" y="275.4" width="232" height="90" rx="4"></rect>
+    <text class="pl-name" x="469" y="288.4">Stenter 1</text>
+    <text class="pl-tag" x="469" y="301.4">ST-710</text>
+    <path class="pl-rule" d="M462 306.4H694"></path><text class="pl-k" x="469" y="317.4">T CHAMB</text><text class="pl-v" x="687" y="317.4" text-anchor="end" data-live="TT-7111" data-compact="1" data-state="normal">186 °C</text><text class="pl-k" x="469" y="330.4">T EXH</text><text class="pl-v" x="687" y="330.4" text-anchor="end" data-live="TT-7112" data-compact="1" data-state="normal">196 °C</text><text class="pl-k" x="469" y="343.4">SPEED</text><text class="pl-v" x="687" y="343.4" text-anchor="end" data-live="ST-7113" data-compact="1" data-state="normal">46 m/min</text><text class="pl-k" x="469" y="356.4">MOIST</text><text class="pl-v" x="687" y="356.4" text-anchor="end" data-live="AT-7114" data-compact="1" data-state="normal">4.8 %</text><rect class="pl-hit" x="462" y="115" width="232" height="250.4"></rect></g><circle id="mk:ST-710" class="dwg-anchor" cx="676" cy="121" r="0"></circle><path class="pl-link" d="M578 363.4V377.4"></path><g id="M-711" class="dwg-equipment dwg-bound"><g transform="translate(468 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="578" y="377.4" width="110" height="77" rx="4"></rect>
+    <text class="pl-name" x="585" y="390.4">Fan motor</text>
+    <text class="pl-tag" x="585" y="403.4">M-711</text>
+    <path class="pl-rule" d="M578 408.4H688"></path><text class="pl-k" x="585" y="419.4">P</text><text class="pl-v" x="681" y="419.4" text-anchor="end" data-live="JT-7211" data-compact="1" data-state="normal">48 kW</text><text class="pl-k" x="585" y="432.4">T WIND</text><text class="pl-v" x="681" y="432.4" text-anchor="end" data-live="TT-7212" data-compact="1" data-state="normal">88 °C</text><text class="pl-k" x="585" y="445.4">VIB</text><text class="pl-v" x="681" y="445.4" text-anchor="end" data-live="VT-7213" data-compact="1" data-state="normal">1.8 mm/s</text><rect class="pl-hit" x="468" y="377.4" width="220" height="78.2"></rect></g><circle id="mk:M-711" class="dwg-anchor" cx="566" cy="381.4" r="0"></circle><g id="ST-720" class="dwg-equipment dwg-bound"><g transform="translate(748 115) scale(1.7)">
+    <rect class="sy f-steel" x="6" y="30" width="108" height="36" rx="3"></rect>
+    <rect class="sy f-warm" x="14" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="36" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="58" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="80" y="36" width="16" height="24" rx="2"></rect>
+    <rect class="sy f-steel" x="92" y="8" width="12" height="24"></rect><rect class="sy f-dark" x="90" y="4" width="16" height="5"></rect>
+    <path class="sy" d="M0 48H6M114 48H120" stroke="#d9cfb8" stroke-width="6" fill="none"></path>
+    <path class="sy" d="M6 70H114" stroke-dasharray="3 3" fill="none"></path>
+    <path class="sy" d="M18 66v14M100 66v14M12 80H106" fill="none"></path></g><rect class="pl-card" x="734" y="275.4" width="232" height="90" rx="4"></rect>
+    <text class="pl-name" x="741" y="288.4">Stenter 2</text>
+    <text class="pl-tag" x="741" y="301.4">ST-720</text>
+    <path class="pl-rule" d="M734 306.4H966"></path><text class="pl-k" x="741" y="317.4">T CHAMB</text><text class="pl-v" x="959" y="317.4" text-anchor="end" data-live="TT-7121" data-compact="1" data-state="normal">186 °C</text><text class="pl-k" x="741" y="330.4">T EXH</text><text class="pl-v" x="959" y="330.4" text-anchor="end" data-live="TT-7122" data-compact="1" data-state="threshold">211 °C</text><text class="pl-k" x="741" y="343.4">SPEED</text><text class="pl-v" x="959" y="343.4" text-anchor="end" data-live="ST-7123" data-compact="1" data-state="normal">46 m/min</text><text class="pl-k" x="741" y="356.4">MOIST</text><text class="pl-v" x="959" y="356.4" text-anchor="end" data-live="AT-7124" data-compact="1" data-state="threshold">6.9 %</text><rect class="pl-hit" x="734" y="115" width="232" height="250.4"></rect></g><circle id="mk:ST-720" class="dwg-anchor" cx="948" cy="121" r="0"></circle><path class="pl-link" d="M850 363.4V377.4"></path><g id="M-721" class="dwg-equipment dwg-bound"><g transform="translate(740 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="850" y="377.4" width="110" height="77" rx="4"></rect>
+    <text class="pl-name" x="857" y="390.4">Fan motor</text>
+    <text class="pl-tag" x="857" y="403.4">M-721</text>
+    <path class="pl-rule" d="M850 408.4H960"></path><text class="pl-k" x="857" y="419.4">P</text><text class="pl-v" x="953" y="419.4" text-anchor="end" data-live="JT-7221" data-compact="1" data-state="normal">47 kW</text><text class="pl-k" x="857" y="432.4">T WIND</text><text class="pl-v" x="953" y="432.4" text-anchor="end" data-live="TT-7222" data-compact="1" data-state="normal">87 °C</text><text class="pl-k" x="857" y="445.4">VIB</text><text class="pl-v" x="953" y="445.4" text-anchor="end" data-live="VT-7223" data-compact="1" data-state="normal">1.7 mm/s</text><rect class="pl-hit" x="740" y="377.4" width="220" height="78.2"></rect></g><circle id="mk:M-721" class="dwg-anchor" cx="838" cy="381.4" r="0"></circle><g id="ST-730" class="dwg-equipment dwg-bound"><g transform="translate(1020 115) scale(1.7)">
+    <rect class="sy f-steel" x="6" y="30" width="108" height="36" rx="3"></rect>
+    <rect class="sy f-warm" x="14" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="36" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="58" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="80" y="36" width="16" height="24" rx="2"></rect>
+    <rect class="sy f-steel" x="92" y="8" width="12" height="24"></rect><rect class="sy f-dark" x="90" y="4" width="16" height="5"></rect>
+    <path class="sy" d="M0 48H6M114 48H120" stroke="#d9cfb8" stroke-width="6" fill="none"></path>
+    <path class="sy" d="M6 70H114" stroke-dasharray="3 3" fill="none"></path>
+    <path class="sy" d="M18 66v14M100 66v14M12 80H106" fill="none"></path></g><rect class="pl-card" x="1006" y="275.4" width="232" height="90" rx="4"></rect>
+    <text class="pl-name" x="1013" y="288.4">Stenter 3</text>
+    <text class="pl-tag" x="1013" y="301.4">ST-730</text>
+    <path class="pl-rule" d="M1006 306.4H1238"></path><text class="pl-k" x="1013" y="317.4">T CHAMB</text><text class="pl-v" x="1231" y="317.4" text-anchor="end" data-live="TT-7131" data-compact="1" data-state="normal">186 °C</text><text class="pl-k" x="1013" y="330.4">T EXH</text><text class="pl-v" x="1231" y="330.4" text-anchor="end" data-live="TT-7132" data-compact="1" data-state="normal">196 °C</text><text class="pl-k" x="1013" y="343.4">SPEED</text><text class="pl-v" x="1231" y="343.4" text-anchor="end" data-live="ST-7133" data-compact="1" data-state="normal">46 m/min</text><text class="pl-k" x="1013" y="356.4">MOIST</text><text class="pl-v" x="1231" y="356.4" text-anchor="end" data-live="AT-7134" data-compact="1" data-state="normal">4.8 %</text><rect class="pl-hit" x="1006" y="115" width="232" height="250.4"></rect></g><circle id="mk:ST-730" class="dwg-anchor" cx="1220" cy="121" r="0"></circle><path class="pl-link" d="M1122 363.4V377.4"></path><g id="M-731" class="dwg-equipment dwg-bound"><g transform="translate(1012 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="1122" y="377.4" width="110" height="77" rx="4"></rect>
+    <text class="pl-name" x="1129" y="390.4">Fan motor</text>
+    <text class="pl-tag" x="1129" y="403.4">M-731</text>
+    <path class="pl-rule" d="M1122 408.4H1232"></path><text class="pl-k" x="1129" y="419.4">P</text><text class="pl-v" x="1225" y="419.4" text-anchor="end" data-live="JT-7231" data-compact="1" data-state="normal">47 kW</text><text class="pl-k" x="1129" y="432.4">T WIND</text><text class="pl-v" x="1225" y="432.4" text-anchor="end" data-live="TT-7232" data-compact="1" data-state="normal">87 °C</text><text class="pl-k" x="1129" y="445.4">VIB</text><text class="pl-v" x="1225" y="445.4" text-anchor="end" data-live="VT-7233" data-compact="1" data-state="normal">1.8 mm/s</text><rect class="pl-hit" x="1012" y="377.4" width="220" height="78.2"></rect></g><circle id="mk:M-731" class="dwg-anchor" cx="1110" cy="381.4" r="0"></circle><g id="ST-740" class="dwg-equipment dwg-bound"><g transform="translate(1292 115) scale(1.7)">
+    <rect class="sy f-steel" x="6" y="30" width="108" height="36" rx="3"></rect>
+    <rect class="sy f-warm" x="14" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="36" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="58" y="36" width="16" height="24" rx="2"></rect><rect class="sy f-warm" x="80" y="36" width="16" height="24" rx="2"></rect>
+    <rect class="sy f-steel" x="92" y="8" width="12" height="24"></rect><rect class="sy f-dark" x="90" y="4" width="16" height="5"></rect>
+    <path class="sy" d="M0 48H6M114 48H120" stroke="#d9cfb8" stroke-width="6" fill="none"></path>
+    <path class="sy" d="M6 70H114" stroke-dasharray="3 3" fill="none"></path>
+    <path class="sy" d="M18 66v14M100 66v14M12 80H106" fill="none"></path></g><rect class="pl-card" x="1278" y="275.4" width="232" height="90" rx="4"></rect>
+    <text class="pl-name" x="1285" y="288.4">Stenter 4</text>
+    <text class="pl-tag" x="1285" y="301.4">ST-740</text>
+    <path class="pl-rule" d="M1278 306.4H1510"></path><text class="pl-k" x="1285" y="317.4">T CHAMB</text><text class="pl-v" x="1503" y="317.4" text-anchor="end" data-live="TT-7141" data-compact="1" data-state="normal">186 °C</text><text class="pl-k" x="1285" y="330.4">T EXH</text><text class="pl-v" x="1503" y="330.4" text-anchor="end" data-live="TT-7142" data-compact="1" data-state="normal">196 °C</text><text class="pl-k" x="1285" y="343.4">SPEED</text><text class="pl-v" x="1503" y="343.4" text-anchor="end" data-live="ST-7143" data-compact="1" data-state="normal">46 m/min</text><text class="pl-k" x="1285" y="356.4">MOIST</text><text class="pl-v" x="1503" y="356.4" text-anchor="end" data-live="AT-7144" data-compact="1" data-state="normal">5.0 %</text><rect class="pl-hit" x="1278" y="115" width="232" height="250.4"></rect></g><circle id="mk:ST-740" class="dwg-anchor" cx="1492" cy="121" r="0"></circle><path class="pl-link" d="M1394 363.4V377.4"></path><g id="M-741" class="dwg-equipment dwg-bound"><g transform="translate(1284 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="1394" y="377.4" width="110" height="77" rx="4"></rect>
+    <text class="pl-name" x="1401" y="390.4">Fan motor</text>
+    <text class="pl-tag" x="1401" y="403.4">M-741</text>
+    <path class="pl-rule" d="M1394 408.4H1504"></path><text class="pl-k" x="1401" y="419.4">P</text><text class="pl-v" x="1497" y="419.4" text-anchor="end" data-live="JT-7241" data-compact="1" data-state="normal">47 kW</text><text class="pl-k" x="1401" y="432.4">T WIND</text><text class="pl-v" x="1497" y="432.4" text-anchor="end" data-live="TT-7242" data-compact="1" data-state="normal">87 °C</text><text class="pl-k" x="1401" y="445.4">VIB</text><text class="pl-v" x="1497" y="445.4" text-anchor="end" data-live="VT-7243" data-compact="1" data-state="normal">1.8 mm/s</text><rect class="pl-hit" x="1284" y="377.4" width="220" height="78.2"></rect></g><circle id="mk:M-741" class="dwg-anchor" cx="1382" cy="381.4" r="0"></circle><path d="M402 204.148H472" stroke="#5a6475" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M402 204.148H472" stroke="#aeb7c5" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M480 204.148l-10 -6v12z" fill="#5a6475"></path><path d="M674 204.148H744" stroke="#5a6475" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M674 204.148H744" stroke="#aeb7c5" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M752 204.148l-10 -6v12z" fill="#5a6475"></path><path d="M946 204.148H1016" stroke="#5a6475" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M946 204.148H1016" stroke="#aeb7c5" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1024 204.148l-10 -6v12z" fill="#5a6475"></path><path d="M1218 204.148H1288" stroke="#5a6475" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M1218 204.148H1288" stroke="#aeb7c5" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1296 204.148l-10 -6v12z" fill="#5a6475"></path><text class="pl-lane" x="734" y="547.6">EFFLUENT</text><path class="pl-rule" d="M734 553.6H966"></path><g id="ETP-801" class="dwg-equipment dwg-bound"><g transform="translate(748 559.6) scale(1.7)">
+    <rect class="sy f-steel" x="6" y="28" width="52" height="44"></rect><rect class="sy f-water" x="8" y="42" width="48" height="28"></rect>
+    <circle class="sy f-white" cx="24" cy="56" r="2"></circle><circle class="sy f-white" cx="34" cy="62" r="2"></circle><circle class="sy f-white" cx="44" cy="54" r="2"></circle>
+    <rect class="sy f-steel" x="68" y="28" width="46" height="44"></rect><rect class="sy f-warm" x="70" y="48" width="42" height="22" opacity=".6"></rect>
+    <path class="sy" d="M58 50H68" stroke="#3c8fd0" stroke-width="4" fill="none"></path>
+    <path class="sy" d="M30 28V14H46V28" fill="none" stroke-width="3" stroke="#8794a8"></path><circle class="sy f-dark" cx="38" cy="12" r="6"></circle></g><rect class="pl-card" x="734" y="720" width="232" height="77" rx="4"></rect>
+    <text class="pl-name" x="741" y="733">Effluent treatment</text>
+    <text class="pl-tag" x="741" y="746">ETP-801</text>
+    <path class="pl-rule" d="M734 751H966"></path><text class="pl-k" x="741" y="762">pH</text><text class="pl-v" x="959" y="762" text-anchor="end" data-live="AT-8011" data-compact="1" data-state="missing">—</text><text class="pl-k" x="741" y="775">FLOW</text><text class="pl-v" x="959" y="775" text-anchor="end" data-live="FT-8012" data-compact="1" data-state="normal">174 m³/h</text><text class="pl-k" x="741" y="788">P</text><text class="pl-v" x="959" y="788" text-anchor="end" data-live="JT-8013" data-compact="1" data-state="normal">98 kW</text><rect class="pl-hit" x="734" y="559.6" width="232" height="237.4"></rect></g><circle id="mk:ETP-801" class="dwg-anchor" cx="948" cy="565.6" r="0"></circle></g><g class="dwg-overlay"><g class="dwg-marker is-data" transform="translate(404.0000155627491 120.99994041371974) scale(1.5)"><rect x="-6.5" y="-6.5" width="13" height="13" rx="1.5" transform="rotate(45)"></rect><text y="3.2" text-anchor="middle">1</text><title>RS-601 Rotary Printing Machine: Open alerts: 1 (Low)</title></g><g class="dwg-marker is-data" transform="translate(947.9999273738382 565.6000636836607) scale(1.5)"><rect x="-6.5" y="-6.5" width="13" height="13" rx="1.5" transform="rotate(45)"></rect><text y="3.2" text-anchor="middle">1</text><title>ETP-801 Effluent Treatment Plant: Open alerts: 1 (Low)</title></g><g class="dwg-marker is-warning" transform="translate(947.9999273738382 120.99994041371974) scale(1.5)"><path d="M0 -9.5L9 7H-9Z"></path><text y="4.6" text-anchor="middle">2</text><title>ST-720 Stenter 2: Open alerts: 2 (Medium)</title></g></g></svg>

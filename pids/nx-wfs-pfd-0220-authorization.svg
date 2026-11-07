@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1100" preserveAspectRatio="xMidYMid meet" class="dwg-svg" data-w="1700" data-h="1100"><defs>
+  <linearGradient id="g-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6ebf2"></stop><stop offset=".45" stop-color="#b9c3d1"></stop><stop offset="1" stop-color="#8794a8"></stop></linearGradient>
+  <linearGradient id="g-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c6779"></stop><stop offset="1" stop-color="#2b3445"></stop></linearGradient>
+  <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd0f2"></stop><stop offset="1" stop-color="#3c8fd0"></stop></linearGradient>
+  <linearGradient id="g-green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd39a"></stop><stop offset="1" stop-color="#2a9d57"></stop></linearGradient>
+  <linearGradient id="g-warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"></stop><stop offset="1" stop-color="#ef7d2d"></stop></linearGradient>
+  <linearGradient id="g-cloth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4efe4"></stop><stop offset="1" stop-color="#d9cfb8"></stop></linearGradient>
+</defs><style>
+  .sh-frame { fill: none; stroke: #1b2433; }
+  .sh-thin { stroke-width: .6; } .sh-heavy { stroke-width: 1.8; }
+  .sh-zone { font: 500 10px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .sh-label { font: 500 7.5px 'IBM Plex Mono', ui-monospace, monospace; fill: #5b6578; letter-spacing: .06em; }
+  .sh-value { font: 500 11px 'IBM Plex Mono', ui-monospace, monospace; fill: #1b2433; }
+  .sh-title { font: 700 15px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .02em; }
+  .sh-sub { font: 500 10.5px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .03em; }
+  .sh-org { font: 700 12px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .08em; }
+  .sh-note { font: 400 9.5px 'DM Sans', sans-serif; fill: #2b3445; }
+  .sh-head { font: 700 9.5px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .1em; }
+  .sh-stamp { font: 700 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #9b2c2c; letter-spacing: .06em; }
+
+  .sy { stroke: #1b2433; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
+  .f-steel { fill: url(#g-steel); } .f-dark { fill: url(#g-dark); } .f-water { fill: url(#g-water); } .f-green { fill: url(#g-green); }
+  .f-warm { fill: url(#g-warm); } .f-cloth { fill: url(#g-cloth); } .f-white { fill: #fff; }
+  .pl-root { font: 700 13px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .08em; }
+  .pl-lane { font: 700 11px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .1em; }
+  .pl-rule { stroke: #8a94a6; stroke-width: .7; fill: none; }
+  .pl-link { stroke: #5a6475; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; }
+  .pl-arrow { stroke: none; }
+  .pl-card { fill: #fff; stroke: #8a94a6; stroke-width: .8; }
+  .pl-name { font: 700 10.5px 'DM Sans', sans-serif; fill: #1b2433; letter-spacing: .02em; }
+  .pl-tag { font: 600 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-k { font: 500 8.6px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-v { font: 600 9.4px 'IBM Plex Mono', ui-monospace, monospace; fill: #0f3d8c; }
+  .pl-hit { fill: transparent; stroke: none; }
+</style>
+  <g class="sh-sheet">
+    <rect x="0" y="0" width="1700" height="1100" fill="#fff"></rect>
+    <rect class="sh-frame sh-thin" x="10" y="10" width="1680" height="1080"></rect>
+    <rect class="sh-frame sh-heavy" x="30" y="30" width="1640" height="1040"></rect>
+    <text class="sh-zone" x="132.5" y="24" text-anchor="middle">8</text><text class="sh-zone" x="132.5" y="1085" text-anchor="middle">8</text><text class="sh-zone" x="337.5" y="24" text-anchor="middle">7</text><text class="sh-zone" x="337.5" y="1085" text-anchor="middle">7</text><path class="sh-frame sh-thin" d="M235 10V30M235 1070V1090"></path><text class="sh-zone" x="542.5" y="24" text-anchor="middle">6</text><text class="sh-zone" x="542.5" y="1085" text-anchor="middle">6</text><path class="sh-frame sh-thin" d="M440 10V30M440 1070V1090"></path><text class="sh-zone" x="747.5" y="24" text-anchor="middle">5</text><text class="sh-zone" x="747.5" y="1085" text-anchor="middle">5</text><path class="sh-frame sh-thin" d="M645 10V30M645 1070V1090"></path><text class="sh-zone" x="952.5" y="24" text-anchor="middle">4</text><text class="sh-zone" x="952.5" y="1085" text-anchor="middle">4</text><path class="sh-frame sh-thin" d="M850 10V30M850 1070V1090"></path><text class="sh-zone" x="1157.5" y="24" text-anchor="middle">3</text><text class="sh-zone" x="1157.5" y="1085" text-anchor="middle">3</text><path class="sh-frame sh-thin" d="M1055 10V30M1055 1070V1090"></path><text class="sh-zone" x="1362.5" y="24" text-anchor="middle">2</text><text class="sh-zone" x="1362.5" y="1085" text-anchor="middle">2</text><path class="sh-frame sh-thin" d="M1260 10V30M1260 1070V1090"></path><text class="sh-zone" x="1567.5" y="24" text-anchor="middle">1</text><text class="sh-zone" x="1567.5" y="1085" text-anchor="middle">1</text><path class="sh-frame sh-thin" d="M1465 10V30M1465 1070V1090"></path><text class="sh-zone" x="20" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="1680" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="20" y="345.5" text-anchor="middle">D</text><text class="sh-zone" x="1680" y="345.5" text-anchor="middle">D</text><path class="sh-frame sh-thin" d="M10 238H30M1670 238H1690"></path><text class="sh-zone" x="20" y="553.5" text-anchor="middle">C</text><text class="sh-zone" x="1680" y="553.5" text-anchor="middle">C</text><path class="sh-frame sh-thin" d="M10 446H30M1670 446H1690"></path><text class="sh-zone" x="20" y="761.5" text-anchor="middle">B</text><text class="sh-zone" x="1680" y="761.5" text-anchor="middle">B</text><path class="sh-frame sh-thin" d="M10 654H30M1670 654H1690"></path><text class="sh-zone" x="20" y="969.5" text-anchor="middle">A</text><text class="sh-zone" x="1680" y="969.5" text-anchor="middle">A</text><path class="sh-frame sh-thin" d="M10 862H30M1670 862H1690"></path>
+    
+  <path class="sh-frame sh-heavy" d="M30 930H1290"></path>
+  <path class="sh-frame sh-thin" d="M700 930V1070"></path>
+  <text class="sh-head" x="40" y="948">GENERAL NOTES</text>
+  <text class="sh-note" x="40" y="966">1.  MATERIAL MOVES LEFT TO RIGHT ALONG EACH LINE.</text><text class="sh-note" x="40" y="980">2.  FIGURES ARE THE CORRIDOR RECORD.</text><text class="sh-note" x="40" y="994">3.  RATINGS AND SPEEDS ARE ILLUSTRATIVE AND NOT FOR SETTINGS.</text><text class="sh-note" x="40" y="1008">4.  NOT FOR CONSTRUCTION.</text>
+  <text class="sh-head" x="710" y="948">LEGEND</text>
+  <g transform="translate(710 956)"><g transform="translate(0 0)"><g transform="scale(.3)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><text class="sh-note" x="66" y="16">EQUIPMENT, WITH ITS RECORD</text></g><g transform="translate(290 0)"><rect class="pl-card" x="0" y="2" width="30" height="20" rx="3"></rect><text class="sh-note" x="66" y="16">READOUT CARD</text></g><g transform="translate(0 34)"><path d="M0 12H24" stroke="#5a6475" stroke-width="7"></path><path d="M0 12H24" stroke="#aeb7c5" stroke-width="3"></path><path d="M32 12l-10 -6v12z" fill="#5a6475"></path><text class="sh-note" x="66" y="16">DIRECTION OF MATERIAL FLOW</text></g><g transform="translate(290 34)"><path class="pl-link" d="M0 12H30"></path><text class="sh-note" x="66" y="16">DRIVER OR SERVICE UNDER A MACHINE</text></g></g>
+    
+  <g class="sh-revisions">
+    <path class="sh-frame sh-thin" d="M1290 860H1670M1290 878H1670M1290 896H1670M1290 914H1670M1324 860V930M1394 860V930M1590 860V930M1630 860V930"></path>
+    <path class="sh-frame sh-heavy" d="M1290 860V930"></path>
+    <text class="sh-label" x="1296" y="872">REV</text><text class="sh-label" x="1330" y="872">DATE</text><text class="sh-label" x="1400" y="872">DESCRIPTION</text><text class="sh-label" x="1596" y="872">BY</text><text class="sh-label" x="1636" y="872">CHK</text>
+    <text class="sh-note" x="1298" y="890">A</text><text class="sh-note" x="1330" y="890">2026-09-28</text><text class="sh-note" x="1400" y="890">ISSUED FOR INFORMATION</text><text class="sh-note" x="1596" y="890">NXS</text><text class="sh-note" x="1636" y="890">TBA</text>
+  </g>
+  <g class="sh-titleblock">
+    <path class="sh-frame sh-heavy" d="M1290 930H1670M1290 930V1070"></path>
+    <path class="sh-frame sh-thin" d="M1290 962H1670M1290 1012H1670M1290 1040H1670M1480 1012V1040M1590 1012V1040M1380 1040V1070M1560 1040V1070"></path>
+    <text class="sh-org" x="1298" y="951">NEXUS OS</text><text class="sh-label" x="1348" y="950">WORKFORCE AND SAFETY · ILLUSTRATIVE DRAWING</text>
+    <text class="sh-label" x="1298" y="973">CORRIDOR NORTH · 220 kV</text>
+    <text class="sh-title" x="1298" y="990">CORRIDOR NORTH</text>
+    <text class="sh-sub" x="1298" y="1005">AUTHORIZATION AND CREW · PROCESS FLOW</text>
+    <text class="sh-label" x="1295" y="1022">DRAWING NO.</text><text class="sh-value" x="1295" y="1036">NX-WFS-PFD-0220</text>
+    <text class="sh-label" x="1485" y="1022">REV</text><text class="sh-value" x="1485" y="1036">A</text>
+    <text class="sh-label" x="1595" y="1022">SHEET</text><text class="sh-value" x="1595" y="1036">1 OF 1</text>
+    <text class="sh-label" x="1295" y="1050">SCALE</text><text class="sh-value" x="1295" y="1064">NONE</text>
+    <text class="sh-label" x="1385" y="1050">STATUS</text><text class="sh-stamp" x="1385" y="1064">NOT FOR CONSTRUCTION</text>
+    <text class="sh-label" x="1565" y="1050">ISSUED</text><text class="sh-value" x="1565" y="1064">2026-09-28</text>
+  </g>
+  </g><g class="dwg-content"><g id="STM-HSE" data-tip="Authorization — PTW-220-18 is open. HV-04 and HV-07 are qualified and not assigned." class="dwg-equipment dwg-bay dwg-bound"><text class="pl-root" x="58" y="66">AUTHORIZATION AND CREW</text><rect class="pl-hit" x="50" y="46" width="420" height="28"></rect></g><circle id="mk:STM-HSE" class="dwg-anchor" cx="480" cy="60" r="0"></circle><text class="pl-lane" x="72" y="234.36666666666667">AUTHORIZATION AND CREW</text><path class="pl-rule" d="M72 240.36666666666667H1628"></path><g id="DM-A" data-tip="HV-04 — Current 220 kV certification and Wednesday availability. Not assigned." class="dwg-equipment dwg-bound"><g transform="translate(80 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="38" y="8" width="44" height="66" rx="20"></rect>
+    <rect class="sy f-water" x="46" y="38" width="28" height="30" rx="8"></rect>
+    <path class="sy" d="M40 28H80M40 40H80M40 52H80" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M60 8V0M60 74v8" stroke="#3c8fd0" stroke-width="3" fill="none"></path>
+    <path class="sy" d="M46 74v9M74 74v9M40 83H80" fill="none"></path></g><rect class="pl-card" x="72" y="382.23333333333335" width="188" height="64" rx="4"></rect>
+    <text class="pl-name" x="79" y="395.23333333333335">HV-04</text>
+    <text class="pl-tag" x="79" y="408.23333333333335">HV04</text>
+    <path class="pl-rule" d="M72 413.23333333333335H260"></path><text class="pl-k" x="79" y="424.23333333333335">CERT</text><text class="pl-v" x="253" y="424.23333333333335" text-anchor="end" data-live="PDT-9401" data-compact="1" data-state="normal">yes</text><text class="pl-k" x="79" y="437.23333333333335">DUTY</text><text class="pl-v" x="253" y="437.23333333333335" text-anchor="end" data-live="AT-9411" data-compact="1" data-state="normal">free</text><rect class="pl-hit" x="72" y="246.36666666666667" width="188" height="199.86666666666667"></rect></g><circle id="mk:DM-A" class="dwg-anchor" cx="248" cy="252.36666666666667" r="0"></circle><g id="DM-B" data-tip="HV-07 — Current 220 kV certification and Wednesday availability. Not assigned." class="dwg-equipment dwg-bound"><g transform="translate(308 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="38" y="8" width="44" height="66" rx="20"></rect>
+    <rect class="sy f-water" x="46" y="38" width="28" height="30" rx="8"></rect>
+    <path class="sy" d="M40 28H80M40 40H80M40 52H80" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M60 8V0M60 74v8" stroke="#3c8fd0" stroke-width="3" fill="none"></path>
+    <path class="sy" d="M46 74v9M74 74v9M40 83H80" fill="none"></path></g><rect class="pl-card" x="300" y="382.23333333333335" width="188" height="64" rx="4"></rect>
+    <text class="pl-name" x="307" y="395.23333333333335">HV-07</text>
+    <text class="pl-tag" x="307" y="408.23333333333335">HV07</text>
+    <path class="pl-rule" d="M300 413.23333333333335H488"></path><text class="pl-k" x="307" y="424.23333333333335">CERT</text><text class="pl-v" x="481" y="424.23333333333335" text-anchor="end" data-live="PDT-9402" data-compact="1" data-state="normal">yes</text><text class="pl-k" x="307" y="437.23333333333335">DUTY</text><text class="pl-v" x="481" y="437.23333333333335" text-anchor="end" data-live="AT-9412" data-compact="1" data-state="normal">free</text><rect class="pl-hit" x="300" y="246.36666666666667" width="188" height="199.86666666666667"></rect></g><circle id="mk:DM-B" class="dwg-anchor" cx="476" cy="252.36666666666667" r="0"></circle><g id="BLR-1" data-tip="VEG-02 — Assigned to span N-19 only. Must not take T-104." class="dwg-equipment dwg-bound"><g transform="translate(536 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><rect class="pl-card" x="528" y="382.23333333333335" width="188" height="103" rx="4"></rect>
+    <text class="pl-name" x="535" y="395.23333333333335">VEG-02</text>
+    <text class="pl-tag" x="535" y="408.23333333333335">VEG2</text>
+    <path class="pl-rule" d="M528 413.23333333333335H716"></path><text class="pl-k" x="535" y="424.23333333333335">CERT</text><text class="pl-v" x="709" y="424.23333333333335" text-anchor="end" data-live="PT-9111" data-compact="1" data-state="normal">veg</text><text class="pl-k" x="535" y="437.23333333333335">DUTY</text><text class="pl-v" x="709" y="437.23333333333335" text-anchor="end" data-live="FT-9112" data-compact="1" data-state="normal">N-19</text><text class="pl-k" x="535" y="450.23333333333335">DAY</text><text class="pl-v" x="709" y="450.23333333333335" text-anchor="end" data-live="TT-9113" data-compact="1" data-state="threshold">only</text><text class="pl-k" x="535" y="463.23333333333335">TASK</text><text class="pl-v" x="709" y="463.23333333333335" text-anchor="end" data-live="LT-9114" data-compact="1" data-state="normal">50 %</text><text class="pl-k" x="535" y="476.23333333333335">NOTE</text><text class="pl-v" x="709" y="476.23333333333335" text-anchor="end" data-live="AT-9115" data-compact="1" data-state="missing">—</text><rect class="pl-hit" x="528" y="246.36666666666667" width="188" height="238.86666666666667"></rect></g><circle id="mk:BLR-1" class="dwg-anchor" cx="704" cy="252.36666666666667" r="0"></circle><path class="pl-link" d="M622 483.23333333333335V497.23333333333335"></path><g id="FP-1" data-tip="HV-04 — Qualified. Not assigned." class="dwg-equipment dwg-bound"><g transform="translate(534 497.23333333333335) scale(0.85)">
+  <path class="sy" d="M2 40H24" stroke-width="4" fill="none"></path>
+  <circle class="sy f-steel" cx="52" cy="52" r="22"></circle>
+  <circle class="sy f-white" cx="52" cy="52" r="9"></circle>
+  <path class="sy f-steel" d="M44 32V12h16v20z"></path>
+  <rect class="sy f-dark" x="72" y="44" width="22" height="16" rx="3"></rect>
+  <path class="sy" d="M30 74h44M36 74v10M68 74v10M28 84h52" fill="none"></path></g><rect class="pl-card" x="644" y="497.23333333333335" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="651" y="510.23333333333335">Free</text>
+    <text class="pl-tag" x="651" y="523.2333333333333">FP-1</text>
+    <path class="pl-rule" d="M644 528.2333333333333H710"></path><text class="pl-k" x="651" y="539.2333333333333">CERT</text><text class="pl-v" x="703" y="539.2333333333333" text-anchor="end" data-live="PT-9211" data-compact="1" data-state="normal">—</text><text class="pl-k" x="651" y="552.2333333333333">DUTY</text><text class="pl-v" x="703" y="552.2333333333333" text-anchor="end" data-live="TT-9212" data-compact="1" data-state="normal">—</text><text class="pl-k" x="651" y="565.2333333333333">DAY</text><text class="pl-v" x="703" y="565.2333333333333" text-anchor="end" data-live="VT-9213" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="534" y="497.23333333333335" width="176" height="78.2"></rect></g><circle id="mk:FP-1" class="dwg-anchor" cx="632" cy="501.23333333333335" r="0"></circle><path class="pl-link" d="M622 573.4333333333334V587.4333333333334"></path><g id="M-FP-1" class="dwg-equipment dwg-bound"><g transform="translate(534 587.4333333333334) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="644" y="587.4333333333334" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="651" y="600.4333333333334">Cert</text>
+    <text class="pl-tag" x="651" y="613.4333333333334">M-FP-1</text>
+    <path class="pl-rule" d="M644 618.4333333333334H710"></path><text class="pl-k" x="651" y="629.4333333333334">ROLE</text><text class="pl-v" x="703" y="629.4333333333334" text-anchor="end" data-live="JT-9311" data-compact="1" data-state="normal">—</text><text class="pl-k" x="651" y="642.4333333333334">DAY</text><text class="pl-v" x="703" y="642.4333333333334" text-anchor="end" data-live="TT-9312" data-compact="1" data-state="normal">—</text><text class="pl-k" x="651" y="655.4333333333334">DAY</text><text class="pl-v" x="703" y="655.4333333333334" text-anchor="end" data-live="VT-9313" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="534" y="587.4333333333334" width="176" height="78.2"></rect></g><circle id="mk:M-FP-1" class="dwg-anchor" cx="632" cy="591.4333333333334" r="0"></circle><g id="BLR-2" data-tip="CIV-1 — No certification and no time." class="dwg-equipment dwg-bound"><g transform="translate(764 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><rect class="pl-card" x="756" y="382.23333333333335" width="188" height="103" rx="4"></rect>
+    <text class="pl-name" x="763" y="395.23333333333335">CIV-1</text>
+    <text class="pl-tag" x="763" y="408.23333333333335">CIV1</text>
+    <path class="pl-rule" d="M756 413.23333333333335H944"></path><text class="pl-k" x="763" y="424.23333333333335">CERT</text><text class="pl-v" x="937" y="424.23333333333335" text-anchor="end" data-live="PT-9121" data-compact="1" data-state="threshold">no</text><text class="pl-k" x="763" y="437.23333333333335">DUTY</text><text class="pl-v" x="937" y="437.23333333333335" text-anchor="end" data-live="FT-9122" data-compact="1" data-state="threshold">none</text><text class="pl-k" x="763" y="450.23333333333335">DAY</text><text class="pl-v" x="937" y="450.23333333333335" text-anchor="end" data-live="TT-9123" data-compact="1" data-state="normal">—</text><text class="pl-k" x="763" y="463.23333333333335">TASK</text><text class="pl-v" x="937" y="463.23333333333335" text-anchor="end" data-live="LT-9124" data-compact="1" data-state="threshold">64 %</text><text class="pl-k" x="763" y="476.23333333333335">NOTE</text><text class="pl-v" x="937" y="476.23333333333335" text-anchor="end" data-live="AT-9125" data-compact="1" data-state="normal">3.9 %</text><rect class="pl-hit" x="756" y="246.36666666666667" width="188" height="238.86666666666667"></rect></g><circle id="mk:BLR-2" class="dwg-anchor" cx="932" cy="252.36666666666667" r="0"></circle><path class="pl-link" d="M850 483.23333333333335V497.23333333333335"></path><g id="FP-2" data-tip="HV-07 — Qualified. Not assigned." class="dwg-equipment dwg-bound"><g transform="translate(762 497.23333333333335) scale(0.85)">
+  <path class="sy" d="M2 40H24" stroke-width="4" fill="none"></path>
+  <circle class="sy f-steel" cx="52" cy="52" r="22"></circle>
+  <circle class="sy f-white" cx="52" cy="52" r="9"></circle>
+  <path class="sy f-steel" d="M44 32V12h16v20z"></path>
+  <rect class="sy f-dark" x="72" y="44" width="22" height="16" rx="3"></rect>
+  <path class="sy" d="M30 74h44M36 74v10M68 74v10M28 84h52" fill="none"></path></g><rect class="pl-card" x="872" y="497.23333333333335" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="879" y="510.23333333333335">Free</text>
+    <text class="pl-tag" x="879" y="523.2333333333333">FP-2</text>
+    <path class="pl-rule" d="M872 528.2333333333333H938"></path><text class="pl-k" x="879" y="539.2333333333333">CERT</text><text class="pl-v" x="931" y="539.2333333333333" text-anchor="end" data-live="PT-9221" data-compact="1" data-state="normal">—</text><text class="pl-k" x="879" y="552.2333333333333">DUTY</text><text class="pl-v" x="931" y="552.2333333333333" text-anchor="end" data-live="TT-9222" data-compact="1" data-state="normal">—</text><text class="pl-k" x="879" y="565.2333333333333">DAY</text><text class="pl-v" x="931" y="565.2333333333333" text-anchor="end" data-live="VT-9223" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="762" y="497.23333333333335" width="176" height="78.2"></rect></g><circle id="mk:FP-2" class="dwg-anchor" cx="860" cy="501.23333333333335" r="0"></circle><path class="pl-link" d="M850 573.4333333333334V587.4333333333334"></path><g id="M-FP-2" class="dwg-equipment dwg-bound"><g transform="translate(762 587.4333333333334) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="872" y="587.4333333333334" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="879" y="600.4333333333334">Cert</text>
+    <text class="pl-tag" x="879" y="613.4333333333334">M-FP-2</text>
+    <path class="pl-rule" d="M872 618.4333333333334H938"></path><text class="pl-k" x="879" y="629.4333333333334">ROLE</text><text class="pl-v" x="931" y="629.4333333333334" text-anchor="end" data-live="JT-9321" data-compact="1" data-state="normal">—</text><text class="pl-k" x="879" y="642.4333333333334">DAY</text><text class="pl-v" x="931" y="642.4333333333334" text-anchor="end" data-live="TT-9322" data-compact="1" data-state="normal">—</text><text class="pl-k" x="879" y="655.4333333333334">DAY</text><text class="pl-v" x="931" y="655.4333333333334" text-anchor="end" data-live="VT-9323" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="762" y="587.4333333333334" width="176" height="78.2"></rect></g><circle id="mk:M-FP-2" class="dwg-anchor" cx="860" cy="591.4333333333334" r="0"></circle><g id="BLR-3" data-tip="PTW-220-18 — Requested. Not authorized." class="dwg-equipment dwg-bound"><g transform="translate(992 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><rect class="pl-card" x="984" y="382.23333333333335" width="188" height="103" rx="4"></rect>
+    <text class="pl-name" x="991" y="395.23333333333335">PTW-220-18</text>
+    <text class="pl-tag" x="991" y="408.23333333333335">PTW</text>
+    <path class="pl-rule" d="M984 413.23333333333335H1172"></path><text class="pl-k" x="991" y="424.23333333333335">CERT</text><text class="pl-v" x="1165" y="424.23333333333335" text-anchor="end" data-live="PT-9131" data-compact="1" data-state="threshold">open</text><text class="pl-k" x="991" y="437.23333333333335">DUTY</text><text class="pl-v" x="1165" y="437.23333333333335" text-anchor="end" data-live="FT-9132" data-compact="1" data-state="threshold">asked</text><text class="pl-k" x="991" y="450.23333333333335">DAY</text><text class="pl-v" x="1165" y="450.23333333333335" text-anchor="end" data-live="TT-9133" data-compact="1" data-state="threshold">not ok</text><text class="pl-k" x="991" y="463.23333333333335">TASK</text><text class="pl-v" x="1165" y="463.23333333333335" text-anchor="end" data-live="LT-9134" data-compact="1" data-state="flatline">49 %</text><text class="pl-k" x="991" y="476.23333333333335">NOTE</text><text class="pl-v" x="1165" y="476.23333333333335" text-anchor="end" data-live="AT-9135" data-compact="1" data-state="normal">3.6 %</text><rect class="pl-hit" x="984" y="246.36666666666667" width="188" height="238.86666666666667"></rect></g><circle id="mk:BLR-3" class="dwg-anchor" cx="1160" cy="252.36666666666667" r="0"></circle><path class="pl-link" d="M1078 483.23333333333335V497.23333333333335"></path><g id="FP-3" data-tip="VEG-02 — N-19 only." class="dwg-equipment dwg-bound"><g transform="translate(990 497.23333333333335) scale(0.85)">
+  <path class="sy" d="M2 40H24" stroke-width="4" fill="none"></path>
+  <circle class="sy f-steel" cx="52" cy="52" r="22"></circle>
+  <circle class="sy f-white" cx="52" cy="52" r="9"></circle>
+  <path class="sy f-steel" d="M44 32V12h16v20z"></path>
+  <rect class="sy f-dark" x="72" y="44" width="22" height="16" rx="3"></rect>
+  <path class="sy" d="M30 74h44M36 74v10M68 74v10M28 84h52" fill="none"></path></g><rect class="pl-card" x="1100" y="497.23333333333335" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="1107" y="510.23333333333335">N-19</text>
+    <text class="pl-tag" x="1107" y="523.2333333333333">FP-3</text>
+    <path class="pl-rule" d="M1100 528.2333333333333H1166"></path><text class="pl-k" x="1107" y="539.2333333333333">CERT</text><text class="pl-v" x="1159" y="539.2333333333333" text-anchor="end" data-live="PT-9231" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1107" y="552.2333333333333">DUTY</text><text class="pl-v" x="1159" y="552.2333333333333" text-anchor="end" data-live="TT-9232" data-compact="1" data-state="threshold">—</text><text class="pl-k" x="1107" y="565.2333333333333">DAY</text><text class="pl-v" x="1159" y="565.2333333333333" text-anchor="end" data-live="VT-9233" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="990" y="497.23333333333335" width="176" height="78.2"></rect></g><circle id="mk:FP-3" class="dwg-anchor" cx="1088" cy="501.23333333333335" r="0"></circle><path class="pl-link" d="M1078 573.4333333333334V587.4333333333334"></path><g id="M-FP-3" class="dwg-equipment dwg-bound"><g transform="translate(990 587.4333333333334) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="1100" y="587.4333333333334" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="1107" y="600.4333333333334">VEG</text>
+    <text class="pl-tag" x="1107" y="613.4333333333334">M-FP-3</text>
+    <path class="pl-rule" d="M1100 618.4333333333334H1166"></path><text class="pl-k" x="1107" y="629.4333333333334">ROLE</text><text class="pl-v" x="1159" y="629.4333333333334" text-anchor="end" data-live="JT-9331" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1107" y="642.4333333333334">DAY</text><text class="pl-v" x="1159" y="642.4333333333334" text-anchor="end" data-live="TT-9332" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1107" y="655.4333333333334">DAY</text><text class="pl-v" x="1159" y="655.4333333333334" text-anchor="end" data-live="VT-9333" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="990" y="587.4333333333334" width="176" height="78.2"></rect></g><circle id="mk:M-FP-3" class="dwg-anchor" cx="1088" cy="591.4333333333334" r="0"></circle><g id="BLR-4" data-tip="Incidents — 0 this quarter on Corridor North." class="dwg-equipment dwg-bound"><g transform="translate(1220 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><rect class="pl-card" x="1212" y="382.23333333333335" width="188" height="103" rx="4"></rect>
+    <text class="pl-name" x="1219" y="395.23333333333335">Incidents</text>
+    <text class="pl-tag" x="1219" y="408.23333333333335">0</text>
+    <path class="pl-rule" d="M1212 413.23333333333335H1400"></path><text class="pl-k" x="1219" y="424.23333333333335">CERT</text><text class="pl-v" x="1393" y="424.23333333333335" text-anchor="end" data-live="PT-9141" data-compact="1" data-state="normal">0</text><text class="pl-k" x="1219" y="437.23333333333335">DUTY</text><text class="pl-v" x="1393" y="437.23333333333335" text-anchor="end" data-live="FT-9142" data-compact="1" data-state="normal">qtr</text><text class="pl-k" x="1219" y="450.23333333333335">DAY</text><text class="pl-v" x="1393" y="450.23333333333335" text-anchor="end" data-live="TT-9143" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1219" y="463.23333333333335">TASK</text><text class="pl-v" x="1393" y="463.23333333333335" text-anchor="end" data-live="LT-9144" data-compact="1" data-state="normal">48 %</text><text class="pl-k" x="1219" y="476.23333333333335">NOTE</text><text class="pl-v" x="1393" y="476.23333333333335" text-anchor="end" data-live="AT-9145" data-compact="1" data-state="normal">3.9 %</text><rect class="pl-hit" x="1212" y="246.36666666666667" width="188" height="238.86666666666667"></rect></g><circle id="mk:BLR-4" class="dwg-anchor" cx="1388" cy="252.36666666666667" r="0"></circle><path class="pl-link" d="M1306 483.23333333333335V497.23333333333335"></path><g id="FP-4" data-tip="CIV-1 — No certification." class="dwg-equipment dwg-bound"><g transform="translate(1218 497.23333333333335) scale(0.85)">
+  <path class="sy" d="M2 40H24" stroke-width="4" fill="none"></path>
+  <circle class="sy f-steel" cx="52" cy="52" r="22"></circle>
+  <circle class="sy f-white" cx="52" cy="52" r="9"></circle>
+  <path class="sy f-steel" d="M44 32V12h16v20z"></path>
+  <rect class="sy f-dark" x="72" y="44" width="22" height="16" rx="3"></rect>
+  <path class="sy" d="M30 74h44M36 74v10M68 74v10M28 84h52" fill="none"></path></g><rect class="pl-card" x="1328" y="497.23333333333335" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="1335" y="510.23333333333335">None</text>
+    <text class="pl-tag" x="1335" y="523.2333333333333">FP-4</text>
+    <path class="pl-rule" d="M1328 528.2333333333333H1394"></path><text class="pl-k" x="1335" y="539.2333333333333">CERT</text><text class="pl-v" x="1387" y="539.2333333333333" text-anchor="end" data-live="PT-9241" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1335" y="552.2333333333333">DUTY</text><text class="pl-v" x="1387" y="552.2333333333333" text-anchor="end" data-live="TT-9242" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1335" y="565.2333333333333">DAY</text><text class="pl-v" x="1387" y="565.2333333333333" text-anchor="end" data-live="VT-9243" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="1218" y="497.23333333333335" width="176" height="78.2"></rect></g><circle id="mk:FP-4" class="dwg-anchor" cx="1316" cy="501.23333333333335" r="0"></circle><path class="pl-link" d="M1306 573.4333333333334V587.4333333333334"></path><g id="M-FP-4" class="dwg-equipment dwg-bound"><g transform="translate(1218 587.4333333333334) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="1328" y="587.4333333333334" width="66" height="77" rx="4"></rect>
+    <text class="pl-name" x="1335" y="600.4333333333334">No</text>
+    <text class="pl-tag" x="1335" y="613.4333333333334">M-FP-4</text>
+    <path class="pl-rule" d="M1328 618.4333333333334H1394"></path><text class="pl-k" x="1335" y="629.4333333333334">ROLE</text><text class="pl-v" x="1387" y="629.4333333333334" text-anchor="end" data-live="JT-9341" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1335" y="642.4333333333334">DAY</text><text class="pl-v" x="1387" y="642.4333333333334" text-anchor="end" data-live="TT-9342" data-compact="1" data-state="normal">—</text><text class="pl-k" x="1335" y="655.4333333333334">DAY</text><text class="pl-v" x="1387" y="655.4333333333334" text-anchor="end" data-live="VT-9343" data-compact="1" data-state="normal">—</text><rect class="pl-hit" x="1218" y="587.4333333333334" width="176" height="78.2"></rect></g><circle id="mk:M-FP-4" class="dwg-anchor" cx="1316" cy="591.4333333333334" r="0"></circle><g id="SH-1" data-tip="Waiting — Repair task is awaiting verified work authorization and a qualified crew." class="dwg-equipment dwg-bound"><g transform="translate(1448 246.36666666666667) scale(1.4333333333333333)">
+    <rect class="sy f-green" x="4" y="36" width="112" height="16" rx="5"></rect>
+    <path class="sy" d="M20 36v16M60 36v16M100 36v16" fill="none"></path>
+    <path class="sy" d="M60 36V22" stroke="#1b2433" stroke-width="2" fill="none"></path><circle class="sy f-white" cx="60" cy="15" r="9"></circle><path class="sy" d="M60 15l5 -4" fill="none"></path>
+    <path class="sy" d="M32 52v16M88 52v16M26 68H94" fill="none"></path></g><rect class="pl-card" x="1440" y="382.23333333333335" width="188" height="64" rx="4"></rect>
+    <text class="pl-name" x="1447" y="395.23333333333335">Waiting</text>
+    <text class="pl-tag" x="1447" y="408.23333333333335">OPEN</text>
+    <path class="pl-rule" d="M1440 413.23333333333335H1628"></path><text class="pl-k" x="1447" y="424.23333333333335">PTW</text><text class="pl-v" x="1621" y="424.23333333333335" text-anchor="end" data-live="PT-9501" data-compact="1" data-state="threshold">open</text><text class="pl-k" x="1447" y="437.23333333333335">CREW</text><text class="pl-v" x="1621" y="437.23333333333335" text-anchor="end" data-live="TT-9502" data-compact="1" data-state="threshold">wait</text><rect class="pl-hit" x="1440" y="246.36666666666667" width="188" height="199.86666666666667"></rect></g><circle id="mk:SH-1" class="dwg-anchor" cx="1616" cy="252.36666666666667" r="0"></circle><path d="M246 321.53066666666666H304" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M246 321.53066666666666H304" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M312 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path><path d="M474 321.53066666666666H532" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M474 321.53066666666666H532" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M540 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path><path d="M702 321.53066666666666H760" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M702 321.53066666666666H760" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M768 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path><path d="M930 321.53066666666666H988" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M930 321.53066666666666H988" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M996 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path><path d="M1158 321.53066666666666H1216" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M1158 321.53066666666666H1216" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1224 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path><path d="M1386 321.53066666666666H1444" stroke="#1f8a4c" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M1386 321.53066666666666H1444" stroke="#7fd39a" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1452 321.53066666666666l-10 -6v12z" fill="#1f8a4c"></path></g><g class="dwg-overlay"><g class="dwg-marker is-warning" transform="translate(475.9999917322897 252.36669345364317) scale(1.5)"><path d="M0 -9.5L9 7H-9Z"></path><text y="4.6" text-anchor="middle">2</text></g><g class="dwg-marker is-data" transform="translate(704.0000196155484 252.36669345364317) scale(1.5)"><rect x="-6.5" y="-6.5" width="13" height="13" rx="1.5" transform="rotate(45)"></rect><text y="3.2" text-anchor="middle">1</text></g><g class="dwg-marker is-alarm" transform="translate(931.9999786012203 252.36669345364317) scale(1.5)"><circle class="dwg-pulse" r="13"></circle><path d="M0 -9.5L9 7H-9Z"></path><text y="4.6" text-anchor="middle">2</text></g><g class="dwg-marker is-data" transform="translate(1160.0000064844787 252.36669345364317) scale(1.5)"><rect x="-6.5" y="-6.5" width="13" height="13" rx="1.5" transform="rotate(45)"></rect><text y="3.2" text-anchor="middle">1</text></g><g class="dwg-marker is-warning" transform="translate(1088.000099212525 501.23318225105777) scale(1.5)"><path d="M0 -9.5L9 7H-9Z"></path><text y="4.6" text-anchor="middle">1</text></g></g></svg>

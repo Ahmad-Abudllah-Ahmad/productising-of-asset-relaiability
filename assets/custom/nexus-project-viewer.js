@@ -972,7 +972,7 @@
           window.location.assign("/login/?next=" + encodeURIComponent(url));
         }
         if (isInspection) {
-          continueTo("https://powerlines-management.onrender.com/");
+          continueTo("/dashboard");
           return;
         }
         var routeName = title ? title.textContent.replace(/\s+/g, " ").trim() : "";

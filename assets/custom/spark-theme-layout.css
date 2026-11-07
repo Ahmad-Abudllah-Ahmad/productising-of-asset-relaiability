@@ -581,6 +581,10 @@ img[src*="spark-badge.svg"],
   box-sizing: border-box !important;
 }
 
+html:not([data-wf-page="68c12a5a87c0cd3e02e9e5bb"]) .navbar5_component {
+  background-color: #080B11 !important;
+}
+
 .navbar5_link {
   color: #FFFFFF !important;
 }
@@ -767,7 +771,10 @@ html:not([data-wf-page="68c12a5a87c0cd3e02e9e5bb"]) .section_hero p {
   color: #0B0C2A !important;
 }
 
-.cards-item:not(.background-color-secondary *) p,
+.cards-item:not(.background-color-secondary *) p {
+  color: #FFFFFF !important;
+}
+
 .bento_card:not(.background-color-secondary *) p {
   color: #334155 !important;
 }
@@ -899,6 +906,21 @@ html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] .text-size-medium {
   color: #2233EE !important;
 }
 
+.navbar_dropdown-container .navbar5_dropdown-link:hover .navlink_arrow {
+  display: block !important;
+}
+
+.navbar_dropdown-container .navbar5_dropdown-link:hover .navbar_dropdown-text {
+  display: none !important;
+}
+
+.navbar_dropdown-container .navbar5_dropdown-link:hover .navlink-hover {
+  display: block !important;
+  color: #2233EE !important;
+  font-weight: 600 !important;
+}
+
+.navbar_dropdown-container .bento_card-small-content-top p,
 .navbar_dropdown-container .bento_card-small-content-bottom h3,
 .navbar_dropdown-container .bento_card-small-content-bottom .heading-style-h4,
 .navbar_dropdown-container .bento_card-small-content-bottom .spark-word {
@@ -1814,6 +1836,96 @@ html {
 .contact_testimonial-img,
 .contact_testimonial-author {
   display: none !important;
+}
+
+.main-wrapper {
+  position: relative;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) {
+  position: relative;
+  z-index: 2;
+  min-height: calc(100vh - 4.75rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 22, 26, 0.34) 0%,
+    rgba(18, 20, 24, 0.28) 36%,
+    rgba(14, 16, 20, 0.5) 68%,
+    rgba(8, 10, 14, 0.74) 100%
+  ) !important;
+  pointer-events: none;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) .padding-section-hero {
+  padding-top: 4.5rem !important;
+  padding-bottom: 5.5rem !important;
+  width: 100%;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) .hero_grid,
+.main-wrapper > .section_hero:has(+ .section_hero-image) .hero_grid._2rows {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  max-width: 46rem;
+  pointer-events: auto;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) .home-hero-heading,
+.main-wrapper > .section_hero:has(+ .section_hero-image) h1,
+.main-wrapper > .section_hero:has(+ .section_hero-image) h1 strong {
+  color: #ffffff !important;
+  text-align: left !important;
+  max-width: 14em;
+  font-weight: 700 !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: none !important;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) .home-hero-text p,
+.main-wrapper > .section_hero:has(+ .section_hero-image) .text-color-gray {
+  color: #ffffff !important;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.75), 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+.main-wrapper > .section_hero:has(+ .section_hero-image) + .section_hero-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(100vh - 4.75rem);
+  z-index: 1;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  background: #080b11 !important;
+}
+
+.main-wrapper > .section_hero + .section_hero-image .padding-global,
+.main-wrapper > .section_hero + .section_hero-image .container-large,
+.main-wrapper > .section_hero + .section_hero-image .padding-section-large,
+.main-wrapper > .section_hero + .section_hero-image .padding-section-medium,
+.main-wrapper > .section_hero + .section_hero-image .content-wrapper,
+.main-wrapper > .section_hero + .section_hero-image .hero_image-wrapper {
+  height: 100%;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.main-wrapper > .section_hero + .section_hero-image .home_hero-image {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  display: block !important;
 }
 
 

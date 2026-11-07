@@ -9,5 +9,29 @@
     { "source": "/blogs", "destination": "/", "permanent": true },
     { "source": "/about", "destination": "/", "permanent": true },
     { "source": "/case-studies", "destination": "/", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://powerlines-management.onrender.com/api/:path*" },
+    { "source": "/health", "destination": "https://powerlines-management.onrender.com/health" },
+    { "source": "/results/:path*", "destination": "https://powerlines-management.onrender.com/results/:path*" },
+    { "source": "/socket.io/:path*", "destination": "https://powerlines-management.onrender.com/socket.io/:path*" },
+    { "source": "/dashboard", "destination": "/inspection.html" },
+    { "source": "/dashboard/:path*", "destination": "/inspection.html" },
+    { "source": "/runs", "destination": "/inspection.html" },
+    { "source": "/runs/:path*", "destination": "/inspection.html" },
+    { "source": "/ai-detection", "destination": "/inspection.html" },
+    { "source": "/ai-detection/:path*", "destination": "/inspection.html" },
+    { "source": "/thermal-images", "destination": "/inspection.html" },
+    { "source": "/thermal-images/:path*", "destination": "/inspection.html" },
+    { "source": "/video-upload", "destination": "/inspection.html" },
+    { "source": "/video-upload/:path*", "destination": "/inspection.html" },
+    { "source": "/map", "destination": "/inspection.html" },
+    { "source": "/map/:path*", "destination": "/inspection.html" },
+    { "source": "/review-queue", "destination": "/inspection.html" },
+    { "source": "/review-queue/:path*", "destination": "/inspection.html" },
+    { "source": "/settings", "destination": "/inspection.html" },
+    { "source": "/settings/:path*", "destination": "/inspection.html" },
+    { "source": "/live-drone-feed", "destination": "/inspection.html" },
+    { "source": "/live-drone-feed/:path*", "destination": "/inspection.html" }
   ]
 }

@@ -16,14 +16,28 @@ const rootSkip = new Set([
   "README.md",
   ".gitignore",
   "firebase-debug.log",
-  "vercel.json"
+  "vercel.json",
+  "azeri enerji dashbaord v3 - Copy"
 ]);
+const skipDirs = new Set(["node_modules", "venv", ".git", "__pycache__", "models", ".vercel"]);
+
+function skipFile(name) {
+  return (
+    name === ".DS_Store" ||
+    name.endsWith(".log") ||
+    name === ".env" ||
+    name.startsWith(".env.") ||
+    name.endsWith(".pt") ||
+    name.endsWith(".pth")
+  );
+}
 
 function copyDir(src, out, isRoot) {
   fs.mkdirSync(out, { recursive: true });
   for (const name of fs.readdirSync(src)) {
-    if (name === ".DS_Store" || name.endsWith(".log")) continue;
+    if (skipFile(name)) continue;
     if (isRoot && rootSkip.has(name)) continue;
+    if (!isRoot && skipDirs.has(name)) continue;
     const from = path.join(src, name);
     const to = path.join(out, name);
     const stat = fs.statSync(from);
@@ -32,11 +46,59 @@ function copyDir(src, out, isRoot) {
   }
 }
 
+function copyInspection(dist, out) {
+  if (!fs.existsSync(dist)) {
+    console.error("Missing inspection dashboard build: " + dist);
+    process.exit(1);
+  }
+  function walk(src, rel) {
+    for (const name of fs.readdirSync(src)) {
+      const from = path.join(src, name);
+      const next = rel ? path.posix.join(rel, name) : name;
+      const stat = fs.statSync(from);
+      if (stat.isDirectory()) walk(from, next);
+      else if (stat.isFile()) {
+        const target = rel === "" && name === "index.html" ? "inspection.html" : next;
+        const destFile = path.join(out, target);
+        fs.mkdirSync(path.dirname(destFile), { recursive: true });
+        fs.copyFileSync(from, destFile);
+      }
+    }
+  }
+  walk(dist, "");
+}
+
 fs.rmSync(dest, { recursive: true, force: true });
 copyDir(root, dest, true);
+copyInspection(
+  path.join(root, "azeri enerji dashbaord v3 - Copy", "power-lines-system", "frontend", "dist"),
+  dest
+);
+
+const leaked = [];
+function findLeaks(dir) {
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name);
+    if (name === ".env" || name.startsWith(".env.") || name.endsWith(".pt")) leaked.push(full);
+    if (fs.statSync(full).isDirectory()) findLeaks(full);
+  }
+}
+findLeaks(dest);
+if (leaked.length) {
+  console.error("Refusing to publish secrets or model weights:");
+  leaked.forEach(function (file) { console.error(file); });
+  process.exit(1);
+}
+
+const inspectionHtml = fs.readFileSync(path.join(dest, "inspection.html"), "utf8");
+if (!inspectionHtml.includes('id="root"') || !inspectionHtml.includes("/assets/index-")) {
+  console.error("Inspection dashboard shell was not exported.");
+  process.exit(1);
+}
 
 const required = [
   "index.html",
+  "inspection.html",
   "login/index.html",
   "reliability/index.html",
   "assets/custom/nexus-apps.js",

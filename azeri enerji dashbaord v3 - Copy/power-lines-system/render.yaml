@@ -1,0 +1,46 @@
+# Render Blueprint — Azeri Energy Dashboard (Docker web service)
+services:
+  - type: web
+    name: azeri-energy-dashboard
+    runtime: docker
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: standard
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      - key: SERVE_FRONTEND
+        value: "true"
+      - key: FRONTEND_DIST
+        value: /app/frontend/dist
+      - key: PYTHONUNBUFFERED
+        value: "true"
+      - key: CORS_ORIGINS
+        value: https://powerlines-management.onrender.com
+      - key: POD_INFERENCE_URL
+        value: https://w0tfgk852deuei-64411c51-6006.proxy.runpod.net
+      - key: POD_REMOTE_WEIGHTS
+        value: /workspace/project/runs/obb/yolo11x_obb_dota_20260426_060214/weights/best.pt
+      - key: RUNPOD_PUBLIC_IP
+        value: "103.196.86.197"
+      - key: RUNPOD_INFERENCE_PORT
+        value: "6006"
+      - key: GPU_BATCH
+        value: "8"
+      - key: VIDEO_READ_AHEAD
+        value: "8"
+      - key: ANNOTATE_THREADS
+        value: "2"
+      - key: ASYNCIO_MAX_WORKERS
+        value: "2"
+      - key: REMOTE_PREDICT_PARALLEL
+        value: "3"
+      - key: REMOTE_PREDICT_CHUNK
+        value: "8"
+      - key: REMOTE_ENCODE_PARALLEL
+        value: "2"
+      - key: REMOTE_HTTP_POOL
+        value: "12"
+      - key: REMOTE_READ_TIMEOUT
+        value: "120"

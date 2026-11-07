@@ -1,0 +1,20 @@
+# GPU stack — NVIDIA CUDA 12.8 wheels for modern NVIDIA GPUs, including RTX 50-series.
+# Keep PyPI as the main index and add the PyTorch CUDA wheel index as an extra source.
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+dji-thermal-sdk==0.0.2
+fastapi==0.135.3
+imageio-ffmpeg==0.6.0
+numpy==2.4.4
+opencv-python-headless==4.13.0.92
+pillow==12.2.0
+python-multipart==0.0.24
+python-socketio==5.16.1
+requests==2.33.1
+sahi==0.11.36
+ultralytics==8.4.36
+uvicorn[standard]==0.44.0
+
+torch
+torchvision
+torchaudio

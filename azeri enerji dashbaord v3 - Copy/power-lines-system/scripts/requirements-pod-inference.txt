@@ -1,0 +1,13 @@
+# RunPod GPU inference — aligned with backend/requirements-gpu.txt (inference subset).
+# Do NOT install torch/torchvision here: use the RunPod PyTorch image CUDA build.
+# Install: pip install -r requirements-pod-inference.txt
+
+fastapi==0.135.3
+uvicorn[standard]==0.44.0
+python-multipart==0.0.24
+numpy==2.4.4
+opencv-python-headless==4.13.0.92
+pillow==12.2.0
+requests==2.33.1
+ultralytics==8.4.36
+sahi==0.11.36

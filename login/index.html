@@ -50,22 +50,48 @@
     .mark, .visual-copy, .foot { z-index: 1; }
     .mark { position: relative; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
     .mark a { color: #fff; text-decoration: none; }
-    .visual-copy { position: relative; max-width: 34rem; margin-bottom: 12vh; }
-    .eyebrow {
-      margin: 0 0 14px;
-      color: #b7c0d6;
-      font-size: 12px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
+    .visual-copy { position: relative; max-width: 34rem; margin-top: auto; margin-bottom: 18vh; }
     .visual h1 {
-      margin: 0 0 16px;
+      margin: 0;
       font-size: clamp(2.4rem, 4vw, 3.5rem);
       line-height: 1.02;
       letter-spacing: -0.04em;
     }
-    .visual p { margin: 0; color: #c5cad8; font-size: 16px; line-height: 1.5; max-width: 32rem; }
-    .foot { position: relative; color: #8b93a7; font-size: 11px; letter-spacing: 0.14em; }
+    .visual-copy .spark-word {
+      display: inline-block;
+      opacity: 0;
+      transform: translate3d(0, 18px, 0) scale(0.95);
+      filter: blur(9px);
+    }
+    .visual-copy {
+      opacity: 0;
+      transform: translate3d(0, 38px, 0) scale(0.945);
+    }
+    .visual-copy.is-in {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      transition:
+        transform 1.18s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.96s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .visual-copy.is-in .spark-word {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+      transition:
+        transform 1.06s cubic-bezier(0.16, 1, 0.3, 1) var(--word-delay, 0ms),
+        opacity 0.92s cubic-bezier(0.16, 1, 0.3, 1) var(--word-delay, 0ms),
+        filter 0.98s cubic-bezier(0.16, 1, 0.3, 1) var(--word-delay, 0ms);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .visual-copy,
+      .visual-copy .spark-word {
+        opacity: 1;
+        transform: none;
+        filter: none;
+        transition: none;
+      }
+    }
     .panel {
       background: #171c25;
       display: flex;
@@ -134,7 +160,7 @@
     @media (max-width: 860px) {
       body { grid-template-columns: 1fr; }
       .visual { min-height: 42vh; padding: 28px 24px; }
-      .visual-copy { margin-bottom: 0; }
+      .visual-copy { margin-top: 28px; margin-bottom: 8px; }
       .panel { min-height: auto; }
     }
   </style>
@@ -144,11 +170,8 @@
     <canvas class="dot-field" id="dot-field" aria-hidden="true"></canvas>
     <div class="mark"><a href="/">NEXUS OS</a></div>
     <div class="visual-copy">
-      <p class="eyebrow">NEXUS OS</p>
       <h1 id="module-title">Asset Reliability Intelligence</h1>
-      <p id="module-copy">Sign in to open this module.</p>
     </div>
-    <div class="foot">NEXUS OS / ENTERPRISE AI</div>
   </section>
   <section class="panel">
     <div class="panel-top"><a href="/">Back to the site</a></div>
@@ -183,8 +206,7 @@
     (function () {
       var params = new URLSearchParams(location.search);
       var next = params.get("next") || "/";
-      var allowed = next === "https://powerlines-management.onrender.com/" ||
-        (next.charAt(0) === "/" && next.charAt(1) !== "/" && next.indexOf("\\") === -1);
+      var allowed = next.charAt(0) === "/" && next.charAt(1) !== "/" && next.indexOf("\\") === -1;
       if (!allowed) next = "/";
 
       var modules = {
@@ -195,12 +217,24 @@
         "/forecast/index.html": ["Risk & Maintenance Forecasting", "See the inspections that need manual engineering review next quarter."],
         "/finance/index.html": ["Financial Intelligence", "Compare the approved budget with the remaining repair backlog."],
         "/workforce/index.html": ["Workforce & Safety", "Confirm work authorization and a qualified crew before the repair starts."],
-        "https://powerlines-management.onrender.com/": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."]
+        "/dashboard": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."]
       };
-      var chosen = modules[next] || ["NEXUS OS", "Sign in to open this module."];
-      document.getElementById("module-title").textContent = chosen[0];
-      document.getElementById("module-copy").textContent = chosen[1];
+      var chosen = modules[next] || ["Sign in", ""];
+      var title = document.getElementById("module-title");
+      var words = chosen[0].split(/\s+/);
+      title.textContent = "";
+      words.forEach(function (word, index) {
+        if (index) title.appendChild(document.createTextNode(" "));
+        var span = document.createElement("span");
+        span.className = "spark-word";
+        span.textContent = word;
+        span.style.setProperty("--word-delay", Math.min(index * 52, 640) + "ms");
+        title.appendChild(span);
+      });
       document.title = "Sign in | " + chosen[0];
+      requestAnimationFrame(function () {
+        document.querySelector(".visual-copy").classList.add("is-in");
+      });
 
       var mode = "login";
       var nameField = document.getElementById("name-field");

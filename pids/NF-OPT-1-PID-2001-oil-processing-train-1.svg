@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1100" data-drawing="NF-OPT-1-PID-2001">
+<title>NF-OPT-1-PID-2001 Oil Processing Train 1 — P&amp;ID</title>
+<style>
+  .sh-frame { fill: none; stroke: #1b2433; }
+  .sh-thin { stroke-width: .6; } .sh-heavy { stroke-width: 1.8; }
+  .sh-zone { font: 500 10px 'IBM Plex Mono', monospace; fill: #4a5568; }
+  .sh-label { font: 500 7.5px 'IBM Plex Mono', monospace; fill: #5b6578; letter-spacing: .06em; }
+  .sh-value { font: 500 11px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .sh-title { font: 700 15px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .02em; }
+  .sh-sub { font: 500 10.5px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .03em; }
+  .sh-org { font: 700 12px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .08em; }
+  .sh-note { font: 400 9.5px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #2b3445; }
+  .sh-head { font: 700 9.5px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .1em; }
+  .sh-stamp { font: 700 9px 'IBM Plex Mono', monospace; fill: #9b2c2c; letter-spacing: .06em; }
+
+  .pid-eq { fill: #fff; stroke: #1b2433; stroke-width: 1.6; stroke-linejoin: round; }
+  .pid-eq-thin { fill: none; stroke: #1b2433; stroke-width: .9; }
+  .pid-int { fill: none; stroke: #1b2433; stroke-width: .8; }
+  .pid-int-dash { fill: none; stroke: #1b2433; stroke-width: .8; stroke-dasharray: 3 2.5; }
+  .pid-hatch { fill: url(#pid-hatch); stroke: #1b2433; stroke-width: .8; }
+  .pid-major { fill: none; stroke: #1b2433; stroke-width: 1.9; stroke-linejoin: miter; }
+  .pid-minor { fill: none; stroke: #1b2433; stroke-width: 1.2; stroke-linejoin: miter; }
+  .pid-util { fill: none; stroke: #1b2433; stroke-width: 1.1; stroke-dasharray: 10 2 2 2; }
+  .pid-imp { fill: none; stroke: #1b2433; stroke-width: .8; }
+  .pid-sig { fill: none; stroke: #1b2433; stroke-width: .8; stroke-dasharray: 5 3; }
+  .pid-shaft { fill: none; stroke: #1b2433; stroke-width: 3.2; }
+  .pid-skid { fill: none; stroke: #1b2433; stroke-width: 1; stroke-dasharray: 14 4 3 4; }
+  .pid-valve { fill: #fff; stroke: #1b2433; stroke-width: 1.2; stroke-linejoin: round; }
+  .pid-valve-solid { fill: #1b2433; stroke: #1b2433; stroke-width: 1.2; }
+  .pid-bubble { fill: #fff; stroke: #1b2433; stroke-width: 1.1; }
+  .pid-arrow { fill: #1b2433; stroke: none; }
+  .pid-mask { fill: #fff; stroke: none; }
+  .pid-hit { fill: transparent; stroke: none; }
+  .pid-anchor { fill: none; stroke: none; }
+  .pid-isa { font: 600 8.6px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .02em; }
+  .pid-isa-n { font: 500 8px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .pid-tag { font: 700 10.5px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .pid-name { font: 600 8.6px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .05em; }
+  .pid-data { font: 400 8px 'IBM Plex Mono', monospace; fill: #3b4557; }
+  .pid-vtag { font: 500 8px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .pid-line { font: 500 7.8px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .pid-conn { font: 600 7.6px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .04em; }
+  .pid-conn-n { font: 500 7.6px 'IBM Plex Mono', monospace; fill: #1b2433; }
+  .pid-skid-label { font: 700 9px 'IBM Plex Sans', 'Segoe UI', sans-serif; fill: #1b2433; letter-spacing: .08em; }
+  .pid-live { font: 600 9px 'IBM Plex Mono', monospace; fill: #0f3d8c; }
+</style>
+
+  <defs>
+    <pattern id="pid-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="5" stroke="#1b2433" stroke-width=".7"/>
+    </pattern>
+  </defs>
+
+  <g class="sh-sheet">
+    <rect x="0" y="0" width="1700" height="1100" fill="#fff"/>
+    <rect class="sh-frame sh-thin" x="10" y="10" width="1680" height="1080"/>
+    <rect class="sh-frame sh-heavy" x="30" y="30" width="1640" height="1040"/>
+    <text class="sh-zone" x="132.5" y="24" text-anchor="middle">8</text><text class="sh-zone" x="132.5" y="1085" text-anchor="middle">8</text><text class="sh-zone" x="337.5" y="24" text-anchor="middle">7</text><text class="sh-zone" x="337.5" y="1085" text-anchor="middle">7</text><path class="sh-frame sh-thin" d="M235 10V30M235 1070V1090"/><text class="sh-zone" x="542.5" y="24" text-anchor="middle">6</text><text class="sh-zone" x="542.5" y="1085" text-anchor="middle">6</text><path class="sh-frame sh-thin" d="M440 10V30M440 1070V1090"/><text class="sh-zone" x="747.5" y="24" text-anchor="middle">5</text><text class="sh-zone" x="747.5" y="1085" text-anchor="middle">5</text><path class="sh-frame sh-thin" d="M645 10V30M645 1070V1090"/><text class="sh-zone" x="952.5" y="24" text-anchor="middle">4</text><text class="sh-zone" x="952.5" y="1085" text-anchor="middle">4</text><path class="sh-frame sh-thin" d="M850 10V30M850 1070V1090"/><text class="sh-zone" x="1157.5" y="24" text-anchor="middle">3</text><text class="sh-zone" x="1157.5" y="1085" text-anchor="middle">3</text><path class="sh-frame sh-thin" d="M1055 10V30M1055 1070V1090"/><text class="sh-zone" x="1362.5" y="24" text-anchor="middle">2</text><text class="sh-zone" x="1362.5" y="1085" text-anchor="middle">2</text><path class="sh-frame sh-thin" d="M1260 10V30M1260 1070V1090"/><text class="sh-zone" x="1567.5" y="24" text-anchor="middle">1</text><text class="sh-zone" x="1567.5" y="1085" text-anchor="middle">1</text><path class="sh-frame sh-thin" d="M1465 10V30M1465 1070V1090"/><text class="sh-zone" x="20" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="1680" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="20" y="345.5" text-anchor="middle">D</text><text class="sh-zone" x="1680" y="345.5" text-anchor="middle">D</text><path class="sh-frame sh-thin" d="M10 238H30M1670 238H1690"/><text class="sh-zone" x="20" y="553.5" text-anchor="middle">C</text><text class="sh-zone" x="1680" y="553.5" text-anchor="middle">C</text><path class="sh-frame sh-thin" d="M10 446H30M1670 446H1690"/><text class="sh-zone" x="20" y="761.5" text-anchor="middle">B</text><text class="sh-zone" x="1680" y="761.5" text-anchor="middle">B</text><path class="sh-frame sh-thin" d="M10 654H30M1670 654H1690"/><text class="sh-zone" x="20" y="969.5" text-anchor="middle">A</text><text class="sh-zone" x="1680" y="969.5" text-anchor="middle">A</text><path class="sh-frame sh-thin" d="M10 862H30M1670 862H1690"/>
+    
+  <path class="sh-frame sh-heavy" d="M30 930H1290"/>
+  <path class="sh-frame sh-thin" d="M700 930V1070"/>
+  <text class="sh-head" x="40" y="948">GENERAL NOTES</text>
+  <text class="sh-note" x="40" y="966">1.  INSTRUMENT SYMBOLS AND IDENTIFICATION PER ISA-5.1. EQUIPMENT OUTLINES AFTER ISO 10628.</text><text class="sh-note" x="40" y="980">2.  LINE NUMBER: SIZE-SERVICE-SEQUENCE-CLASS. PO PRODUCED OIL, CR CRUDE, PG GAS, PW WATER.</text><text class="sh-note" x="40" y="994">3.  WELLS SHOWN SCHEMATICALLY; DOWNHOLE DEPTHS NOT TO SCALE.</text><text class="sh-note" x="40" y="1008">4.  LIVE VALUES ARE SIMULATED.</text><text class="sh-note" x="40" y="1022">5.  ILLUSTRATIVE DRAWING. NOT FOR DESIGN, OPERATION OR CONSTRUCTION.</text>
+  <text class="sh-head" x="710" y="948">LEGEND</text>
+  <g transform="translate(710 956)"><g transform="translate(0 0)"><g transform="translate(11 9)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g><text class="sh-note" x="34" y="12">GATE VALVE</text></g><g transform="translate(190 0)"><g transform="translate(11 9)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g><text class="sh-note" x="34" y="12">CHECK VALVE</text></g><g transform="translate(380 0)"><g transform="translate(11 13)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/><path class="pid-int" d="M0 0V-13"/><path class="pid-valve" d="M-9 -13A9 9 0 0 1 9 -13Z"/></g><text class="sh-note" x="34" y="12">CONTROL VALVE</text></g><g transform="translate(0 26)"><g transform="translate(11 18)"><g transform="translate(0 0)"><path class="pid-valve" d="M-6 8L0 0L6 8Z"/><path class="pid-valve" d="M0 0L8 -6V6Z"/><path class="pid-int" d="M0 0V-6M-4 -6L4 -8L-4 -10L4 -12L-4 -14M0 -14V-17"/></g></g><text class="sh-note" x="34" y="12">RELIEF VALVE</text></g><g transform="translate(190 26)"><path class="pid-minor" d="M0 9H22"/><g transform="translate(11 9)"><rect class="pid-mask" x="-4" y="-5" width="8" height="10"/><path class="pid-eq-thin" d="M-2.5 -8V8M2.5 -8V8"/></g><text class="sh-note" x="34" y="12">ORIFICE PLATE</text></g><g transform="translate(380 26)"><circle class="pid-bubble" cx="11" cy="9" r="9"/><text class="sh-note" x="34" y="12">FIELD INSTRUMENT</text></g><g transform="translate(0 52)"><path class="pid-sig" d="M0 9H22"/><text class="sh-note" x="34" y="12">ELECTRIC SIGNAL / POWER</text></g><g transform="translate(190 52)"><path class="pid-imp" d="M0 9H22"/><text class="sh-note" x="34" y="12">PROCESS CONNECTION</text></g><g transform="translate(380 52)"><path class="pid-util" d="M0 9H22"/><text class="sh-note" x="34" y="12">UTILITY (HEATING MEDIUM)</text></g><g transform="translate(0 78)"><text class="pid-live" x="0" y="12">00.0</text><text class="sh-note" x="34" y="12">LIVE VALUE (SIMULATED)</text></g></g>
+    
+  <g class="sh-revisions">
+    <path class="sh-frame sh-thin" d="M1290 860H1670M1290 878H1670M1290 896H1670M1290 914H1670M1324 860V930M1394 860V930M1590 860V930M1630 860V930"/>
+    <path class="sh-frame sh-heavy" d="M1290 860V930"/>
+    <text class="sh-label" x="1296" y="872">REV</text><text class="sh-label" x="1330" y="872">DATE</text><text class="sh-label" x="1400" y="872">DESCRIPTION</text><text class="sh-label" x="1596" y="872">BY</text><text class="sh-label" x="1636" y="872">CHK</text>
+    <text class="sh-note" x="1298" y="890">C</text><text class="sh-note" x="1330" y="890">2026-09-22</text><text class="sh-note" x="1400" y="890">ESP DOWNHOLE GAUGES ON LINE</text><text class="sh-note" x="1596" y="890">HLX</text><text class="sh-note" x="1636" y="890">TBA</text><text class="sh-note" x="1298" y="908">B</text><text class="sh-note" x="1330" y="908">2026-06-03</text><text class="sh-note" x="1400" y="908">K-2400 GAS COMPRESSION ADDED</text><text class="sh-note" x="1596" y="908">HLX</text><text class="sh-note" x="1636" y="908">TBA</text><text class="sh-note" x="1298" y="926">A</text><text class="sh-note" x="1330" y="926">2026-02-18</text><text class="sh-note" x="1400" y="926">ISSUED FOR INFORMATION</text><text class="sh-note" x="1596" y="926">HLX</text><text class="sh-note" x="1636" y="926">TBA</text>
+  </g>
+  <g class="sh-titleblock">
+    <path class="sh-frame sh-heavy" d="M1290 930H1670M1290 930V1070"/>
+    <path class="sh-frame sh-thin" d="M1290 962H1670M1290 1012H1670M1290 1040H1670M1480 1012V1040M1590 1012V1040M1380 1040V1070M1560 1040V1070"/>
+    <text class="sh-org" x="1298" y="951">HELIX</text><text class="sh-label" x="1348" y="950">ASSET RELIABILITY · ILLUSTRATIVE DRAWING</text>
+    <text class="sh-label" x="1298" y="973">NORTH FIELD · CENTRAL PROCESSING FACILITY</text>
+    <text class="sh-title" x="1298" y="990">OIL PROCESSING TRAIN 1</text>
+    <text class="sh-sub" x="1298" y="1005">PIPING AND INSTRUMENTATION DIAGRAM</text>
+    <text class="sh-label" x="1295" y="1022">DRAWING NO.</text><text class="sh-value" x="1295" y="1036">NF-OPT-1-PID-2001</text>
+    <text class="sh-label" x="1485" y="1022">REV</text><text class="sh-value" x="1485" y="1036">C</text>
+    <text class="sh-label" x="1595" y="1022">SHEET</text><text class="sh-value" x="1595" y="1036">1 OF 1</text>
+    <text class="sh-label" x="1295" y="1050">SCALE</text><text class="sh-value" x="1295" y="1064">NONE</text>
+    <text class="sh-label" x="1385" y="1050">STATUS</text><text class="sh-stamp" x="1385" y="1064">NOT FOR CONSTRUCTION</text>
+    <text class="sh-label" x="1565" y="1050">ISSUED</text><text class="sh-value" x="1565" y="1064">2026-09-22</text>
+  </g>
+  </g>
+<g class="pid-content">
+<path class="pid-util" d="M910 558V574M930 558V574"/>
+<path class="pid-major" d="M110 96V150"/><path class="pid-major" d="M222 96V150"/><path class="pid-major" d="M334 96V150"/><path class="pid-major" d="M110 96L445 96M445 96V388M445 388L480 388"/><path class="pid-arrow" d="M480 388L471 391.6L471 384.4Z"/><path class="pid-major" d="M730 230V342M730 230L873 230"/><path class="pid-arrow" d="M873 230L864 233.6L864 226.4Z"/><path class="pid-major" d="M905 86V130M905 86L1109 86M1109 86V160"/><path class="pid-arrow" d="M1109 160L1105.4 151L1112.6 151Z"/><path class="pid-major" d="M1144 186L1264 186"/><path class="pid-arrow" d="M1264 186L1255 189.6L1255 182.4Z"/><path class="pid-major" d="M1292 66V166M1292 66L1536 66"/><path class="pid-arrow" d="M1536 66L1527 69.6L1527 62.4Z"/><path class="pid-minor" d="M905 300V322M905 322L960 322"/><path class="pid-arrow" d="M960 322L951 325.6L951 318.4Z"/><path class="pid-major" d="M722 432V540M722 540L810 540"/><path class="pid-arrow" d="M810 540L801 543.6L801 536.4Z"/><path class="pid-major" d="M821 558V650M821 650L1000 650"/><path class="pid-arrow" d="M1000 650L991 653.6L991 646.4Z"/><path class="pid-major" d="M1170 492V614M1170 492L1300 492"/><path class="pid-arrow" d="M1300 492L1291 495.6L1291 488.4Z"/><path class="pid-major" d="M1420 668L1450 668M1450 668V720M1450 720L1476 720"/><path class="pid-arrow" d="M1476 720L1467 723.6L1467 716.4Z"/><path class="pid-major" d="M1512 713L1522 713M1522 600V713M1522 600L1536 600"/><path class="pid-arrow" d="M1536 600L1527 603.6L1527 596.4Z"/><path class="pid-minor" d="M590 432V800M590 800L476 800"/><path class="pid-arrow" d="M476 800L485 796.4L485 803.6Z"/><path class="pid-minor" d="M1030 684V760M1030 760L590 760"/><path class="pid-arrow" d="M590 760L599 756.4L599 763.6Z"/><path class="pid-minor" d="M440 793L164 793"/><path class="pid-arrow" d="M164 793L173 789.4L173 796.6Z"/><path class="pid-minor" d="M560 322V342"/>
+<g id="W-101" class="pid-equipment" data-own="W-101">
+    <rect class="pid-hit" x="94" y="150" width="32" height="450"/>
+    <path class="pid-eq" d="M101 150H119V158H101Z"/>
+    <path class="pid-eq-thin" d="M110 158V250"/>
+    <rect class="pid-eq" x="97" y="240" width="26" height="10"/>
+    <path class="pid-eq-thin" d="M103 250V504M117 250V504"/>
+    <path class="pid-int-dash" d="M110 250V508"/>
+    <rect class="pid-eq" x="103" y="508" width="14" height="40"/>
+    <path class="pid-int" d="M103 518H117M103 528H117M103 538H117"/>
+    <rect class="pid-eq" x="103" y="556" width="14" height="30"/><text class="pid-isa" x="110" y="574" text-anchor="middle">M</text>
+    <rect class="pid-eq" x="105" y="588" width="10" height="12"/>
+  </g>
+<rect class="pid-valve" x="134" y="196" width="40" height="26"/>
+<text class="pid-isa" x="154" y="212" text-anchor="middle">VSD</text>
+<path class="pid-sig" d="M154 222L154 236L121 236L121 571L117 571"/>
+<g id="W-102" class="pid-equipment" data-own="W-102">
+    <rect class="pid-hit" x="206" y="150" width="32" height="450"/>
+    <path class="pid-eq" d="M213 150H231V158H213Z"/>
+    <path class="pid-eq-thin" d="M222 158V250"/>
+    <rect class="pid-eq" x="209" y="240" width="26" height="10"/>
+    <path class="pid-eq-thin" d="M215 250V504M229 250V504"/>
+    <path class="pid-int-dash" d="M222 250V508"/>
+    <rect class="pid-eq" x="215" y="508" width="14" height="40"/>
+    <path class="pid-int" d="M215 518H229M215 528H229M215 538H229"/>
+    <rect class="pid-eq" x="215" y="556" width="14" height="30"/><text class="pid-isa" x="222" y="574" text-anchor="middle">M</text>
+    <rect class="pid-eq" x="217" y="588" width="10" height="12"/>
+  </g>
+<rect class="pid-valve" x="246" y="196" width="40" height="26"/>
+<text class="pid-isa" x="266" y="212" text-anchor="middle">VSD</text>
+<path class="pid-sig" d="M266 222L266 236L233 236L233 571L229 571"/>
+<g id="W-103" class="pid-equipment" data-own="W-103">
+    <rect class="pid-hit" x="318" y="150" width="32" height="450"/>
+    <path class="pid-eq" d="M325 150H343V158H325Z"/>
+    <path class="pid-eq-thin" d="M334 158V250"/>
+    <rect class="pid-eq" x="321" y="240" width="26" height="10"/>
+    <path class="pid-eq-thin" d="M327 250V504M341 250V504"/>
+    <path class="pid-int-dash" d="M334 250V508"/>
+    <rect class="pid-eq" x="327" y="508" width="14" height="40"/>
+    <path class="pid-int" d="M327 518H341M327 528H341M327 538H341"/>
+    <rect class="pid-eq" x="327" y="556" width="14" height="30"/><text class="pid-isa" x="334" y="574" text-anchor="middle">M</text>
+    <rect class="pid-eq" x="329" y="588" width="10" height="12"/>
+  </g>
+<rect class="pid-valve" x="358" y="196" width="40" height="26"/>
+<text class="pid-isa" x="378" y="212" text-anchor="middle">VSD</text>
+<path class="pid-sig" d="M378 222L378 236L345 236L345 571L341 571"/>
+<path class="pid-eq-thin" d="M56 250H430"/><path class="pid-int" d="M58 256L64 250"/><path class="pid-int" d="M66 256L72 250"/><path class="pid-int" d="M74 256L80 250"/><path class="pid-int" d="M82 256L88 250"/><path class="pid-int" d="M90 256L96 250"/><path class="pid-int" d="M98 256L104 250"/><path class="pid-int" d="M106 256L112 250"/><path class="pid-int" d="M114 256L120 250"/><path class="pid-int" d="M122 256L128 250"/><path class="pid-int" d="M130 256L136 250"/><path class="pid-int" d="M138 256L144 250"/><path class="pid-int" d="M146 256L152 250"/><path class="pid-int" d="M154 256L160 250"/><path class="pid-int" d="M162 256L168 250"/><path class="pid-int" d="M170 256L176 250"/><path class="pid-int" d="M178 256L184 250"/><path class="pid-int" d="M186 256L192 250"/><path class="pid-int" d="M194 256L200 250"/><path class="pid-int" d="M202 256L208 250"/><path class="pid-int" d="M210 256L216 250"/><path class="pid-int" d="M218 256L224 250"/><path class="pid-int" d="M226 256L232 250"/><path class="pid-int" d="M234 256L240 250"/><path class="pid-int" d="M242 256L248 250"/><path class="pid-int" d="M250 256L256 250"/><path class="pid-int" d="M258 256L264 250"/><path class="pid-int" d="M266 256L272 250"/><path class="pid-int" d="M274 256L280 250"/><path class="pid-int" d="M282 256L288 250"/><path class="pid-int" d="M290 256L296 250"/><path class="pid-int" d="M298 256L304 250"/><path class="pid-int" d="M306 256L312 250"/><path class="pid-int" d="M314 256L320 250"/><path class="pid-int" d="M322 256L328 250"/><path class="pid-int" d="M330 256L336 250"/><path class="pid-int" d="M338 256L344 250"/><path class="pid-int" d="M346 256L352 250"/><path class="pid-int" d="M354 256L360 250"/><path class="pid-int" d="M362 256L368 250"/><path class="pid-int" d="M370 256L376 250"/><path class="pid-int" d="M378 256L384 250"/><path class="pid-int" d="M386 256L392 250"/><path class="pid-int" d="M394 256L400 250"/><path class="pid-int" d="M402 256L408 250"/><path class="pid-int" d="M410 256L416 250"/><path class="pid-int" d="M418 256L424 250"/>
+<g id="V-2100" class="pid-equipment" data-own="V-2100">
+  <path class="pid-eq" d="M503 342H737A23 46 0 0 1 737 434H503A23 46 0 0 1 503 342Z"/>
+  <path class="pid-int" d="M503 342V434M737 342V434"/>
+  <path class="pid-int" d="M514 346V382"/>
+  <path class="pid-eq-thin" d="M680 434V392"/>
+  <rect class="pid-hatch" x="714" y="346" width="12" height="38"/>
+  <path class="pid-int-dash" d="M500 398H676M684 406H740"/>
+  <path class="pid-int-dash" d="M500 414H676"/></g>
+<g id="V-2410" class="pid-equipment" data-own="V-2410"><path class="pid-eq" d="M875 145A30 15 0 0 1 935 145V285A30 15 0 0 1 875 285Z"/><path class="pid-int" d="M875 145H935M875 285H935"/>
+  <rect class="pid-hatch" x="875" y="160" width="60" height="11"/>
+  <path class="pid-int" d="M875 200h12v16"/>
+  <path class="pid-int-dash" d="M879 248H931"/></g>
+<g id="K-2400" class="pid-equipment" data-own="K-2400">
+    <rect class="pid-eq" x="1074" y="160" width="70" height="52"/>
+    <path class="pid-eq-thin" d="M1109 166V206"/>
+    <path class="pid-int" d="M1109 212V230"/>
+    <path class="pid-int" d="M1074 160L1082 168M1144 160L1136 168M1074 212L1082 204M1144 212L1136 204"/><rect class="pid-eq" x="1264" y="166" width="56" height="42"/>
+    <path class="pid-eq-thin" d="M1292 172V202"/>
+    <path class="pid-int" d="M1292 208V230"/>
+    <path class="pid-int" d="M1264 166L1272 174M1320 166L1312 174M1264 208L1272 200M1320 208L1312 200"/>
+    <rect class="pid-eq" x="1060" y="230" width="280" height="42" rx="3"/>
+    <circle class="pid-eq-thin" cx="1200" cy="251" r="12.6"/>
+    <text class="pid-name" x="1068" y="266" text-anchor="start">FRAME</text></g>
+<path class="pid-shaft" style="stroke-width:2.6" d="M1340 251H1370"/>
+<rect class="pid-eq" x="1352" y="242" width="8" height="18"/>
+<g id="M-2400" class="pid-equipment" data-own="M-2400"><circle class="pid-eq" cx="1384" cy="251" r="12"/><text class="pid-isa" x="1384" y="254" text-anchor="middle">M</text></g>
+<g id="E-2200" class="pid-equipment" data-own="E-2200">
+  <rect class="pid-eq" x="810" y="520" width="22" height="40"/>
+  <path class="pid-eq" d="M832 520H940A10 20 0 0 1 940 560H832Z"/>
+  <path class="pid-int" d="M832 534H934A6 6 0 0 1 934 546H832"/>
+  <path class="pid-int" d="M810 540H832"/></g>
+<g id="V-2300" class="pid-equipment" data-own="V-2300">
+  <path class="pid-eq" d="M1019 612H1181A19 38 0 0 1 1181 688H1019A19 38 0 0 1 1019 612Z"/>
+  <path class="pid-int" d="M1019 612V688M1181 612V688"/>
+  <path class="pid-eq-thin" d="M1034 640H1166M1034 648H1166"/>
+  <path class="pid-int-dash" d="M1020 666H1180"/>
+  <path class="pid-eq-thin" d="M1100 612V640"/>
+  <circle class="pid-eq" cx="1095" cy="600" r="9"/><circle class="pid-eq" cx="1105" cy="600" r="9" style="fill:none"/>
+  <path class="pid-eq-thin" d="M1100 609V612"/></g>
+<g id="T-2500" class="pid-equipment" data-own="T-2500">
+  <path class="pid-eq" d="M1300 470L1360 452L1420 470V690H1300Z"/>
+  <path class="pid-int-dash" d="M1306 540.4H1414"/></g>
+<g id="P-2510" class="pid-equipment" data-own="P-2510">
+  <path class="pid-eq" d="M1479 733L1472 741H1508L1501 733"/>
+  <circle class="pid-eq" cx="1490" cy="720" r="14"/>
+  <path class="pid-eq" d="M1490 706H1512V713H1501.4"/></g>
+<path class="pid-shaft" style="stroke-width:2.2" d="M1504 728H1518"/>
+<g id="M-2510" class="pid-equipment" data-own="M-2510"><circle class="pid-eq" cx="1527" cy="728" r="9"/><text class="pid-isa" x="1527" y="731" text-anchor="middle">M</text></g>
+<g id="P-2610" class="pid-equipment" data-own="P-2610">
+  <path class="pid-eq" d="M473 813L480 821H444L451 813"/>
+  <circle class="pid-eq" cx="462" cy="800" r="14"/>
+  <path class="pid-eq" d="M462 786H440V793H450.6"/></g>
+<path class="pid-shaft" style="stroke-width:2.2" d="M448 808H434"/>
+<circle class="pid-eq" cx="425" cy="808" r="9"/><text class="pid-isa" x="425" y="811" text-anchor="middle">M</text>
+<circle class="pid-eq" cx="1204" cy="186" r="13"/><path class="pid-int" d="M1192 186L1197 179L1203 193L1209 179L1215 186"/>
+<g transform="translate(110 128) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g>
+<g transform="translate(110 180) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(110 208) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(222 128) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g>
+<g transform="translate(222 180) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(222 208) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(334 128) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g>
+<g transform="translate(334 180) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(334 208) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(722 482) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/><path class="pid-int" d="M0 0V-13"/><path class="pid-valve" d="M-9 -13A9 9 0 0 1 9 -13Z"/></g>
+<text class="pid-vtag" x="748" y="503" text-anchor="start">LV-2102</text>
+<g transform="translate(590 482) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/><path class="pid-int" d="M0 0V13"/><path class="pid-valve" d="M-9 13A9 9 0 0 0 9 13Z"/></g>
+<text class="pid-vtag" x="602" y="505" text-anchor="start">LV-2103</text>
+<g transform="translate(560 322)"><path class="pid-valve" d="M-6 8L0 0L6 8Z"/><path class="pid-valve" d="M0 0L8 -6V6Z"/><path class="pid-int" d="M0 0V-6M-4 -6L4 -8L-4 -10L4 -12L-4 -14M0 -14V-17"/></g>
+<path class="pid-minor" d="M568 316H592"/>
+<text class="pid-vtag" x="596" y="319" text-anchor="start">PSV-2101 → FLARE</text>
+<g transform="translate(1500 66)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(1522 630) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g>
+<g transform="translate(300 793)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L0 0L-9 6Z"/><path class="pid-valve-solid" d="M9 -6L0 0L9 6Z"/><path class="pid-int" d="M0 -8V8"/></g>
+<g transform="translate(1450 700) rotate(90)"><rect class="pid-mask" x="-10" y="-7" width="20" height="14"/><path class="pid-valve" d="M-9 -6L9 6V-6L-9 6Z"/></g>
+<g transform="translate(1522 655) rotate(90)"><rect class="pid-mask" x="-4" y="-5" width="8" height="10"/><path class="pid-eq-thin" d="M-2.5 -8V8M2.5 -8V8"/></g>
+<path class="pid-imp" d="M129 108L110 108"/>
+<g id="PT-1011" class="pid-instrument" data-own="PT-1011">
+    <circle class="pid-bubble" cx="144" cy="108" r="15"/>
+    <text class="pid-isa" x="144" y="106.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="144" y="116.5" text-anchor="middle">1011</text>
+  </g><text class="pid-live" x="164" y="111" text-anchor="start" data-live="PT-1011">—</text>
+<path class="pid-imp" d="M154 182L154 196"/>
+<g id="IT-1014" class="pid-instrument" data-own="IT-1014">
+    <circle class="pid-bubble" cx="154" cy="167" r="15"/>
+    <text class="pid-isa" x="154" y="165.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="154" y="175.5" text-anchor="middle">1014</text>
+  </g><text class="pid-live" x="174" y="170" text-anchor="start" data-live="IT-1014">—</text>
+<path class="pid-imp" d="M81 430L94 430L94 594L105 594"/>
+<path class="pid-imp" d="M81 490L94 490"/>
+<path class="pid-imp" d="M81 550L94 550"/>
+<g id="PT-1012" class="pid-instrument" data-own="PT-1012">
+    <circle class="pid-bubble" cx="66" cy="430" r="15"/>
+    <text class="pid-isa" x="66" y="428.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="66" y="438.5" text-anchor="middle">1012</text>
+  </g><text class="pid-live" x="66" y="456" text-anchor="middle" data-live="PT-1012">—</text>
+<g id="TT-1013" class="pid-instrument" data-own="TT-1013">
+    <circle class="pid-bubble" cx="66" cy="490" r="15"/>
+    <text class="pid-isa" x="66" y="488.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="66" y="498.5" text-anchor="middle">1013</text>
+  </g><text class="pid-live" x="66" y="516" text-anchor="middle" data-live="TT-1013">—</text>
+<g id="VT-1015" class="pid-instrument" data-own="VT-1015">
+    <circle class="pid-bubble" cx="66" cy="550" r="15"/>
+    <text class="pid-isa" x="66" y="548.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="66" y="558.5" text-anchor="middle">1015</text>
+  </g><text class="pid-live" x="66" y="576" text-anchor="middle" data-live="VT-1015">—</text>
+<path class="pid-imp" d="M241 108L222 108"/>
+<g id="PT-1021" class="pid-instrument" data-own="PT-1021">
+    <circle class="pid-bubble" cx="256" cy="108" r="15"/>
+    <text class="pid-isa" x="256" y="106.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="256" y="116.5" text-anchor="middle">1021</text>
+  </g><text class="pid-live" x="276" y="111" text-anchor="start" data-live="PT-1021">—</text>
+<path class="pid-imp" d="M266 182L266 196"/>
+<g id="IT-1024" class="pid-instrument" data-own="IT-1024">
+    <circle class="pid-bubble" cx="266" cy="167" r="15"/>
+    <text class="pid-isa" x="266" y="165.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="266" y="175.5" text-anchor="middle">1024</text>
+  </g><text class="pid-live" x="286" y="170" text-anchor="start" data-live="IT-1024">—</text>
+<path class="pid-imp" d="M193 430L206 430L206 594L217 594"/>
+<path class="pid-imp" d="M193 490L206 490"/>
+<path class="pid-imp" d="M193 550L206 550"/>
+<g id="PT-1022" class="pid-instrument" data-own="PT-1022">
+    <circle class="pid-bubble" cx="178" cy="430" r="15"/>
+    <text class="pid-isa" x="178" y="428.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="178" y="438.5" text-anchor="middle">1022</text>
+  </g><text class="pid-live" x="178" y="456" text-anchor="middle" data-live="PT-1022">—</text>
+<g id="TT-1023" class="pid-instrument" data-own="TT-1023">
+    <circle class="pid-bubble" cx="178" cy="490" r="15"/>
+    <text class="pid-isa" x="178" y="488.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="178" y="498.5" text-anchor="middle">1023</text>
+  </g><text class="pid-live" x="178" y="516" text-anchor="middle" data-live="TT-1023">—</text>
+<g id="VT-1025" class="pid-instrument" data-own="VT-1025">
+    <circle class="pid-bubble" cx="178" cy="550" r="15"/>
+    <text class="pid-isa" x="178" y="548.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="178" y="558.5" text-anchor="middle">1025</text>
+  </g><text class="pid-live" x="178" y="576" text-anchor="middle" data-live="VT-1025">—</text>
+<path class="pid-imp" d="M353 108L334 108"/>
+<g id="PT-1031" class="pid-instrument" data-own="PT-1031">
+    <circle class="pid-bubble" cx="368" cy="108" r="15"/>
+    <text class="pid-isa" x="368" y="106.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="368" y="116.5" text-anchor="middle">1031</text>
+  </g><text class="pid-live" x="388" y="111" text-anchor="start" data-live="PT-1031">—</text>
+<path class="pid-imp" d="M378 182L378 196"/>
+<g id="IT-1034" class="pid-instrument" data-own="IT-1034">
+    <circle class="pid-bubble" cx="378" cy="167" r="15"/>
+    <text class="pid-isa" x="378" y="165.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="378" y="175.5" text-anchor="middle">1034</text>
+  </g><text class="pid-live" x="398" y="170" text-anchor="start" data-live="IT-1034">—</text>
+<path class="pid-imp" d="M305 430L318 430L318 594L329 594"/>
+<path class="pid-imp" d="M305 490L318 490"/>
+<path class="pid-imp" d="M305 550L318 550"/>
+<g id="PT-1032" class="pid-instrument" data-own="PT-1032">
+    <circle class="pid-bubble" cx="290" cy="430" r="15"/>
+    <text class="pid-isa" x="290" y="428.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="290" y="438.5" text-anchor="middle">1032</text>
+  </g><text class="pid-live" x="290" y="456" text-anchor="middle" data-live="PT-1032">—</text>
+<g id="TT-1033" class="pid-instrument" data-own="TT-1033">
+    <circle class="pid-bubble" cx="290" cy="490" r="15"/>
+    <text class="pid-isa" x="290" y="488.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="290" y="498.5" text-anchor="middle">1033</text>
+  </g><text class="pid-live" x="290" y="516" text-anchor="middle" data-live="TT-1033">—</text>
+<g id="VT-1035" class="pid-instrument" data-own="VT-1035">
+    <circle class="pid-bubble" cx="290" cy="550" r="15"/>
+    <text class="pid-isa" x="290" y="548.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="290" y="558.5" text-anchor="middle">1035</text>
+  </g><text class="pid-live" x="290" y="576" text-anchor="middle" data-live="VT-1035">—</text>
+<path class="pid-imp" d="M700 311L700 342"/>
+<g id="PT-2101" class="pid-instrument" data-own="PT-2101">
+    <circle class="pid-bubble" cx="700" cy="296" r="15"/>
+    <text class="pid-isa" x="700" y="294.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="700" y="304.5" text-anchor="middle">2101</text>
+  </g><text class="pid-live" x="680" y="299" text-anchor="end" data-live="PT-2101">—</text>
+<path class="pid-imp" d="M758 400L790 400"/>
+<g id="LT-2102" class="pid-instrument" data-own="LT-2102">
+    <circle class="pid-bubble" cx="805" cy="400" r="15"/>
+    <text class="pid-isa" x="805" y="398.5" text-anchor="middle">LT</text><text class="pid-isa-n" x="805" y="408.5" text-anchor="middle">2102</text>
+  </g><text class="pid-live" x="825" y="403" text-anchor="start" data-live="LT-2102">—</text>
+<path class="pid-sig" d="M805 415L805 482L744 482"/>
+<path class="pid-imp" d="M530 465L530 430"/>
+<g id="LT-2103" class="pid-instrument" data-own="LT-2103">
+    <circle class="pid-bubble" cx="530" cy="480" r="15"/>
+    <text class="pid-isa" x="530" y="478.5" text-anchor="middle">LT</text><text class="pid-isa-n" x="530" y="488.5" text-anchor="middle">2103</text>
+  </g><text class="pid-live" x="510" y="483" text-anchor="end" data-live="LT-2103">—</text>
+<path class="pid-sig" d="M545 482L568 482"/>
+<path class="pid-imp" d="M665 465L665 433"/>
+<g id="TT-2104" class="pid-instrument" data-own="TT-2104">
+    <circle class="pid-bubble" cx="665" cy="480" r="15"/>
+    <text class="pid-isa" x="665" y="478.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="665" y="488.5" text-anchor="middle">2104</text>
+  </g><text class="pid-live" x="665" y="506" text-anchor="middle" data-live="TT-2104">—</text>
+<path class="pid-imp" d="M875 270L860 270"/>
+<g id="LT-2411" class="pid-instrument" data-own="LT-2411">
+    <circle class="pid-bubble" cx="845" cy="270" r="15"/>
+    <text class="pid-isa" x="845" y="268.5" text-anchor="middle">LT</text><text class="pid-isa-n" x="845" y="278.5" text-anchor="middle">2411</text>
+  </g><text class="pid-live" x="825" y="273" text-anchor="end" data-live="LT-2411">—</text>
+<path class="pid-imp" d="M935 160L952 160L952 166"/>
+<path class="pid-imp" d="M935 210L952 210L952 196"/>
+<g id="PDT-2412" class="pid-instrument" data-own="PDT-2412">
+    <circle class="pid-bubble" cx="952" cy="181" r="15"/>
+    <text class="pid-isa" x="952" y="179.5" text-anchor="middle">PDT</text><text class="pid-isa-n" x="952" y="189.5" text-anchor="middle">2412</text>
+  </g><text class="pid-live" x="972" y="184" text-anchor="start" data-live="PDT-2412">—</text>
+<path class="pid-imp" d="M1000 71L1000 86"/>
+<g id="PT-2401" class="pid-instrument" data-own="PT-2401">
+    <circle class="pid-bubble" cx="1000" cy="56" r="15"/>
+    <text class="pid-isa" x="1000" y="54.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="1000" y="64.5" text-anchor="middle">2401</text>
+  </g><text class="pid-live" x="1020" y="59" text-anchor="start" data-live="PT-2401">—</text>
+<path class="pid-imp" d="M1166 155L1166 186"/>
+<g id="TT-2403" class="pid-instrument" data-own="TT-2403">
+    <circle class="pid-bubble" cx="1166" cy="140" r="15"/>
+    <text class="pid-isa" x="1166" y="138.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1166" y="148.5" text-anchor="middle">2403</text>
+  </g><text class="pid-live" x="1146" y="143" text-anchor="end" data-live="TT-2403">—</text>
+<path class="pid-imp" d="M1292 116L1314 116"/>
+<g id="TT-2404" class="pid-instrument" data-own="TT-2404">
+    <circle class="pid-bubble" cx="1329" cy="116" r="15"/>
+    <text class="pid-isa" x="1329" y="114.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1329" y="124.5" text-anchor="middle">2404</text>
+  </g><text class="pid-live" x="1349" y="119" text-anchor="start" data-live="TT-2404">—</text>
+<path class="pid-imp" d="M1440 66L1440 85"/>
+<g id="PT-2402" class="pid-instrument" data-own="PT-2402">
+    <circle class="pid-bubble" cx="1440" cy="100" r="15"/>
+    <text class="pid-isa" x="1440" y="98.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="1440" y="108.5" text-anchor="middle">2402</text>
+  </g><text class="pid-live" x="1460" y="103" text-anchor="start" data-live="PT-2402">—</text>
+<path class="pid-imp" d="M1150 272L1150 297"/>
+<g id="VT-2405" class="pid-instrument" data-own="VT-2405">
+    <circle class="pid-bubble" cx="1150" cy="312" r="15"/>
+    <text class="pid-isa" x="1150" y="310.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="1150" y="320.5" text-anchor="middle">2405</text>
+  </g><text class="pid-live" x="1150" y="338" text-anchor="middle" data-live="VT-2405">—</text>
+<path class="pid-imp" d="M1384 263L1384 297"/>
+<g id="IT-2406" class="pid-instrument" data-own="IT-2406">
+    <circle class="pid-bubble" cx="1384" cy="312" r="15"/>
+    <text class="pid-isa" x="1384" y="310.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="1384" y="320.5" text-anchor="middle">2406</text>
+  </g><text class="pid-live" x="1384" y="338" text-anchor="middle" data-live="IT-2406">—</text>
+<path class="pid-imp" d="M1394 245L1430 245L1430 297"/>
+<g id="TT-2407" class="pid-instrument" data-own="TT-2407">
+    <circle class="pid-bubble" cx="1430" cy="312" r="15"/>
+    <text class="pid-isa" x="1430" y="310.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1430" y="320.5" text-anchor="middle">2407</text>
+  </g><text class="pid-live" x="1430" y="338" text-anchor="middle" data-live="TT-2407">—</text>
+<path class="pid-imp" d="M860 520L860 505L868 505"/>
+<path class="pid-imp" d="M930 520L930 505L922 505"/>
+<g id="PDT-2202" class="pid-instrument" data-own="PDT-2202">
+    <circle class="pid-bubble" cx="895" cy="505" r="15"/>
+    <text class="pid-isa" x="895" y="503.5" text-anchor="middle">PDT</text><text class="pid-isa-n" x="895" y="513.5" text-anchor="middle">2202</text>
+  </g><text class="pid-live" x="895" y="483" text-anchor="middle" data-live="PDT-2202">—</text>
+<path class="pid-imp" d="M920 650L920 675"/>
+<g id="TT-2201" class="pid-instrument" data-own="TT-2201">
+    <circle class="pid-bubble" cx="920" cy="690" r="15"/>
+    <text class="pid-isa" x="920" y="688.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="920" y="698.5" text-anchor="middle">2201</text>
+  </g><text class="pid-live" x="940" y="693" text-anchor="start" data-live="TT-2201">—</text>
+<path class="pid-imp" d="M1100 591L1100 580"/>
+<g id="IT-2302" class="pid-instrument" data-own="IT-2302">
+    <circle class="pid-bubble" cx="1100" cy="565" r="15"/>
+    <text class="pid-isa" x="1100" y="563.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="1100" y="573.5" text-anchor="middle">2302</text>
+  </g><text class="pid-live" x="1080" y="568" text-anchor="end" data-live="IT-2302">—</text>
+<path class="pid-imp" d="M1170 560L1200 560"/>
+<g id="AT-2301" class="pid-instrument" data-own="AT-2301">
+    <circle class="pid-bubble" cx="1215" cy="560" r="15"/>
+    <text class="pid-isa" x="1215" y="558.5" text-anchor="middle">AT</text><text class="pid-isa-n" x="1215" y="568.5" text-anchor="middle">2301</text>
+  </g><text class="pid-live" x="1235" y="563" text-anchor="start" data-live="AT-2301">—</text>
+<path class="pid-imp" d="M1197 668L1225 668"/>
+<g id="LT-2303" class="pid-instrument" data-own="LT-2303">
+    <circle class="pid-bubble" cx="1240" cy="668" r="15"/>
+    <text class="pid-isa" x="1240" y="666.5" text-anchor="middle">LT</text><text class="pid-isa-n" x="1240" y="676.5" text-anchor="middle">2303</text>
+  </g><text class="pid-live" x="1240" y="694" text-anchor="middle" data-live="LT-2303">—</text>
+<path class="pid-imp" d="M1420 540L1445 540"/>
+<g id="LT-2501" class="pid-instrument" data-own="LT-2501">
+    <circle class="pid-bubble" cx="1460" cy="540" r="15"/>
+    <text class="pid-isa" x="1460" y="538.5" text-anchor="middle">LT</text><text class="pid-isa-n" x="1460" y="548.5" text-anchor="middle">2501</text>
+  </g><text class="pid-live" x="1480" y="543" text-anchor="start" data-live="LT-2501">—</text>
+<path class="pid-imp" d="M1420 600L1445 600"/>
+<g id="TT-2502" class="pid-instrument" data-own="TT-2502">
+    <circle class="pid-bubble" cx="1460" cy="600" r="15"/>
+    <text class="pid-isa" x="1460" y="598.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1460" y="608.5" text-anchor="middle">2502</text>
+  </g><text class="pid-live" x="1480" y="603" text-anchor="start" data-live="TT-2502">—</text>
+<path class="pid-imp" d="M1522 655L1545 655"/>
+<g id="FT-2512" class="pid-instrument" data-own="FT-2512">
+    <circle class="pid-bubble" cx="1560" cy="655" r="15"/>
+    <text class="pid-isa" x="1560" y="653.5" text-anchor="middle">FT</text><text class="pid-isa-n" x="1560" y="663.5" text-anchor="middle">2512</text>
+  </g><text class="pid-live" x="1580" y="658" text-anchor="start" data-live="FT-2512">—</text>
+<path class="pid-imp" d="M1522 690L1545 690"/>
+<g id="PT-2511" class="pid-instrument" data-own="PT-2511">
+    <circle class="pid-bubble" cx="1560" cy="690" r="15"/>
+    <text class="pid-isa" x="1560" y="688.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="1560" y="698.5" text-anchor="middle">2511</text>
+  </g><text class="pid-live" x="1580" y="693" text-anchor="start" data-live="PT-2511">—</text>
+<path class="pid-imp" d="M1484 741L1484 765"/>
+<g id="VT-2513" class="pid-instrument" data-own="VT-2513">
+    <circle class="pid-bubble" cx="1484" cy="780" r="15"/>
+    <text class="pid-isa" x="1484" y="778.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="1484" y="788.5" text-anchor="middle">2513</text>
+  </g><text class="pid-live" x="1484" y="806" text-anchor="middle" data-live="VT-2513">—</text>
+<path class="pid-imp" d="M1498 733L1528 765"/>
+<g id="TT-2514" class="pid-instrument" data-own="TT-2514">
+    <circle class="pid-bubble" cx="1528" cy="780" r="15"/>
+    <text class="pid-isa" x="1528" y="778.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1528" y="788.5" text-anchor="middle">2514</text>
+  </g><text class="pid-live" x="1528" y="806" text-anchor="middle" data-live="TT-2514">—</text>
+<path class="pid-imp" d="M1536 728L1572 728L1572 765"/>
+<g id="IT-2515" class="pid-instrument" data-own="IT-2515">
+    <circle class="pid-bubble" cx="1572" cy="780" r="15"/>
+    <text class="pid-isa" x="1572" y="778.5" text-anchor="middle">IT</text><text class="pid-isa-n" x="1572" y="788.5" text-anchor="middle">2515</text>
+  </g><text class="pid-live" x="1572" y="806" text-anchor="middle" data-live="IT-2515">—</text>
+<path class="pid-imp" d="M1527 737L1527 752L1616 752L1616 765"/>
+<g id="TT-2516" class="pid-instrument" data-own="TT-2516">
+    <circle class="pid-bubble" cx="1616" cy="780" r="15"/>
+    <text class="pid-isa" x="1616" y="778.5" text-anchor="middle">TT</text><text class="pid-isa-n" x="1616" y="788.5" text-anchor="middle">2516</text>
+  </g><text class="pid-live" x="1616" y="806" text-anchor="middle" data-live="TT-2516">—</text>
+<path class="pid-imp" d="M380 793L380 770"/>
+<g id="PT-2611" class="pid-instrument" data-own="PT-2611">
+    <circle class="pid-bubble" cx="380" cy="755" r="15"/>
+    <text class="pid-isa" x="380" y="753.5" text-anchor="middle">PT</text><text class="pid-isa-n" x="380" y="763.5" text-anchor="middle">2611</text>
+  </g><text class="pid-live" x="380" y="733" text-anchor="middle" data-live="PT-2611">—</text>
+<path class="pid-imp" d="M462 821L462 840"/>
+<g id="VT-2612" class="pid-instrument" data-own="VT-2612">
+    <circle class="pid-bubble" cx="462" cy="855" r="15"/>
+    <text class="pid-isa" x="462" y="853.5" text-anchor="middle">VT</text><text class="pid-isa-n" x="462" y="863.5" text-anchor="middle">2612</text>
+  </g><text class="pid-live" x="482" y="858" text-anchor="start" data-live="VT-2612">—</text>
+<text class="pid-tag" x="110" y="626" text-anchor="middle">W-101</text><text class="pid-name" x="110" y="637" text-anchor="middle">ESP WELL</text>
+<text class="pid-tag" x="222" y="626" text-anchor="middle">W-102</text><text class="pid-name" x="222" y="637" text-anchor="middle">ESP WELL</text>
+<text class="pid-tag" x="334" y="626" text-anchor="middle">W-103</text><text class="pid-name" x="334" y="637" text-anchor="middle">ESP WELL</text>
+<text class="pid-conn" x="60" y="88" text-anchor="start">PRODUCTION MANIFOLD</text>
+<text class="pid-tag" x="580" y="552" text-anchor="end">V-2100</text><text class="pid-name" x="580" y="563" text-anchor="end">PRODUCTION SEPARATOR</text><text class="pid-name" x="580" y="573" text-anchor="end">3-PHASE · 16 barg</text>
+<text class="pid-tag" x="865" y="346" text-anchor="end">V-2410</text><text class="pid-name" x="865" y="357" text-anchor="end">SUCTION SCRUBBER</text>
+<text class="pid-conn" x="966" y="325" text-anchor="start">TO CLOSED DRAIN</text>
+<text class="pid-tag" x="1210" y="352" text-anchor="middle">K-2400</text><text class="pid-name" x="1210" y="363" text-anchor="middle">ASSOCIATED GAS COMPRESSOR</text><text class="pid-name" x="1210" y="373" text-anchor="middle">2-STAGE RECIP · 15 → 70 barg</text>
+<text class="pid-vtag" x="1204" y="212" text-anchor="middle">E-2405</text>
+<text class="pid-tag" x="962" y="528" text-anchor="start">E-2200</text><text class="pid-name" x="962" y="539" text-anchor="start">CRUDE HEATER</text>
+<text class="pid-conn" x="910" y="584" text-anchor="middle">HTM S</text>
+<text class="pid-conn" x="938" y="584" text-anchor="start">HTM R</text>
+<text class="pid-tag" x="1100" y="712" text-anchor="middle">V-2300</text><text class="pid-name" x="1100" y="723" text-anchor="middle">ELECTROSTATIC DEHYDRATOR</text>
+<text class="pid-tag" x="1360" y="712" text-anchor="middle">T-2500</text><text class="pid-name" x="1360" y="723" text-anchor="middle">CRUDE STORAGE TANK</text><text class="pid-name" x="1360" y="733" text-anchor="middle">8 000 m³</text>
+<text class="pid-tag" x="1460" y="760" text-anchor="end">P-2510</text><text class="pid-name" x="1460" y="771" text-anchor="end">CRUDE EXPORT</text><text class="pid-name" x="1460" y="781" text-anchor="end">PUMP</text>
+<text class="pid-tag" x="502" y="840" text-anchor="start">P-2610</text><text class="pid-name" x="502" y="851" text-anchor="start">PRODUCED WATER PUMP</text>
+<text class="pid-line" x="320" y="88" text-anchor="middle">8&quot;-PO-2001-B1A</text>
+<text class="pid-line" x="820" y="222" text-anchor="middle">10&quot;-PG-2401-B1A</text>
+<text class="pid-line" x="1045" y="80" text-anchor="middle">8&quot;-PG-2402-B1A</text>
+<text class="pid-line" x="1380" y="58" text-anchor="middle">6&quot;-PG-2403-D1A</text>
+<text class="pid-line" x="250" y="785" text-anchor="middle">4&quot;-PW-2601-A1A</text>
+<text class="pid-line" x="766" y="533" text-anchor="middle">6&quot;-CR-2101-B1A</text>
+<text class="pid-line" x="598" y="660" text-anchor="middle" transform="rotate(-90 598 660)">4&quot;-PW-2101-A1A</text>
+<text class="pid-line" x="1250" y="484" text-anchor="middle">6&quot;-CR-2301-B1A</text>
+<g class="pid-offpage"><path class="pid-valve" d="M1536 49H1650L1660 66L1650 83H1536Z"/>
+    <text class="pid-conn" x="1593" y="57.75" text-anchor="middle">ASSOCIATED GAS</text><text class="pid-conn" x="1593" y="66.25" text-anchor="middle">TO GAS EXPORT</text>
+    <text class="pid-conn-n" x="1593" y="78" text-anchor="middle">NF-PID-2701</text></g>
+<g class="pid-offpage"><path class="pid-valve" d="M1536 583H1650L1660 600L1650 617H1536Z"/>
+    <text class="pid-conn" x="1593" y="591.75" text-anchor="middle">CRUDE TO EXPORT</text><text class="pid-conn" x="1593" y="600.25" text-anchor="middle">PIPELINE</text>
+    <text class="pid-conn-n" x="1593" y="612" text-anchor="middle">NF-PID-2801</text></g>
+<g class="pid-offpage"><path class="pid-valve" d="M50 776H164V810H50L40 793Z"/>
+    <text class="pid-conn" x="107" y="784.75" text-anchor="middle">PRODUCED WATER</text><text class="pid-conn" x="107" y="793.25" text-anchor="middle">TO TREATMENT</text>
+    <text class="pid-conn-n" x="107" y="805" text-anchor="middle">NF-PID-2901</text></g>
+<circle id="mk:V-2100" class="pid-anchor" cx="736" cy="344" r="0"/>
+<circle id="mk:V-2410" class="pid-anchor" cx="933" cy="134" r="0"/>
+<circle id="mk:K-2400" class="pid-anchor" cx="1320" cy="166" r="0"/>
+<circle id="mk:M-2400" class="pid-anchor" cx="1394" cy="240" r="0"/>
+<circle id="mk:E-2200" class="pid-anchor" cx="946" cy="522" r="0"/>
+<circle id="mk:V-2300" class="pid-anchor" cx="1180" cy="614" r="0"/>
+<circle id="mk:T-2500" class="pid-anchor" cx="1420" cy="470" r="0"/>
+<circle id="mk:P-2510" class="pid-anchor" cx="1508" cy="706" r="0"/>
+<circle id="mk:M-2510" class="pid-anchor" cx="1535" cy="720" r="0"/>
+<circle id="mk:P-2610" class="pid-anchor" cx="476" cy="786" r="0"/>
+<circle id="mk:W-101" class="pid-anchor" cx="124" cy="150" r="0"/>
+<circle id="mk:W-102" class="pid-anchor" cx="236" cy="150" r="0"/>
+<circle id="mk:W-103" class="pid-anchor" cx="348" cy="150" r="0"/>
+</g>
+</svg>

@@ -1,0 +1,909 @@
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-leaflet";
+import L from "leaflet";
+import { getRuns, getRun, listOverlays, resolveArtifactUrl, API_BASE, type Run } from "../api/api";
+import { azerbaijanDotFromBatchId } from "../geo/azerbaijanMainland";
+import { toast } from "../components/Toast";
+import { useLanguage } from "../context/LanguageContext";
+import { translateStatus } from "../i18n/translations";
+import {
+  Map,
+  Filter,
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Clock,
+  ExternalLink,
+  ScanSearch,
+  Layers,
+  X,
+  Image as ImageIcon,
+} from "lucide-react";
+
+import "leaflet/dist/leaflet.css";
+
+/** Default view when there are no batches yet (Azerbaijan). */
+const AZERBAIJAN_CENTER: [number, number] = [40.1431, 47.5769];
+const DEFAULT_ZOOM = 7;
+
+function isValidGps(lat: number, lng: number): boolean {
+  return typeof lat === "number" && typeof lng === "number" && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function getRunGpsFromApi(run: Run): { lat: number; lng: number } | null {
+  const g = run.gps ?? (run.metadata as { gps?: { lat: number; lng: number } } | undefined)?.gps;
+  if (!g || !isValidGps(g.lat, g.lng)) return null;
+  return { lat: g.lat, lng: g.lng };
+}
+
+function getFileGps(f: { gps?: { lat: number; lng: number } | null }): { lat: number; lng: number } | null {
+  const g = f.gps;
+  if (!g || !isValidGps(g.lat, g.lng)) return null;
+  return { lat: g.lat, lng: g.lng };
+}
+
+function runTime(run: Run): number {
+  const t = run.created_at ?? run.timestamp;
+  return t ? new Date(t).getTime() : 0;
+}
+
+function confidencePct(run: Run): number | null {
+  const v = run.avg_confidence ?? run.ai_confidence;
+  return typeof v === "number" ? Math.round(v * 100) : null;
+}
+
+const MAP_HOVER_CAROUSEL_MAX = 8;
+
+function mediaUrl(u: string) {
+  if (!u) return u;
+  if (u.startsWith("http")) return u;
+  const path = u.startsWith("/") ? u : `/${u}`;
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
+function overlayItemSrc(runId: string, it: { url?: string; filename: string }): string {
+  const raw = it.url?.trim() || `/api/runs/${runId}/artifacts/overlays/${encodeURIComponent(it.filename)}`;
+  return mediaUrl(raw);
+}
+
+function isMp4Url(u: string | null | undefined): boolean {
+  return Boolean(u && /\.mp4(\?|$)/i.test(u));
+}
+
+function isVideoStyleRun(run: Run | undefined): boolean {
+  if (!run) return false;
+  const anyRun = run as unknown as {
+    type?: string;
+    files?: Array<{ video_url?: string | null }>;
+  };
+  if (anyRun.type === "video") return true;
+  return Boolean(anyRun.files?.some((f) => isMp4Url(f.video_url ?? undefined)));
+}
+
+function isDjiThermalAnalysisRun(run: Run): boolean {
+  return Boolean((run as unknown as { thermal_analysis_job?: boolean }).thermal_analysis_job);
+}
+
+/** Pick thermal preview URL from batch result row (same field order as Dashboard / Runs thermal preview). */
+function thermalResultRowToMediaUrl(r: Record<string, unknown>): string {
+  const pick = (k: string) => {
+    const v = r[k];
+    return typeof v === "string" ? v.trim() : "";
+  };
+  const raw =
+    pick("original_image_url") ||
+    pick("thermal_rjpeg_url") ||
+    pick("thermal_image_url") ||
+    pick("thermal_visualization_url") ||
+    "";
+  return raw ? mediaUrl(raw) : "";
+}
+
+/** Same rules as Dashboard `extractUrlsFromRunPayload` (RGB / annotated thumbs; thermal files use radiometric / viz paths). */
+function extractUrlsFromRunPayload(run: Run): { urls: string[] } {
+  const anyRun = run as unknown as {
+    type?: string;
+    files?: Array<{
+      filename?: string;
+      file_id?: string;
+      source?: string;
+      thumb_url?: string | null;
+      annotated_url?: string | null;
+      video_url?: string | null;
+      original_image_url?: string | null;
+      thermal_rjpeg_url?: string | null;
+      thermal_image_url?: string | null;
+      thermal_visualization_url?: string | null;
+    }>;
+  };
+  const files = anyRun.files;
+  if (!files?.length) return { urls: [] };
+  const jobId = run.run_id ?? run.id;
+  const runIsVideo = isVideoStyleRun(run);
+  const urls: string[] = [];
+  for (const f of files) {
+    const fileIsVideo = runIsVideo || isMp4Url(f.video_url ?? undefined);
+    let u = f.annotated_url || f.thumb_url || null;
+    if (!u && f.video_url && !isMp4Url(f.video_url)) u = f.video_url;
+    if (!u && f.source === "thermal" && jobId && f.file_id) {
+      const embedded =
+        (f.original_image_url || f.thermal_rjpeg_url || f.thermal_image_url || f.thermal_visualization_url || "").trim();
+      u = embedded || `/results/${jobId}/${f.file_id}_thermal.png`;
+    }
+    if (!u && f.file_id) {
+      if (fileIsVideo) u = `/results/${f.file_id}/thumb.jpg`;
+      else if (jobId) u = `/results/${jobId}/${f.file_id}_annotated.jpg`;
+    }
+    if (u && typeof u === "string") {
+      urls.push(mediaUrl(u.trim()));
+    }
+  }
+  return { urls };
+}
+
+/** Prefer RGB (`source !== "thermal"`); if none, fall back to all URLs (same pattern as recent uploads). */
+function filterRgbCarouselUrls(run: Run, urls: string[]): string[] {
+  const anyRun = run as unknown as { files?: Array<{ source?: string }> };
+  const files = anyRun.files;
+  if (!files?.length || !urls.length) return urls;
+  const out: string[] = [];
+  for (let i = 0; i < Math.min(files.length, urls.length); i++) {
+    if (files[i]?.source !== "thermal") out.push(urls[i]);
+  }
+  return out.length > 0 ? out : urls;
+}
+
+function filesPayloadSignature(run: Run): string {
+  const thermal = isDjiThermalAnalysisRun(run) ? "1" : "0";
+  const anyRun = run as unknown as {
+    files?: Array<{
+      thumb_url?: string | null;
+      annotated_url?: string | null;
+      source?: string;
+      original_image_url?: string | null;
+      thermal_rjpeg_url?: string | null;
+    }>;
+  };
+  const files = anyRun.files;
+  if (!files?.length) return thermal;
+  const fileSig = files
+    .map(
+      (f) =>
+        `${f.thumb_url ?? ""}|${f.annotated_url ?? ""}|${f.source ?? ""}|${f.original_image_url ?? ""}|${f.thermal_rjpeg_url ?? ""}`
+    )
+    .join(";");
+  return `${thermal};${fileSig}`;
+}
+
+function formatBatchUploadDate(run: Run): string {
+  const t = run.created_at ?? run.timestamp;
+  if (!t) return "—";
+  try {
+    return new Date(t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return "—";
+  }
+}
+
+function HoverThumbSlider({
+  runId,
+  urls,
+  loading,
+}: {
+  runId: string;
+  urls: string[];
+  loading: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const slideUrls = urls.slice(0, MAP_HOVER_CAROUSEL_MAX);
+  useEffect(() => {
+    setIdx(0);
+  }, [runId, slideUrls.length, slideUrls[0] ?? ""]);
+  useEffect(() => {
+    if (slideUrls.length <= 1) return;
+    const ms = reduceMotion ? 4500 : 2800;
+    const t = setInterval(() => {
+      setIdx((i) => (i + 1) % slideUrls.length);
+    }, ms);
+    return () => clearInterval(t);
+  }, [slideUrls.length, reduceMotion]);
+  useEffect(() => {
+    setIdx((i) => (slideUrls.length === 0 ? 0 : Math.min(i, slideUrls.length - 1)));
+  }, [slideUrls.length]);
+  if (loading && slideUrls.length === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "var(--dash-inset-bg)" }}>
+        <Clock className="dash-text-subtle w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
+  if (slideUrls.length === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "var(--dash-inset-bg)" }}>
+        <ImageIcon className="w-7 h-7 text-neutral-600" />
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 overflow-hidden" style={{ backgroundColor: "var(--dash-nested-bg)" }}>
+      {slideUrls.map((u, i) => (
+        <img
+          key={`${runId}-${u}-${i}`}
+          src={u}
+          alt=""
+          className={`absolute inset-0 w-full h-full object-cover ease-in-out pointer-events-none ${
+            reduceMotion ? "transition-opacity duration-200" : "transition-opacity duration-700"
+          } ${i === idx ? "opacity-100 z-[1]" : "opacity-0 z-0"}`}
+          loading={i === 0 ? "eager" : "lazy"}
+          decoding="async"
+        />
+      ))}
+      {slideUrls.length > 1 && (
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-[2] rounded-full bg-black/65 px-1.5 py-0.5 text-[9px] dash-text-body font-Poppins tabular-nums">
+          {idx + 1}/{slideUrls.length}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MapBatchHoverPanel({ run, runId }: { run: Run; runId: string }) {
+  const { t } = useLanguage();
+  const sig = filesPayloadSignature(run);
+  const thermalAnalysisJob = isDjiThermalAnalysisRun(run);
+  const [urls, setUrls] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (thermalAnalysisJob) {
+      let cancelled = false;
+      setLoading(true);
+      setUrls([]);
+      (async () => {
+        let next: string[] = [];
+        try {
+          const res = await fetch(`/api/thermal/batch/results/${encodeURIComponent(runId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            const results = Array.isArray(data?.results) ? data.results : [];
+            next = results
+              .map((row: Record<string, unknown>) => thermalResultRowToMediaUrl(row))
+              .filter(Boolean);
+          }
+        } catch {
+          /* ignore */
+        }
+        if (!cancelled) {
+          let out = next.slice(0, MAP_HOVER_CAROUSEL_MAX);
+          if (out.length === 0) {
+            const e = extractUrlsFromRunPayload(run);
+            out = filterRgbCarouselUrls(run, e.urls).slice(0, MAP_HOVER_CAROUSEL_MAX);
+          }
+          setUrls(out);
+          setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const e = extractUrlsFromRunPayload(run);
+    const filtered = filterRgbCarouselUrls(run, e.urls).slice(0, MAP_HOVER_CAROUSEL_MAX);
+    if (filtered.length > 0) {
+      setUrls(filtered);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      let next: string[] = [];
+      try {
+        const items = await listOverlays(runId);
+        if (items.length > 0) {
+          next = items.map((it) => overlayItemSrc(runId, it));
+        } else {
+          const detail = await getRun(runId);
+          const art = detail.artifacts;
+          const u = art
+            ? resolveArtifactUrl(art, runId, "overlay") ||
+              resolveArtifactUrl(art, runId, "annotated") ||
+              resolveArtifactUrl(art, runId, "thermal")
+            : undefined;
+          if (u) next = [mediaUrl(u)];
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) {
+        setUrls(filterRgbCarouselUrls(run, next).slice(0, MAP_HOVER_CAROUSEL_MAX));
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, sig, thermalAnalysisJob]);
+
+  return (
+    <div className="w-[220px] overflow-hidden rounded-lg border border-neutral-600 text-left shadow-xl" style={{ backgroundColor: "var(--dash-modal-aside)" }}>
+      <div className="border-b border-[var(--dash-panel-border)] px-2.5 py-2">
+        <div className="text-xs font-semibold dash-text-primary truncate" title={runId}>
+          {t("corridorMap.batch")} {runId}
+        </div>
+        <div className="text-[11px] dash-text-muted mt-0.5">{t("corridorMap.uploaded")} {formatBatchUploadDate(run)}</div>
+      </div>
+      <div className="relative aspect-video w-full" style={{ backgroundColor: "var(--dash-media-bg)" }}>
+        <HoverThumbSlider runId={runId} urls={urls} loading={loading} />
+      </div>
+    </div>
+  );
+}
+
+function markerColor(run: Run): string {
+  if (run.status === "failed") return "#ef4444";
+  if ((run.must_review_count ?? 0) > 0) return "#f59e0b";
+  if (run.status === "completed") return "#10b981";
+  return "#6b7280";
+}
+
+function createRunIcon(color: string): L.DivIcon {
+  return L.divIcon({
+    className: "run-marker",
+    html: `<div style="
+      width: 20px;
+      height: 20px;
+      background-color: ${color};
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+}
+
+function FitBounds({
+  runs,
+  deps,
+}: {
+  runs: Array<Run & { _gps: { lat: number; lng: number } }>;
+  deps: unknown[];
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (runs.length === 0) return;
+    const bounds = L.latLngBounds(runs.map((r) => [r._gps.lat, r._gps.lng] as [number, number]));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+  }, [runs.length, map, deps]);
+  return null;
+}
+
+function FlyTo({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo([lat, lng], map.getZoom(), { duration: 0.4 });
+  }, [lat, lng, map]);
+  return null;
+}
+
+type RunWithGps = Run & { _gps: { lat: number; lng: number }; _runId: string };
+
+function effectiveMarkerGps(
+  run: RunWithGps,
+  selected: RunWithGps | null,
+  pinOverride: { lat: number; lng: number } | null
+): { lat: number; lng: number } {
+  if (selected && selected.id === run.id && pinOverride) return pinOverride;
+  return run._gps;
+}
+
+function scanUploadsBatchUrl(runId: string) {
+  return `/runs?batch=${encodeURIComponent(runId)}&highlight=1`;
+}
+
+export default function CorridorMap() {
+  const { t, tp } = useLanguage();
+  const navigate = useNavigate();
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [dateRange, setDateRange] = useState<"7" | "14" | "30" | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRun, setSelectedRun] = useState<RunWithGps | null>(null);
+  const [mapPinOverride, setMapPinOverride] = useState<{ lat: number; lng: number } | null>(null);
+  const [azPinById, setAzPinById] = useState<Record<string, { lat: number; lng: number }>>({});
+  const azPinByIdRef = useRef(azPinById);
+  azPinByIdRef.current = azPinById;
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getRuns()
+      .then(setRuns)
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : t("corridorMap.toastFailedLoad");
+        setError(msg);
+        toast.error(msg, 5000);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const missing = new Set<string>();
+    for (const r of runs) {
+      if (getRunGpsFromApi(r)) continue;
+      const id = r.run_id ?? r.id;
+      if (typeof id !== "string" || !id.length) continue;
+      if (azPinByIdRef.current[id]) continue;
+      missing.add(id);
+    }
+    if (missing.size === 0) return;
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, { lat: number; lng: number }> = {};
+      for (const id of missing) {
+        if (cancelled) return;
+        next[id] = await azerbaijanDotFromBatchId(id);
+      }
+      if (!cancelled) {
+        setAzPinById((prev) => {
+          const merged = { ...prev };
+          for (const [k, v] of Object.entries(next)) {
+            if (merged[k] == null) merged[k] = v;
+          }
+          return merged;
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runs]);
+
+  const runsWithGps = useMemo((): RunWithGps[] => {
+    return runs
+      .map((r) => {
+        const id = String(r.run_id ?? r.id);
+        if (!id) return null;
+        const apiGps = getRunGpsFromApi(r);
+        const gps = apiGps ?? azPinById[id];
+        if (!gps) return null;
+        return { ...r, _gps: gps, _runId: id } as RunWithGps;
+      })
+      .filter((r): r is RunWithGps => r != null);
+  }, [runs, azPinById]);
+
+  const now = Date.now();
+  const dateCutoff = useMemo(() => {
+    if (dateRange === "all") return 0;
+    const d = Number(dateRange);
+    return now - d * 24 * 60 * 60 * 1000;
+  }, [dateRange, now]);
+
+  const filtered = useMemo(() => {
+    let list = runsWithGps;
+    if (statusFilter !== "all") list = list.filter((r) => r.status === statusFilter);
+    if (needsReviewOnly) list = list.filter((r) => (r.must_review_count ?? 0) > 0);
+    if (dateCutoff > 0) list = list.filter((r) => runTime(r) >= dateCutoff);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((r) => {
+        const id = (r.run_id ?? r.id).toLowerCase();
+        const tid = (r.tower_id ?? "").toLowerCase();
+        return id.includes(q) || tid.includes(q);
+      });
+    }
+    return [...list].sort((a, b) => runTime(b) - runTime(a));
+  }, [runsWithGps, statusFilter, needsReviewOnly, dateCutoff, searchQuery]);
+
+  const stats = useMemo(() => {
+    const total = filtered.length;
+    const needsReview = filtered.reduce((s, r) => s + (r.must_review_count ?? 0), 0);
+    const failed = filtered.filter((r) => r.status === "failed").length;
+    return { total, needsReview, failed };
+  }, [filtered]);
+
+  const listRuns = filtered.slice(0, 20);
+
+  const handleSelectRun = useCallback((run: RunWithGps) => {
+    setSelectedRun(run);
+    setMapPinOverride(null);
+  }, []);
+
+  const openBatchInScanUploads = useCallback(
+    (run: RunWithGps) => {
+      navigate(scanUploadsBatchUrl(run._runId));
+    },
+    [navigate]
+  );
+
+  const transition = reduceMotion ? { duration: 0 } : { duration: 0.2 };
+
+  if (loading) {
+    return (
+      <div className="h-[calc(100vh-3.5rem)] flex">
+        <div className="flex-1 animate-pulse" style={{ backgroundColor: "var(--dash-nested-bg)" }} />
+        <div className="w-80 border-l border-[var(--dash-panel-border)] p-4 space-y-4" style={{ backgroundColor: "var(--dash-modal-aside)" }}>
+          <div className="h-6 w-32 bg-neutral-700/50 rounded animate-pulse" />
+          <div className="h-10 w-full bg-neutral-700/40 rounded animate-pulse" />
+          <div className="h-16 w-full bg-neutral-700/40 rounded animate-pulse" />
+          <div className="h-24 w-full bg-neutral-700/40 rounded animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[calc(100vh-3.5rem)] flex relative">
+      <div className="flex-1 relative z-0">
+        <MapContainer
+          center={runsWithGps.length ? [runsWithGps[0]._gps.lat, runsWithGps[0]._gps.lng] : AZERBAIJAN_CENTER}
+          zoom={runsWithGps.length ? 8 : DEFAULT_ZOOM}
+          className="h-full w-full"
+          style={{ backgroundColor: "var(--dash-modal-aside)" }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {runsWithGps.length > 0 && <FitBounds runs={runsWithGps} deps={[runsWithGps]} />}
+          {selectedRun && (
+            <FlyTo
+              lat={effectiveMarkerGps(selectedRun, selectedRun, mapPinOverride).lat}
+              lng={effectiveMarkerGps(selectedRun, selectedRun, mapPinOverride).lng}
+            />
+          )}
+          {filtered.map((run) => (
+            <Marker
+              key={run.id}
+              position={[
+                effectiveMarkerGps(run, selectedRun, mapPinOverride).lat,
+                effectiveMarkerGps(run, selectedRun, mapPinOverride).lng,
+              ]}
+              icon={createRunIcon(markerColor(run))}
+              eventHandlers={{
+                click: () => {
+                  handleSelectRun(run);
+                  openBatchInScanUploads(run);
+                },
+              }}
+            >
+              <Tooltip
+                direction="top"
+                offset={[0, -12]}
+                opacity={1}
+                className="!m-0 !rounded-lg !border-0 !bg-transparent !p-0 !shadow-none"
+              >
+                <MapBatchHoverPanel run={run} runId={run._runId} />
+              </Tooltip>
+              <Popup>
+                <div className="text-sm dash-text-primary min-w-[160px]">
+                  <div className="font-semibold truncate" title={run._runId}>
+                    {t("corridorMap.batch")} {run._runId}
+                  </div>
+                  <div className="text-xs dash-text-subtle mt-1">
+                    {translateStatus(run.status, t)} &bull;{" "}
+                    {(() => {
+                      const raw = run.created_at ?? run.timestamp;
+                      return raw ? new Date(raw).toLocaleDateString() : "—";
+                    })()}
+                  </div>
+                  <div className="text-xs dash-text-subtle mt-1">
+                    {t("corridorMap.findings")}: {run.total_defects ?? run.findings_count ?? 0} &bull; {t("corridorMap.files")}: {run.completed ?? 0}/{run.total_files ?? 0}
+                  </div>
+                  <Link
+                    to={scanUploadsBatchUrl(run._runId)}
+                    className="mt-2 inline-block text-xs font-medium text-cyan-600 hover:text-cyan-800"
+                  >
+                    {t("corridorMap.openInScanUploads")}
+                  </Link>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      <AnimatePresence>
+        {panelOpen ? (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={transition}
+            className="flex flex-col w-80 border-l border-[var(--dash-panel-border)] overflow-hidden shrink-0 fixed right-0 top-14 bottom-0 z-50 sm:relative sm:top-0 sm:z-auto"
+            style={{ backgroundColor: "var(--dash-modal-aside)" }}
+          >
+            <div className="p-4 border-b border-[var(--dash-panel-border)] flex items-center justify-between">
+              <h2 className="text-sm font-semibold dash-text-primary flex items-center gap-2">
+                <Layers size={18} className="text-cyan-400" />
+                {t("corridorMap.title")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="p-1.5 rounded-lg dash-text-muted hover:dash-text-primary hover:bg-[var(--dash-hover-bg)] transition-colors"
+                aria-label={t("corridorMap.collapsePanel")}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {runs.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl border border-[var(--dash-panel-border)] p-6 text-center"
+                  style={{ backgroundColor: "var(--dash-nested-bg)" }}
+                >
+                  <Map className="mx-auto dash-text-subtle mb-3" size={40} />
+                  <p className="text-sm dash-text-muted mb-2">{t("corridorMap.noBatchesYet")}</p>
+                  <p className="text-xs dash-text-subtle mb-4">
+                    {t("corridorMap.noBatchesHint")}
+                  </p>
+                  <Link
+                    to="/new-scan"
+                    className="inline-flex items-center gap-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 px-4 py-2 text-sm font-semibold hover:bg-cyan-500/30 transition-colors"
+                  >
+                    <ScanSearch size={16} />
+                    {t("corridorMap.newScan")}
+                  </Link>
+                </motion.div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-medium dash-text-muted uppercase tracking-wider">
+                      <Filter size={14} />
+                      {t("corridorMap.filters")}
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--dash-panel-border)] dash-text-primary px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/50"
+                      style={{ backgroundColor: "var(--dash-inset-bg)" }}
+                    >
+                      <option value="all">{t("corridorMap.allStatus")}</option>
+                      <option value="completed">{t("corridorMap.completed")}</option>
+                      <option value="processing">{t("corridorMap.processing")}</option>
+                      <option value="failed">{t("corridorMap.failed")}</option>
+                      <option value="pending">{t("corridorMap.pending")}</option>
+                    </select>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm dash-text-body">
+                      <input
+                        type="checkbox"
+                        checked={needsReviewOnly}
+                        onChange={(e) => setNeedsReviewOnly(e.target.checked)}
+                        className="rounded border-neutral-600 bg-[var(--dash-inset-bg)] text-cyan-500 focus:ring-cyan-500/50"
+                      />
+                      {t("corridorMap.needsReviewOnly")}
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {(["7", "14", "30", "all"] as const).map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setDateRange(d)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            dateRange === d
+                              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50"
+                              : "bg-[var(--dash-inset-bg)] dash-text-muted border border-[var(--dash-panel-border)] hover:bg-[var(--dash-hover-bg)]"
+                          }`}
+                        >
+                          {d === "all" ? t("corridorMap.rangeAll") : `${d}d`}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 dash-text-subtle" size={16} />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={t("corridorMap.searchPlaceholder")}
+                        className="w-full rounded-lg border border-[var(--dash-panel-border)] dash-text-primary pl-9 pr-3 py-2 text-sm placeholder-neutral-500 outline-none focus:ring-2 focus:ring-cyan-500/50"
+                        style={{ backgroundColor: "var(--dash-inset-bg)" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: reduceMotion ? 0 : 0.05 }}
+                      className="rounded-lg border border-[var(--dash-panel-border)] p-2 text-center"
+                      style={{ backgroundColor: "var(--dash-inset-bg)" }}
+                    >
+                      <div className="text-lg font-bold dash-text-primary">{stats.total}</div>
+                      <div className="text-[10px] dash-text-subtle uppercase">{t("corridorMap.statMapped")}</div>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: reduceMotion ? 0 : 0.08 }}
+                      className="rounded-lg border border-[var(--dash-panel-border)] p-2 text-center"
+                      style={{ backgroundColor: "var(--dash-inset-bg)" }}
+                    >
+                      <div className="text-lg font-bold text-amber-400">{stats.needsReview}</div>
+                      <div className="text-[10px] dash-text-subtle uppercase">{t("corridorMap.statNeedsReview")}</div>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: reduceMotion ? 0 : 0.11 }}
+                      className="rounded-lg border border-[var(--dash-panel-border)] p-2 text-center"
+                      style={{ backgroundColor: "var(--dash-inset-bg)" }}
+                    >
+                      <div className="text-lg font-bold text-red-400">{stats.failed}</div>
+                      <div className="text-[10px] dash-text-subtle uppercase">{t("corridorMap.statFailed")}</div>
+                    </motion.div>
+                  </div>
+
+                  {selectedRun && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-cyan-300 uppercase">{t("corridorMap.selected")}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRun(null);
+                            setMapPinOverride(null);
+                          }}
+                          className="p-1 rounded dash-text-muted hover:dash-text-primary"
+                          aria-label={t("corridorMap.clearSelection")}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="font-Poppins text-sm dash-text-primary truncate" title={selectedRun._runId}>
+                        {selectedRun._runId}
+                      </div>
+                      <div className="text-xs dash-text-muted mt-1">
+                        {translateStatus(selectedRun.status, t)} &bull; {(selectedRun.must_review_count ?? 0) > 0 ? tp("corridorMap.toReview", { count: selectedRun.must_review_count ?? 0 }) : ""}
+                      </div>
+                      <Link
+                        to={scanUploadsBatchUrl(selectedRun._runId)}
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-400 hover:text-cyan-300"
+                      >
+                        {t("corridorMap.openInScanUploads")}
+                        <ExternalLink size={14} />
+                      </Link>
+                      {(() => {
+                        const files = selectedRun.files ?? [];
+                        const withGps = files
+                          .map((f, i) => ({ f, i, g: getFileGps(f) }))
+                          .filter((x): x is typeof x & { g: { lat: number; lng: number } } => x.g != null);
+                        if (withGps.length === 0) return null;
+                        return (
+                          <div className="mt-3 space-y-1.5 border-t border-cyan-500/30 pt-3">
+                            <div className="text-[10px] font-medium uppercase tracking-wide text-cyan-200/90">
+                              {t("corridorMap.imageGpsExact")}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setMapPinOverride(null)}
+                              className={`w-full rounded-lg border px-2 py-1.5 text-left text-xs font-medium transition-colors ${
+                                mapPinOverride == null
+                                  ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-200"
+                                  : "border-[var(--dash-panel-border)] bg-[var(--dash-inset-bg)] dash-text-body hover:bg-[var(--dash-hover-bg)]"
+                              }`}
+                            >
+                              {t("corridorMap.batchPin")}
+                            </button>
+                            {withGps.map(({ f, i, g }) => (
+                              <button
+                                key={f.file_id ?? `${i}-${f.filename ?? ""}`}
+                                type="button"
+                                onClick={() => setMapPinOverride(g)}
+                                className={`w-full rounded-lg border px-2 py-1.5 text-left text-xs font-medium transition-colors truncate ${
+                                  mapPinOverride?.lat === g.lat && mapPinOverride?.lng === g.lng
+                                    ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-200"
+                                    : "border-[var(--dash-panel-border)] bg-[var(--dash-inset-bg)] dash-text-body hover:bg-[var(--dash-hover-bg)]"
+                                }`}
+                                title={f.filename ?? tp("corridorMap.image", { num: i + 1 })}
+                              >
+                                {f.filename ? (f.filename.length > 32 ? `${f.filename.slice(0, 30)}…` : f.filename) : tp("corridorMap.image", { num: i + 1 })}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </motion.div>
+                  )}
+
+                  <div>
+                    <div className="text-xs font-medium dash-text-muted uppercase tracking-wider mb-2">
+                      {t("corridorMap.runs")} ({listRuns.length})
+                    </div>
+                    <ul className="space-y-1">
+                      {listRuns.map((run) => {
+                        const isSelected = selectedRun?.id === run.id;
+                        const pct = confidencePct(run);
+                        return (
+                          <motion.li
+                            key={run.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            whileHover={reduceMotion ? undefined : { backgroundColor: "rgba(55, 65, 81, 0.5)" }}
+                            className={`rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                              isSelected ? "border-cyan-500/50 bg-cyan-500/10" : "border-[var(--dash-panel-border)] bg-[var(--dash-inset-bg)] hover:bg-[var(--dash-hover-bg)]"
+                            }`}
+                            onClick={() => handleSelectRun(run)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                                  run.status === "completed"
+                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
+                                    : run.status === "failed"
+                                    ? "bg-red-500/20 text-red-400 border-red-500/50"
+                                    : run.status === "processing"
+                                    ? "bg-amber-500/20 text-amber-400 border-amber-500/50"
+                                    : "bg-neutral-500/20 text-neutral-400 border-neutral-500/50"
+                                }`}
+                              >
+                                {run.status === "processing" && <Clock size={10} className="animate-spin" />}
+                                {run.status === "failed" && <XCircle size={10} />}
+                                {run.status === "completed" && <CheckCircle2 size={10} />}
+                                {translateStatus(run.status, t)}
+                              </span>
+                              <span className="text-[10px] dash-text-subtle">
+                                {(run.must_review_count ?? 0) > 0 ? tp("corridorMap.review", { count: run.must_review_count ?? 0 }) : ""}
+                                {pct != null ? ` ${pct}%` : ""}
+                              </span>
+                            </div>
+                            <div className="font-Poppins text-xs dash-text-primary truncate mt-1" title={run._runId}>
+                              {run._runId}
+                            </div>
+                            <Link
+                              to={scanUploadsBatchUrl(run._runId)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:text-cyan-300"
+                            >
+                              {t("corridorMap.scanUploads")}
+                              <ChevronRight size={10} />
+                            </Link>
+                          </motion.li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.aside>
+        ) : (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            className="absolute top-4 right-4 z-[1000] flex items-center gap-2 rounded-lg border border-[var(--dash-panel-border)] dash-text-primary px-3 py-2 text-sm font-medium shadow-lg hover:bg-[var(--dash-hover-bg)] transition-colors"
+            style={{ backgroundColor: "var(--dash-modal-aside)" }}
+            aria-label={t("corridorMap.openPanel")}
+          >
+            <ChevronLeft size={18} />
+            {t("corridorMap.panel")}
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

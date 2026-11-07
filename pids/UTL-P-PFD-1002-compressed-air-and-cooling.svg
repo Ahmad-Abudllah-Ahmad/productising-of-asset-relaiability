@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1100" preserveAspectRatio="xMinYMin meet" class="dwg-svg" data-w="1700" data-h="1100"><defs>
+  <linearGradient id="g-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6ebf2"></stop><stop offset=".45" stop-color="#b9c3d1"></stop><stop offset="1" stop-color="#8794a8"></stop></linearGradient>
+  <linearGradient id="g-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c6779"></stop><stop offset="1" stop-color="#2b3445"></stop></linearGradient>
+  <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd0f2"></stop><stop offset="1" stop-color="#3c8fd0"></stop></linearGradient>
+  <linearGradient id="g-green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd39a"></stop><stop offset="1" stop-color="#2a9d57"></stop></linearGradient>
+  <linearGradient id="g-warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"></stop><stop offset="1" stop-color="#ef7d2d"></stop></linearGradient>
+  <linearGradient id="g-cloth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4efe4"></stop><stop offset="1" stop-color="#d9cfb8"></stop></linearGradient>
+</defs><style>
+  .sh-frame { fill: none; stroke: #1b2433; }
+  .sh-thin { stroke-width: .6; } .sh-heavy { stroke-width: 1.8; }
+  .sh-zone { font: 500 10px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .sh-label { font: 500 7.5px 'IBM Plex Mono', ui-monospace, monospace; fill: #5b6578; letter-spacing: .06em; }
+  .sh-value { font: 500 11px 'IBM Plex Mono', ui-monospace, monospace; fill: #1b2433; }
+  .sh-title { font: 700 15px var(--k-font); fill: #1b2433; letter-spacing: .02em; }
+  .sh-sub { font: 500 10.5px var(--k-font); fill: #1b2433; letter-spacing: .03em; }
+  .sh-org { font: 700 12px var(--k-font); fill: #1b2433; letter-spacing: .08em; }
+  .sh-note { font: 400 9.5px var(--k-font); fill: #2b3445; }
+  .sh-head { font: 700 9.5px var(--k-font); fill: #1b2433; letter-spacing: .1em; }
+  .sh-stamp { font: 700 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #9b2c2c; letter-spacing: .06em; }
+
+  .sy { stroke: #1b2433; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
+  .f-steel { fill: url(#g-steel); } .f-dark { fill: url(#g-dark); } .f-water { fill: url(#g-water); } .f-green { fill: url(#g-green); }
+  .f-warm { fill: url(#g-warm); } .f-cloth { fill: url(#g-cloth); } .f-white { fill: #fff; }
+  .pl-root { font: 700 13px var(--k-font); fill: #1b2433; letter-spacing: .08em; }
+  .pl-lane { font: 700 11px var(--k-font); fill: #1b2433; letter-spacing: .1em; }
+  .pl-rule { stroke: #8a94a6; stroke-width: .7; fill: none; }
+  .pl-link { stroke: #5a6475; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; }
+  .pl-arrow { stroke: none; }
+  .pl-card { fill: #fff; stroke: #8a94a6; stroke-width: .8; }
+  .pl-name { font: 700 10.5px var(--k-font); fill: #1b2433; letter-spacing: .02em; }
+  .pl-tag { font: 600 9px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-k { font: 500 8.6px 'IBM Plex Mono', ui-monospace, monospace; fill: #4a5568; }
+  .pl-v { font: 600 9.4px 'IBM Plex Mono', ui-monospace, monospace; fill: #0f3d8c; }
+  .pl-hit { fill: transparent; stroke: none; }
+</style>
+  <g class="sh-sheet">
+    <rect x="0" y="0" width="1700" height="1100" fill="#fff"></rect>
+    <rect class="sh-frame sh-thin" x="10" y="10" width="1680" height="1080"></rect>
+    <rect class="sh-frame sh-heavy" x="30" y="30" width="1640" height="1040"></rect>
+    <text class="sh-zone" x="132.5" y="24" text-anchor="middle">8</text><text class="sh-zone" x="132.5" y="1085" text-anchor="middle">8</text><text class="sh-zone" x="337.5" y="24" text-anchor="middle">7</text><text class="sh-zone" x="337.5" y="1085" text-anchor="middle">7</text><path class="sh-frame sh-thin" d="M235 10V30M235 1070V1090"></path><text class="sh-zone" x="542.5" y="24" text-anchor="middle">6</text><text class="sh-zone" x="542.5" y="1085" text-anchor="middle">6</text><path class="sh-frame sh-thin" d="M440 10V30M440 1070V1090"></path><text class="sh-zone" x="747.5" y="24" text-anchor="middle">5</text><text class="sh-zone" x="747.5" y="1085" text-anchor="middle">5</text><path class="sh-frame sh-thin" d="M645 10V30M645 1070V1090"></path><text class="sh-zone" x="952.5" y="24" text-anchor="middle">4</text><text class="sh-zone" x="952.5" y="1085" text-anchor="middle">4</text><path class="sh-frame sh-thin" d="M850 10V30M850 1070V1090"></path><text class="sh-zone" x="1157.5" y="24" text-anchor="middle">3</text><text class="sh-zone" x="1157.5" y="1085" text-anchor="middle">3</text><path class="sh-frame sh-thin" d="M1055 10V30M1055 1070V1090"></path><text class="sh-zone" x="1362.5" y="24" text-anchor="middle">2</text><text class="sh-zone" x="1362.5" y="1085" text-anchor="middle">2</text><path class="sh-frame sh-thin" d="M1260 10V30M1260 1070V1090"></path><text class="sh-zone" x="1567.5" y="24" text-anchor="middle">1</text><text class="sh-zone" x="1567.5" y="1085" text-anchor="middle">1</text><path class="sh-frame sh-thin" d="M1465 10V30M1465 1070V1090"></path><text class="sh-zone" x="20" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="1680" y="137.5" text-anchor="middle">E</text><text class="sh-zone" x="20" y="345.5" text-anchor="middle">D</text><text class="sh-zone" x="1680" y="345.5" text-anchor="middle">D</text><path class="sh-frame sh-thin" d="M10 238H30M1670 238H1690"></path><text class="sh-zone" x="20" y="553.5" text-anchor="middle">C</text><text class="sh-zone" x="1680" y="553.5" text-anchor="middle">C</text><path class="sh-frame sh-thin" d="M10 446H30M1670 446H1690"></path><text class="sh-zone" x="20" y="761.5" text-anchor="middle">B</text><text class="sh-zone" x="1680" y="761.5" text-anchor="middle">B</text><path class="sh-frame sh-thin" d="M10 654H30M1670 654H1690"></path><text class="sh-zone" x="20" y="969.5" text-anchor="middle">A</text><text class="sh-zone" x="1680" y="969.5" text-anchor="middle">A</text><path class="sh-frame sh-thin" d="M10 862H30M1670 862H1690"></path>
+    
+  <path class="sh-frame sh-heavy" d="M30 930H1290"></path>
+  <path class="sh-frame sh-thin" d="M700 930V1070"></path>
+  <text class="sh-head" x="40" y="948">GENERAL NOTES</text>
+  <text class="sh-note" x="40" y="966">1.  MATERIAL MOVES LEFT TO RIGHT ALONG EACH LINE.</text><text class="sh-note" x="40" y="980">2.  DATA BLOCKS SHOW SIMULATED READINGS.</text><text class="sh-note" x="40" y="994">3.  RATINGS AND SPEEDS ARE ILLUSTRATIVE AND NOT FOR SETTINGS.</text><text class="sh-note" x="40" y="1008">4.  NOT FOR CONSTRUCTION.</text>
+  <text class="sh-head" x="710" y="948">LEGEND</text>
+  <g transform="translate(710 956)"><g transform="translate(0 0)"><g transform="scale(.3)">
+    <rect class="sy f-steel" x="20" y="34" width="84" height="38" rx="15"></rect>
+    <path class="sy" d="M44 35v36M62 35v36M80 35v36" fill="none" stroke-width=".7"></path>
+    <rect class="sy f-dark" x="6" y="46" width="16" height="14" rx="2"></rect>
+    <path class="sy f-warm" d="M6 53l-6 -5l2 5l-2 5z"></path>
+    <rect class="sy f-steel" x="86" y="8" width="10" height="28"></rect><rect class="sy f-dark" x="84" y="4" width="14" height="5"></rect>
+    <rect class="sy f-steel" x="46" y="24" width="18" height="12" rx="3"></rect><path class="sy" d="M55 24V12H72" fill="none" stroke="#2a9d57" stroke-width="3"></path>
+    <rect class="sy f-water" x="30" y="46" width="7" height="16" rx="2"></rect>
+    <path class="sy" d="M32 72v10M92 72v10M26 82H98" fill="none"></path></g><text class="sh-note" x="66" y="16">MACHINE, WITH ITS LIVE READINGS</text></g><g transform="translate(290 0)"><rect class="pl-card" x="0" y="2" width="30" height="20" rx="3"></rect><text class="sh-note" x="66" y="16">READOUT CARD (SIMULATED DATA)</text></g><g transform="translate(0 34)"><path d="M0 12H24" stroke="#5a6475" stroke-width="7"></path><path d="M0 12H24" stroke="#aeb7c5" stroke-width="3"></path><path d="M32 12l-10 -6v12z" fill="#5a6475"></path><text class="sh-note" x="66" y="16">DIRECTION OF MATERIAL FLOW</text></g><g transform="translate(290 34)"><path class="pl-link" d="M0 12H30"></path><text class="sh-note" x="66" y="16">DRIVER OR SERVICE UNDER A MACHINE</text></g></g>
+    
+  <g class="sh-revisions">
+    <path class="sh-frame sh-thin" d="M1290 860H1670M1290 878H1670M1290 896H1670M1290 914H1670M1324 860V930M1394 860V930M1590 860V930M1630 860V930"></path>
+    <path class="sh-frame sh-heavy" d="M1290 860V930"></path>
+    <text class="sh-label" x="1296" y="872">REV</text><text class="sh-label" x="1330" y="872">DATE</text><text class="sh-label" x="1400" y="872">DESCRIPTION</text><text class="sh-label" x="1596" y="872">BY</text><text class="sh-label" x="1636" y="872">CHK</text>
+    <text class="sh-note" x="1298" y="890">A</text><text class="sh-note" x="1330" y="890">2026-09-28</text><text class="sh-note" x="1400" y="890">ISSUED FOR INFORMATION</text><text class="sh-note" x="1596" y="890">HLX</text><text class="sh-note" x="1636" y="890">TBA</text>
+  </g>
+  <g class="sh-titleblock">
+    <path class="sh-frame sh-heavy" d="M1290 930H1670M1290 930V1070"></path>
+    <path class="sh-frame sh-thin" d="M1290 962H1670M1290 1012H1670M1290 1040H1670M1480 1012V1040M1590 1012V1040M1380 1040V1070M1560 1040V1070"></path>
+    <text class="sh-org" x="1298" y="951">HELIX</text><text class="sh-label" x="1348" y="950">ASSET RELIABILITY · ILLUSTRATIVE DRAWING</text>
+    <text class="sh-label" x="1298" y="973">BOILER HOUSE AND AIR PLANT · Steam, compressed air and cooling</text>
+    <text class="sh-title" x="1298" y="990">AIR PLANT AND COOLING</text>
+    <text class="sh-sub" x="1298" y="1005">COMPRESSORS, DRYER, RECEIVER AND COOLING TOWERS · PROCESS FLOW</text>
+    <text class="sh-label" x="1295" y="1022">DRAWING NO.</text><text class="sh-value" x="1295" y="1036">UTL-P-PFD-1002</text>
+    <text class="sh-label" x="1485" y="1022">REV</text><text class="sh-value" x="1485" y="1036">A</text>
+    <text class="sh-label" x="1595" y="1022">SHEET</text><text class="sh-value" x="1595" y="1036">1 OF 1</text>
+    <text class="sh-label" x="1295" y="1050">SCALE</text><text class="sh-value" x="1295" y="1064">NONE</text>
+    <text class="sh-label" x="1385" y="1050">STATUS</text><text class="sh-stamp" x="1385" y="1064">NOT FOR CONSTRUCTION</text>
+    <text class="sh-label" x="1565" y="1050">ISSUED</text><text class="sh-value" x="1565" y="1064">2026-09-28</text>
+  </g>
+  </g><g class="dwg-content"><g id="AIR-HSE" class="dwg-equipment dwg-bay dwg-bound"><text class="pl-root" x="58" y="66">COMPRESSED AIR AND COOLING PLANT · AIR-HSE</text><rect class="pl-hit" x="50" y="46" width="420" height="28"></rect></g><circle id="mk:AIR-HSE" class="dwg-anchor" cx="480" cy="60" r="0"></circle><text class="pl-lane" x="72" y="103">COMPRESSED AIR</text><path class="pl-rule" d="M72 109H1628"></path><g id="CP-1" class="dwg-equipment dwg-bound"><g transform="translate(83 115) scale(1.7)">
+    <rect class="sy f-dark" x="6" y="52" width="108" height="10" rx="2"></rect>
+    <rect class="sy f-dark" x="10" y="26" width="44" height="26" rx="6"></rect>
+    <path class="sy" d="M20 27v24M28 27v24M36 27v24M44 27v24" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+    <rect class="sy f-steel" x="58" y="22" width="30" height="30" rx="4"></rect>
+    <circle class="sy f-white" cx="73" cy="37" r="8"></circle>
+    <rect class="sy f-warm" x="62" y="8" width="42" height="12" rx="2"></rect>
+    <path class="sy" d="M68 8v12M74 8v12M80 8v12M86 8v12M92 8v12M98 8v12" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M104 14H114V30" fill="none" stroke="#4b6fae" stroke-width="3"></path>
+    <path class="sy" d="M12 62v14M104 62v14M6 76H112" fill="none"></path></g><rect class="pl-card" x="72" y="275.4" width="226" height="90" rx="4"></rect>
+    <text class="pl-name" x="79" y="288.4">Compressor 1</text>
+    <text class="pl-tag" x="79" y="301.4">CP-1</text>
+    <path class="pl-rule" d="M72 306.4H298"></path><text class="pl-k" x="79" y="317.4">DISCH P</text><text class="pl-v" x="291" y="317.4" text-anchor="end" data-live="PT-9611" data-compact="1" data-state="normal">7.83 bar</text><text class="pl-k" x="79" y="330.4">T DISCH</text><text class="pl-v" x="291" y="330.4" text-anchor="end" data-live="TT-9612" data-compact="1" data-state="normal">93 °C</text><text class="pl-k" x="79" y="343.4">T OIL</text><text class="pl-v" x="291" y="343.4" text-anchor="end" data-live="TT-9613" data-compact="1" data-state="normal">79 °C</text><text class="pl-k" x="79" y="356.4">VIB</text><text class="pl-v" x="291" y="356.4" text-anchor="end" data-live="VT-9614" data-compact="1" data-state="normal">2.3 mm/s</text><rect class="pl-hit" x="72" y="115" width="226" height="250.4"></rect></g><circle id="mk:CP-1" class="dwg-anchor" cx="283" cy="121" r="0"></circle><path class="pl-link" d="M185 363.4V377.4"></path><g id="M-CP-1" class="dwg-equipment dwg-bound"><g transform="translate(78 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="188" y="377.4" width="104" height="77" rx="4"></rect>
+    <text class="pl-name" x="195" y="390.4">Motor</text>
+    <text class="pl-tag" x="195" y="403.4">M-CP-1</text>
+    <path class="pl-rule" d="M188 408.4H292"></path><text class="pl-k" x="195" y="419.4">P</text><text class="pl-v" x="285" y="419.4" text-anchor="end" data-live="JT-9711" data-compact="1" data-state="normal">113 kW</text><text class="pl-k" x="195" y="432.4">T WIND</text><text class="pl-v" x="285" y="432.4" text-anchor="end" data-live="TT-9712" data-compact="1" data-state="normal">88 °C</text><text class="pl-k" x="195" y="445.4">VIB</text><text class="pl-v" x="285" y="445.4" text-anchor="end" data-live="VT-9713" data-compact="1" data-state="normal">1.9 mm/s</text><rect class="pl-hit" x="78" y="377.4" width="214" height="78.2"></rect></g><circle id="mk:M-CP-1" class="dwg-anchor" cx="176" cy="381.4" r="0"></circle><g id="CP-2" class="dwg-equipment dwg-bound"><g transform="translate(349 115) scale(1.7)">
+    <rect class="sy f-dark" x="6" y="52" width="108" height="10" rx="2"></rect>
+    <rect class="sy f-dark" x="10" y="26" width="44" height="26" rx="6"></rect>
+    <path class="sy" d="M20 27v24M28 27v24M36 27v24M44 27v24" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+    <rect class="sy f-steel" x="58" y="22" width="30" height="30" rx="4"></rect>
+    <circle class="sy f-white" cx="73" cy="37" r="8"></circle>
+    <rect class="sy f-warm" x="62" y="8" width="42" height="12" rx="2"></rect>
+    <path class="sy" d="M68 8v12M74 8v12M80 8v12M86 8v12M92 8v12M98 8v12" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M104 14H114V30" fill="none" stroke="#4b6fae" stroke-width="3"></path>
+    <path class="sy" d="M12 62v14M104 62v14M6 76H112" fill="none"></path></g><rect class="pl-card" x="338" y="275.4" width="226" height="90" rx="4"></rect>
+    <text class="pl-name" x="345" y="288.4">Compressor 2</text>
+    <text class="pl-tag" x="345" y="301.4">CP-2</text>
+    <path class="pl-rule" d="M338 306.4H564"></path><text class="pl-k" x="345" y="317.4">DISCH P</text><text class="pl-v" x="557" y="317.4" text-anchor="end" data-live="PT-9621" data-compact="1" data-state="normal">7.82 bar</text><text class="pl-k" x="345" y="330.4">T DISCH</text><text class="pl-v" x="557" y="330.4" text-anchor="end" data-live="TT-9622" data-compact="1" data-state="normal">93 °C</text><text class="pl-k" x="345" y="343.4">T OIL</text><text class="pl-v" x="557" y="343.4" text-anchor="end" data-live="TT-9623" data-compact="1" data-state="normal">78 °C</text><text class="pl-k" x="345" y="356.4">VIB</text><text class="pl-v" x="557" y="356.4" text-anchor="end" data-live="VT-9624" data-compact="1" data-state="normal">2.3 mm/s</text><rect class="pl-hit" x="338" y="115" width="226" height="250.4"></rect></g><circle id="mk:CP-2" class="dwg-anchor" cx="549" cy="121" r="0"></circle><path class="pl-link" d="M451 363.4V377.4"></path><g id="M-CP-2" class="dwg-equipment dwg-bound"><g transform="translate(344 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="454" y="377.4" width="104" height="77" rx="4"></rect>
+    <text class="pl-name" x="461" y="390.4">Motor</text>
+    <text class="pl-tag" x="461" y="403.4">M-CP-2</text>
+    <path class="pl-rule" d="M454 408.4H558"></path><text class="pl-k" x="461" y="419.4">P</text><text class="pl-v" x="551" y="419.4" text-anchor="end" data-live="JT-9721" data-compact="1" data-state="normal">112 kW</text><text class="pl-k" x="461" y="432.4">T WIND</text><text class="pl-v" x="551" y="432.4" text-anchor="end" data-live="TT-9722" data-compact="1" data-state="normal">88 °C</text><text class="pl-k" x="461" y="445.4">VIB</text><text class="pl-v" x="551" y="445.4" text-anchor="end" data-live="VT-9723" data-compact="1" data-state="normal">1.8 mm/s</text><rect class="pl-hit" x="344" y="377.4" width="214" height="78.2"></rect></g><circle id="mk:M-CP-2" class="dwg-anchor" cx="442" cy="381.4" r="0"></circle><g id="CP-3" class="dwg-equipment dwg-bound"><g transform="translate(615 115) scale(1.7)">
+    <rect class="sy f-dark" x="6" y="52" width="108" height="10" rx="2"></rect>
+    <rect class="sy f-dark" x="10" y="26" width="44" height="26" rx="6"></rect>
+    <path class="sy" d="M20 27v24M28 27v24M36 27v24M44 27v24" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+    <rect class="sy f-steel" x="58" y="22" width="30" height="30" rx="4"></rect>
+    <circle class="sy f-white" cx="73" cy="37" r="8"></circle>
+    <rect class="sy f-warm" x="62" y="8" width="42" height="12" rx="2"></rect>
+    <path class="sy" d="M68 8v12M74 8v12M80 8v12M86 8v12M92 8v12M98 8v12" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M104 14H114V30" fill="none" stroke="#4b6fae" stroke-width="3"></path>
+    <path class="sy" d="M12 62v14M104 62v14M6 76H112" fill="none"></path></g><rect class="pl-card" x="604" y="275.4" width="226" height="90" rx="4"></rect>
+    <text class="pl-name" x="611" y="288.4">Compressor 3</text>
+    <text class="pl-tag" x="611" y="301.4">CP-3</text>
+    <path class="pl-rule" d="M604 306.4H830"></path><text class="pl-k" x="611" y="317.4">DISCH P</text><text class="pl-v" x="823" y="317.4" text-anchor="end" data-live="PT-9631" data-compact="1" data-state="normal">7.82 bar</text><text class="pl-k" x="611" y="330.4">T DISCH</text><text class="pl-v" x="823" y="330.4" text-anchor="end" data-live="TT-9632" data-compact="1" data-state="threshold">109 °C</text><text class="pl-k" x="611" y="343.4">T OIL</text><text class="pl-v" x="823" y="343.4" text-anchor="end" data-live="TT-9633" data-compact="1" data-state="normal">78 °C</text><text class="pl-k" x="611" y="356.4">VIB</text><text class="pl-v" x="823" y="356.4" text-anchor="end" data-live="VT-9634" data-compact="1" data-state="normal">2.3 mm/s</text><rect class="pl-hit" x="604" y="115" width="226" height="250.4"></rect></g><circle id="mk:CP-3" class="dwg-anchor" cx="815" cy="121" r="0"></circle><path class="pl-link" d="M717 363.4V377.4"></path><g id="M-CP-3" class="dwg-equipment dwg-bound"><g transform="translate(610 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="720" y="377.4" width="104" height="77" rx="4"></rect>
+    <text class="pl-name" x="727" y="390.4">Motor</text>
+    <text class="pl-tag" x="727" y="403.4">M-CP-3</text>
+    <path class="pl-rule" d="M720 408.4H824"></path><text class="pl-k" x="727" y="419.4">P</text><text class="pl-v" x="817" y="419.4" text-anchor="end" data-live="JT-9731" data-compact="1" data-state="normal">112 kW</text><text class="pl-k" x="727" y="432.4">T WIND</text><text class="pl-v" x="817" y="432.4" text-anchor="end" data-live="TT-9732" data-compact="1" data-state="normal">88 °C</text><text class="pl-k" x="727" y="445.4">VIB</text><text class="pl-v" x="817" y="445.4" text-anchor="end" data-live="VT-9733" data-compact="1" data-state="normal">1.8 mm/s</text><rect class="pl-hit" x="610" y="377.4" width="214" height="78.2"></rect></g><circle id="mk:M-CP-3" class="dwg-anchor" cx="708" cy="381.4" r="0"></circle><g id="CP-4" class="dwg-equipment dwg-bound"><g transform="translate(881 115) scale(1.7)">
+    <rect class="sy f-dark" x="6" y="52" width="108" height="10" rx="2"></rect>
+    <rect class="sy f-dark" x="10" y="26" width="44" height="26" rx="6"></rect>
+    <path class="sy" d="M20 27v24M28 27v24M36 27v24M44 27v24" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+    <rect class="sy f-steel" x="58" y="22" width="30" height="30" rx="4"></rect>
+    <circle class="sy f-white" cx="73" cy="37" r="8"></circle>
+    <rect class="sy f-warm" x="62" y="8" width="42" height="12" rx="2"></rect>
+    <path class="sy" d="M68 8v12M74 8v12M80 8v12M86 8v12M92 8v12M98 8v12" fill="none" stroke-width=".7"></path>
+    <path class="sy" d="M104 14H114V30" fill="none" stroke="#4b6fae" stroke-width="3"></path>
+    <path class="sy" d="M12 62v14M104 62v14M6 76H112" fill="none"></path></g><rect class="pl-card" x="870" y="275.4" width="226" height="90" rx="4"></rect>
+    <text class="pl-name" x="877" y="288.4">Compressor 4</text>
+    <text class="pl-tag" x="877" y="301.4">CP-4</text>
+    <path class="pl-rule" d="M870 306.4H1096"></path><text class="pl-k" x="877" y="317.4">DISCH P</text><text class="pl-v" x="1089" y="317.4" text-anchor="end" data-live="PT-9641" data-compact="1" data-state="normal">7.82 bar</text><text class="pl-k" x="877" y="330.4">T DISCH</text><text class="pl-v" x="1089" y="330.4" text-anchor="end" data-live="TT-9642" data-compact="1" data-state="normal">93 °C</text><text class="pl-k" x="877" y="343.4">T OIL</text><text class="pl-v" x="1089" y="343.4" text-anchor="end" data-live="TT-9643" data-compact="1" data-state="normal">79 °C</text><text class="pl-k" x="877" y="356.4">VIB</text><text class="pl-v" x="1089" y="356.4" text-anchor="end" data-live="VT-9644" data-compact="1" data-state="normal">2.3 mm/s</text><rect class="pl-hit" x="870" y="115" width="226" height="250.4"></rect></g><circle id="mk:CP-4" class="dwg-anchor" cx="1081" cy="121" r="0"></circle><path class="pl-link" d="M983 363.4V377.4"></path><g id="M-CP-4" class="dwg-equipment dwg-bound"><g transform="translate(876 377.4) scale(0.85)">
+  <path class="sy" d="M2 46H16" stroke-width="3" fill="none"></path>
+  <rect class="sy f-dark" x="16" y="26" width="76" height="40" rx="8"></rect>
+  <path class="sy" d="M28 27v38M36 27v38M44 27v38M52 27v38M60 27v38M68 27v38M76 27v38" fill="none" stroke-width=".8" stroke="#aab3c2"></path>
+  <rect class="sy f-steel" x="92" y="32" width="12" height="28" rx="4"></rect>
+  <rect class="sy f-steel" x="46" y="17" width="20" height="10" rx="2"></rect>
+  <path class="sy" d="M20 66v10M88 66v10M12 76H98" fill="none"></path></g><rect class="pl-card" x="986" y="377.4" width="104" height="77" rx="4"></rect>
+    <text class="pl-name" x="993" y="390.4">Motor</text>
+    <text class="pl-tag" x="993" y="403.4">M-CP-4</text>
+    <path class="pl-rule" d="M986 408.4H1090"></path><text class="pl-k" x="993" y="419.4">P</text><text class="pl-v" x="1083" y="419.4" text-anchor="end" data-live="JT-9741" data-compact="1" data-state="normal">113 kW</text><text class="pl-k" x="993" y="432.4">T WIND</text><text class="pl-v" x="1083" y="432.4" text-anchor="end" data-live="TT-9742" data-compact="1" data-state="normal">88 °C</text><text class="pl-k" x="993" y="445.4">VIB</text><text class="pl-v" x="1083" y="445.4" text-anchor="end" data-live="VT-9743" data-compact="1" data-state="normal">1.9 mm/s</text><rect class="pl-hit" x="876" y="377.4" width="214" height="78.2"></rect></g><circle id="mk:M-CP-4" class="dwg-anchor" cx="974" cy="381.4" r="0"></circle><g id="AD-1" class="dwg-equipment dwg-bound"><g transform="translate(1147 115) scale(1.7)">
+    <rect class="sy f-steel" x="20" y="10" width="28" height="62" rx="12"></rect>
+    <rect class="sy f-steel" x="72" y="10" width="28" height="62" rx="12"></rect>
+    <rect class="sy f-warm" x="26" y="40" width="16" height="26" rx="5" opacity=".7"></rect>
+    <rect class="sy f-warm" x="78" y="40" width="16" height="26" rx="5" opacity=".7"></rect>
+    <path class="sy" d="M48 22H72M48 60H72" fill="none" stroke="#4b6fae" stroke-width="4"></path>
+    <path class="sy f-white" d="M54 16l12 12v-12l-12 12z"></path>
+    <path class="sy" d="M28 72v9M40 72v9M22 81H46" fill="none"></path><path class="sy" d="M80 72v9M92 72v9M74 81H98" fill="none"></path></g><rect class="pl-card" x="1136" y="275.4" width="226" height="64" rx="4"></rect>
+    <text class="pl-name" x="1143" y="288.4">Air dryer</text>
+    <text class="pl-tag" x="1143" y="301.4">AD-1</text>
+    <path class="pl-rule" d="M1136 306.4H1362"></path><text class="pl-k" x="1143" y="317.4">DEW PT</text><text class="pl-v" x="1355" y="317.4" text-anchor="end" data-live="AT-9801" data-compact="1" data-state="normal">-39 °C</text><text class="pl-k" x="1143" y="330.4">DP</text><text class="pl-v" x="1355" y="330.4" text-anchor="end" data-live="PDT-9802" data-compact="1" data-state="normal">169 mbar</text><rect class="pl-hit" x="1136" y="115" width="226" height="224.4"></rect></g><circle id="mk:AD-1" class="dwg-anchor" cx="1347" cy="121" r="0"></circle><g id="AR-1" class="dwg-equipment dwg-bound"><g transform="translate(1413 115) scale(1.7)">
+    <rect class="sy f-steel" x="40" y="10" width="40" height="64" rx="18"></rect>
+    <path class="sy f-steel" d="M50 10V3h20v7"></path>
+    <rect class="sy f-dark" x="82" y="44" width="10" height="8" rx="2"></rect>
+    <path class="sy" d="M48 74v9M72 74v9M42 83H78" fill="none"></path></g><rect class="pl-card" x="1402" y="275.4" width="226" height="51" rx="4"></rect>
+    <text class="pl-name" x="1409" y="288.4">Air receiver</text>
+    <text class="pl-tag" x="1409" y="301.4">AR-1</text>
+    <path class="pl-rule" d="M1402 306.4H1628"></path><text class="pl-k" x="1409" y="317.4">PRESS</text><text class="pl-v" x="1621" y="317.4" text-anchor="end" data-live="PT-9811" data-compact="1" data-state="normal">7.64 bar</text><rect class="pl-hit" x="1402" y="115" width="226" height="211.4"></rect></g><circle id="mk:AR-1" class="dwg-anchor" cx="1613" cy="121" r="0"></circle><path d="M281 204.148H345" stroke="#566a8f" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M281 204.148H345" stroke="#b9c6de" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M353 204.148l-10 -6v12z" fill="#566a8f"></path><path d="M547 204.148H611" stroke="#566a8f" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M547 204.148H611" stroke="#b9c6de" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M619 204.148l-10 -6v12z" fill="#566a8f"></path><path d="M813 204.148H877" stroke="#566a8f" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M813 204.148H877" stroke="#b9c6de" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M885 204.148l-10 -6v12z" fill="#566a8f"></path><path d="M1079 204.148H1143" stroke="#566a8f" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M1079 204.148H1143" stroke="#b9c6de" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1151 204.148l-10 -6v12z" fill="#566a8f"></path><path d="M1345 204.148H1409" stroke="#566a8f" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M1345 204.148H1409" stroke="#b9c6de" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M1417 204.148l-10 -6v12z" fill="#566a8f"></path><text class="pl-lane" x="598" y="547.6">COOLING WATER</text><path class="pl-rule" d="M598 553.6H1102"></path><g id="CT-1" class="dwg-equipment dwg-bound"><g transform="translate(612 559.6) scale(1.7)">
+    <path class="sy f-steel" d="M26 30H94L102 74H18z"></path>
+    <path class="sy" d="M24 40H96M22 50H98M20 60H100" fill="none" stroke-width=".8"></path>
+    <rect class="sy f-steel" x="40" y="20" width="40" height="10" rx="2"></rect>
+    <circle class="sy f-white" cx="60" cy="15" r="14"></circle>
+    <path class="sy" d="M60 15L48 11M60 15L72 11M60 15L56 27M60 15L64 27" fill="none" stroke-width="2.2"></path>
+    <path class="sy f-water" d="M14 74H106V84H14z"></path></g><rect class="pl-card" x="598" y="720" width="232" height="77" rx="4"></rect>
+    <text class="pl-name" x="605" y="733">Cooling tower 1</text>
+    <text class="pl-tag" x="605" y="746">CT-1</text>
+    <path class="pl-rule" d="M598 751H830"></path><text class="pl-k" x="605" y="762">T COLD</text><text class="pl-v" x="823" y="762" text-anchor="end" data-live="TT-9911" data-compact="1" data-state="normal">32 °C</text><text class="pl-k" x="605" y="775">P</text><text class="pl-v" x="823" y="775" text-anchor="end" data-live="JT-9912" data-compact="1" data-state="normal">41 kW</text><text class="pl-k" x="605" y="788">VIB</text><text class="pl-v" x="823" y="788" text-anchor="end" data-live="VT-9913" data-compact="1" data-state="normal">2.1 mm/s</text><rect class="pl-hit" x="598" y="559.6" width="232" height="237.4"></rect></g><circle id="mk:CT-1" class="dwg-anchor" cx="812" cy="565.6" r="0"></circle><g id="CT-2" class="dwg-equipment dwg-bound"><g transform="translate(884 559.6) scale(1.7)">
+    <path class="sy f-steel" d="M26 30H94L102 74H18z"></path>
+    <path class="sy" d="M24 40H96M22 50H98M20 60H100" fill="none" stroke-width=".8"></path>
+    <rect class="sy f-steel" x="40" y="20" width="40" height="10" rx="2"></rect>
+    <circle class="sy f-white" cx="60" cy="15" r="14"></circle>
+    <path class="sy" d="M60 15L48 11M60 15L72 11M60 15L56 27M60 15L64 27" fill="none" stroke-width="2.2"></path>
+    <path class="sy f-water" d="M14 74H106V84H14z"></path></g><rect class="pl-card" x="870" y="720" width="232" height="77" rx="4"></rect>
+    <text class="pl-name" x="877" y="733">Cooling tower 2</text>
+    <text class="pl-tag" x="877" y="746">CT-2</text>
+    <path class="pl-rule" d="M870 751H1102"></path><text class="pl-k" x="877" y="762">T COLD</text><text class="pl-v" x="1095" y="762" text-anchor="end" data-live="TT-9921" data-compact="1" data-state="normal">32 °C</text><text class="pl-k" x="877" y="775">P</text><text class="pl-v" x="1095" y="775" text-anchor="end" data-live="JT-9922" data-compact="1" data-state="normal">41 kW</text><text class="pl-k" x="877" y="788">VIB</text><text class="pl-v" x="1095" y="788" text-anchor="end" data-live="VT-9923" data-compact="1" data-state="normal">2.1 mm/s</text><rect class="pl-hit" x="870" y="559.6" width="232" height="237.4"></rect></g><circle id="mk:CT-2" class="dwg-anchor" cx="1084" cy="565.6" r="0"></circle><path d="M810 648.748H880" stroke="#2f7fc0" stroke-width="7" stroke-linecap="butt" fill="none"></path><path d="M810 648.748H880" stroke="#8fd0f2" stroke-width="3" stroke-linecap="butt" fill="none"></path><path class="pl-arrow" d="M888 648.748l-10 -6v12z" fill="#2f7fc0"></path></g><g class="dwg-overlay"><g class="dwg-marker is-warning" transform="translate(815.0000259379152 120.99994041371974) scale(1.5)"><path d="M0 -9.5L9 7H-9Z"></path><text y="4.6" text-anchor="middle">1</text><title>CP-3 Air Compressor 3: Open alerts: 1 (Medium)</title></g></g></svg>
