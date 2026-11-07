@@ -74,6 +74,21 @@ copyInspection(
   path.join(root, "azeri enerji dashbaord v3 - Copy", "power-lines-system", "frontend", "dist"),
   dest
 );
+for (const route of [
+  "dashboard",
+  "runs",
+  "ai-detection",
+  "thermal-images",
+  "video-upload",
+  "map",
+  "review-queue",
+  "settings",
+  "live-drone-feed"
+]) {
+  const folder = path.join(dest, route);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.copyFileSync(path.join(dest, "inspection.html"), path.join(folder, "index.html"));
+}
 
 const leaked = [];
 function findLeaks(dir) {
