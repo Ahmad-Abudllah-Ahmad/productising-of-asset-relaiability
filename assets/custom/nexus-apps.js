@@ -5797,6 +5797,341 @@
     return '<section class="screen dwg-stage" data-dwg="' + esc(src) + '"><div class="dwg-bar"><b>' + esc(kicker) + '</b><span>' + esc(note) + '</span></div><div class="dwg-sheet"><p class="dwg-wait">Loading drawing…</p></div></section>';
   }
 
+  var pidLive = null;
+  var pidPaint = 0;
+
+  var PID_SPECS = {
+    PDT: { name: "Differential pressure", unit: "bar", lo: 0.2, hi: 1.1, digits: 2 },
+    PT: { name: "Pressure", unit: "bar", lo: 6, hi: 58, digits: 1 },
+    LT: { name: "Level", unit: "%", lo: 38, hi: 78, digits: 0 },
+    VT: { name: "Vibration", unit: "mm/s", lo: 1.2, hi: 3.6, digits: 2 },
+    TT: { name: "Temperature", unit: "°C", lo: 32, hi: 96, digits: 1 },
+    IT: { name: "Current", unit: "A", lo: 86, hi: 340, digits: 0 },
+    FT: { name: "Flow", unit: "m³/h", lo: 420, hi: 2360, digits: 0 },
+    AT: { name: "Analyser", unit: "%", lo: 1.2, hi: 6.4, digits: 1 },
+    ST: { name: "Speed", unit: "rpm", lo: 740, hi: 1490, digits: 0 },
+    DT: { name: "Density", unit: "kg/m³", lo: 790, hi: 870, digits: 1 },
+    FY: { name: "Flow balance", unit: "m³/h", lo: -1.4, hi: 1.6, digits: 1 }
+  };
+
+  function pidHash(text) {
+    var hash = 2166136261;
+    var i;
+    for (i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+    return (hash >>> 0) / 4294967295;
+  }
+
+  function pidSpec(tag) {
+    var prefix = (String(tag).match(/^[A-Z]+/) || [""])[0];
+    return PID_SPECS[prefix] || { name: "Reading", unit: "", lo: 10, hi: 80, digits: 1 };
+  }
+
+  function pidFormat(spec, value) {
+    var text = Number(value).toFixed(spec.digits);
+    return spec.unit ? text + " " + spec.unit : text;
+  }
+
+  function pidWalk(value, base, spec) {
+    var span = Math.max((spec.hi - spec.lo) * 0.018, 0.02);
+    var next = value + (Math.random() - 0.48) * span + (base - value) * 0.12;
+    return Math.min(base + span * 5, Math.max(base - span * 5, next));
+  }
+
+  function stopPidLive() {
+    if (pidLive && pidLive.timer) clearInterval(pidLive.timer);
+    pidLive = null;
+  }
+
+  function liveKey(node) {
+    var prev = node.previousElementSibling;
+    if (prev && prev.classList && (prev.classList.contains("pl-k") || prev.classList.contains("ol-k"))) return (prev.textContent || "").trim();
+    return "";
+  }
+
+  function parseReading(text) {
+    var raw = String(text || "").replace(/\u00a0/g, " ").trim();
+    var match = raw.match(/^(-?\d{1,3}(?:[ ,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(.*)$/);
+    if (!match) return null;
+    var num = match[1].replace(/ /g, "");
+    if (num.indexOf(",") > num.lastIndexOf(".")) num = num.replace(/\./g, "").replace(",", ".");
+    else num = num.replace(/,/g, "");
+    var value = Number(num);
+    if (!isFinite(value)) return null;
+    return { value: value, unit: match[2].trim(), digits: (num.split(".")[1] || "").length };
+  }
+
+  function recordWalk(value, base) {
+    var span = Math.max(Math.abs(base) * 0.016, 0.02);
+    var next = value + (Math.random() - 0.5) * span + (base - value) * 0.18;
+    return Math.min(base + span * 3, Math.max(base - span * 3, next));
+  }
+
+  function startRecordLive(svg) {
+    var tags = {};
+    svg.querySelectorAll("[data-live]").forEach(function (node) {
+      var tag = node.getAttribute("data-live");
+      if (!tag || tags[tag]) return;
+      var parsed = parseReading(node.textContent);
+      var base = parsed ? parsed.value : 1;
+      var value = base;
+      var history = [];
+      var i;
+      for (i = 0; i < 36; i++) {
+        value = parsed ? recordWalk(value, base) : base;
+        history.push(value);
+      }
+      tags[tag] = {
+        spec: { name: liveKey(node) || tag, unit: parsed ? parsed.unit : "", digits: parsed ? parsed.digits : 0 },
+        base: base,
+        value: value,
+        history: history,
+        node: node,
+        raw: (node.textContent || "").trim(),
+        locked: true,
+        numeric: !!parsed
+      };
+    });
+    if (!Object.keys(tags).length) return;
+    pidLive = {
+      tags: tags,
+      mode: "record",
+      timer: setInterval(function () {
+        if (!pidLive) return;
+        Object.keys(pidLive.tags).forEach(function (tag) {
+          var item = pidLive.tags[tag];
+          if (!item.numeric) return;
+          item.value = recordWalk(item.value, item.base);
+          item.history.push(item.value);
+          if (item.history.length > 36) item.history.shift();
+        });
+        refreshPidCard();
+      }, 900)
+    };
+  }
+
+  function ensureDwgHits(svg) {
+    svg.querySelectorAll(".pid-equipment, .pid-instrument").forEach(function (group) {
+      if (group.querySelector(":scope > .pid-hit, :scope > .pl-hit, :scope > .ol-hit")) return;
+      var box;
+      try { box = group.getBBox(); } catch (err) { return; }
+      if (box.width < 1 && box.height < 1) return;
+      var pad = group.classList.contains("pid-instrument") ? 4 : 8;
+      var rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("class", "pid-hit");
+      rect.setAttribute("x", String(box.x - pad));
+      rect.setAttribute("y", String(box.y - pad));
+      rect.setAttribute("width", String(box.width + pad * 2));
+      rect.setAttribute("height", String(box.height + pad * 2));
+      rect.setAttribute("rx", "4");
+      group.insertBefore(rect, group.firstChild);
+    });
+  }
+
+  function startPidLive(sheet) {
+    stopPidLive();
+    var svg = sheet.querySelector("svg");
+    if (!svg || !svg.querySelector("[data-live]")) return;
+    if (!svg.querySelector(".pid-instrument")) {
+      startRecordLive(svg);
+      return;
+    }
+    var standby = /standby/i.test(svg.textContent || "");
+    var tags = {};
+    sheet.querySelectorAll("[data-live]").forEach(function (node) {
+      var tag = node.getAttribute("data-live");
+      if (!tag || tags[tag]) return;
+      var spec = pidSpec(tag);
+      var quiet = standby && /C$/.test(tag) && (spec === PID_SPECS.FT || spec === PID_SPECS.IT || spec === PID_SPECS.ST || spec === PID_SPECS.VT);
+      var lo = quiet ? spec.lo * 0.04 : spec.lo;
+      var hi = quiet ? spec.lo * 0.12 : spec.hi;
+      var base = lo + (hi - lo) * (0.38 + pidHash(tag) * 0.24);
+      var value = base;
+      var history = [];
+      var i;
+      for (i = 0; i < 36; i++) {
+        value = pidWalk(value, base, spec);
+        history.push(value);
+      }
+      tags[tag] = { spec: spec, base: base, value: value, history: history, node: node };
+      node.textContent = pidFormat(spec, value);
+    });
+    pidLive = {
+      tags: tags,
+      timer: setInterval(function () {
+        if (!pidLive) return;
+        Object.keys(pidLive.tags).forEach(function (tag) {
+          var item = pidLive.tags[tag];
+          item.value = pidWalk(item.value, item.base, item.spec);
+          item.history.push(item.value);
+          if (item.history.length > 36) item.history.shift();
+          if (item.node && item.node.isConnected) item.node.textContent = pidFormat(item.spec, item.value);
+        });
+        refreshPidCard();
+      }, 900)
+    };
+  }
+
+  function pidSpark(values) {
+    var min = Math.min.apply(null, values);
+    var max = Math.max.apply(null, values);
+    if (max - min < 1e-6) {
+      min -= 1;
+      max += 1;
+    }
+    var pad = (max - min) * 0.18;
+    min -= pad;
+    max += pad;
+    var width = 260;
+    var height = 40;
+    var line = values.map(function (value, index) {
+      var x = values.length === 1 ? 0 : (index / (values.length - 1)) * width;
+      var y = height - ((value - min) / (max - min)) * (height - 2) - 1;
+      return (index ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+    }).join(" ");
+    return { line: line, area: line + " L" + width + " " + height + " L0 " + height + " Z" };
+  }
+
+  function pidBox(node) {
+    try { return node.getBBox(); } catch (err) { return null; }
+  }
+
+  function pidFocus(el) {
+    if (el.hasAttribute("data-live")) {
+      var tag = el.getAttribute("data-live");
+      var inst = el.ownerSVGElement && el.ownerSVGElement.getElementById(tag);
+      if (inst) return inst;
+    }
+    return el;
+  }
+
+  function pidRelated(el) {
+    var focus = pidFocus(el);
+    var svg = focus.ownerSVGElement;
+    var box = pidBox(focus);
+    if (!svg || !box) return [];
+    var cx = box.x + box.width / 2;
+    var cy = box.y + box.height / 2;
+    var equipment = focus.classList.contains("pid-equipment") ? focus : null;
+    if (!equipment) {
+      var best = null;
+      var bestD = 170;
+      svg.querySelectorAll(".pid-equipment").forEach(function (item) {
+        var itemBox = pidBox(item);
+        if (!itemBox) return;
+        var dist = Math.hypot((itemBox.x + itemBox.width / 2) - cx, (itemBox.y + itemBox.height / 2) - cy);
+        if (dist < bestD) {
+          bestD = dist;
+          best = item;
+        }
+      });
+      equipment = best;
+    }
+    var region = equipment ? pidBox(equipment) : box;
+    if (!region) region = box;
+    var tags = [];
+    var primary = focus.id || el.getAttribute("data-live") || "";
+    if (primary && pidLive && pidLive.tags[primary]) tags.push(primary);
+    var found = [];
+    svg.querySelectorAll("[data-live]").forEach(function (node) {
+      var tag = node.getAttribute("data-live");
+      var inst = svg.getElementById(tag) || node;
+      var instBox = pidBox(inst);
+      if (!instBox) return;
+      var x = instBox.x + instBox.width / 2;
+      var y = instBox.y + instBox.height / 2;
+      if (x < region.x - 190 || x > region.x + region.width + 190) return;
+      if (y < region.y - 96 || y > region.y + region.height + 96) return;
+      found.push({ tag: tag, d: Math.hypot(x - (region.x + region.width / 2), y - (region.y + region.height / 2)) });
+    });
+    found.sort(function (a, b) { return a.d - b.d; });
+    found.forEach(function (item) {
+      if (tags.length >= 3 || tags.indexOf(item.tag) !== -1) return;
+      tags.push(item.tag);
+    });
+    return tags;
+  }
+
+  function pidNames(svg, tag) {
+    var names = [];
+    svg.querySelectorAll("text.pid-tag").forEach(function (node) {
+      if ((node.textContent || "").trim() !== tag) return;
+      var next = node.nextElementSibling;
+      while (next && next.classList && next.classList.contains("pid-name")) {
+        names.push((next.textContent || "").trim());
+        next = next.nextElementSibling;
+      }
+    });
+    return names.filter(Boolean);
+  }
+
+  function refreshPidCard() {
+    var card = document.getElementById("dwg-card");
+    if (!card || card.hidden || !card.classList.contains("is-pid") || !pidLive) return;
+    card.querySelectorAll(".dwg-graph").forEach(function (row) {
+      var item = pidLive.tags[row.getAttribute("data-tag")];
+      if (!item) return;
+      var path = pidSpark(item.history);
+      row.querySelector("b").textContent = item.locked ? item.raw : pidFormat(item.spec, item.value);
+      row.querySelector(".dwg-area").setAttribute("d", path.area);
+      row.querySelector(".dwg-line").setAttribute("d", path.line);
+    });
+  }
+
+  function plainDwgCard(card, raw) {
+    card.classList.remove("is-pid");
+    card.removeAttribute("data-hover");
+    if (!card.querySelector(":scope > b")) card.innerHTML = "<b></b><p></p>";
+    var cut = raw.indexOf(" — ");
+    card.querySelector("b").textContent = cut < 0 ? raw : raw.slice(0, cut);
+    card.querySelector("p").textContent = cut < 0 ? "" : raw.slice(cut + 3);
+  }
+
+  function recordRelated(el) {
+    var host = el.closest("[data-tip], .dwg-equipment") || el;
+    if (!host.querySelector("[data-live]") && host.parentElement) host = host.parentElement.closest("[data-tip], .dwg-equipment") || host;
+    var tags = [];
+    var primary = el.getAttribute("data-live");
+    if (primary) tags.push(primary);
+    host.querySelectorAll("[data-live]").forEach(function (node) {
+      var tag = node.getAttribute("data-live");
+      if (!tag || tags.length >= 4 || tags.indexOf(tag) !== -1) return;
+      tags.push(tag);
+    });
+    return tags;
+  }
+
+  function fillPidCard(card, el) {
+    var svg = el.ownerSVGElement;
+    if (!svg || !pidLive) return false;
+    var isPid = !!svg.querySelector(".pid-instrument");
+    var focus = pidFocus(el);
+    var host = el.closest("[data-tip]") || focus.closest("[data-tip]") || el;
+    var raw = host.getAttribute("data-tip") || el.getAttribute("data-tip") || "";
+    var cut = raw.indexOf(" — ");
+    var tag = isPid ? (focus.id || el.getAttribute("data-live") || el.getAttribute("data-own") || "") : (host.id || (cut < 0 ? raw : raw.slice(0, cut)));
+    if (!tag) return false;
+    if (card.getAttribute("data-hover") === tag && card.classList.contains("is-pid")) return true;
+    var names = isPid ? pidNames(svg, tag) : [];
+    var spec = pidSpec(tag);
+    if (isPid && !names.length && spec.name !== "Reading") names = [spec.name];
+    var title = isPid ? tag : (cut < 0 ? raw : raw.slice(0, cut));
+    var note = cut < 0 ? (isPid ? raw : "") : raw.slice(cut + 3);
+    var related = isPid ? pidRelated(el) : recordRelated(el);
+    var graphs = related.map(function (itemTag) {
+      var item = pidLive.tags[itemTag];
+      if (!item) return "";
+      var path = pidSpark(item.history);
+      var label = item.locked ? item.spec.name : itemTag;
+      var kind = item.locked ? "" : item.spec.name;
+      var reading = item.locked ? item.raw : pidFormat(item.spec, item.value);
+      return '<div class="dwg-graph" data-tag="' + esc(itemTag) + '"><div class="dwg-graph-h"><span>' + esc(label) + '</span><b>' + esc(reading) + '</b></div>' + (kind ? '<div class="dwg-graph-k">' + esc(kind) + '</div>' : '') + '<svg viewBox="0 0 260 40" preserveAspectRatio="none" aria-hidden="true"><path class="dwg-area" d="' + path.area + '"/><path class="dwg-line" d="' + path.line + '"/></svg></div>';
+    }).join("");
+    card.classList.add("is-pid");
+    card.setAttribute("data-hover", tag);
+    card.innerHTML = '<div class="dwg-card-top"><b>' + esc(title) + '</b><em class="dwg-live">Live</em></div><div class="dwg-card-name">' + esc(names.join(" · ")) + '</div><p>' + esc(note) + '</p><div class="dwg-graphs">' + (graphs || '<div class="dwg-empty">No reading is tied to this symbol.</div>') + '</div><div class="dwg-card-foot">' + (isPid ? "Simulated trace for this symbol. Not a historian feed." : "Trace around the reading printed on this symbol.") + '</div>';
+    return true;
+  }
+
   function drawingScreen(sheets) {
     return screen("drawing", "Drawing", "sheet", sheets.map(function (item) {
       return tab(item.tab, function () {
@@ -5810,21 +6145,30 @@
     if (!host || host.getAttribute("data-loaded")) return;
     host.setAttribute("data-loaded", "1");
     var sheet = host.querySelector(".dwg-sheet");
+    var token = ++pidPaint;
+    stopPidLive();
     fetch(host.getAttribute("data-dwg")).then(function (res) {
       if (!res.ok) throw new Error("missing");
       return res.text();
     }).then(function (svg) {
+      if (token !== pidPaint || !sheet.isConnected) return;
       sheet.innerHTML = svg;
+      var drawing = sheet.querySelector("svg");
+      if (drawing) ensureDwgHits(drawing);
+      startPidLive(sheet);
     }).catch(function () {
+      if (token !== pidPaint || !sheet.isConnected) return;
       sheet.innerHTML = '<p class="dwg-wait">The drawing file is not available.</p>';
     });
   }
 
   function placeDwgCard(card, event) {
-    var x = event.clientX + 16;
-    var y = event.clientY + 16;
-    if (x + 280 > window.innerWidth) x = event.clientX - 280;
-    if (y + 120 > window.innerHeight) y = event.clientY - 110;
+    var width = card.offsetWidth || 280;
+    var height = card.offsetHeight || 120;
+    var x = event.clientX + 18;
+    var y = event.clientY + 18;
+    if (x + width + 12 > window.innerWidth) x = Math.max(8, event.clientX - width - 18);
+    if (y + height + 12 > window.innerHeight) y = Math.max(8, event.clientY - height - 18);
     card.style.left = x + "px";
     card.style.top = y + "px";
   }
@@ -5879,6 +6223,7 @@
     var tipEl = document.getElementById("tip");
 
     function render() {
+      stopPidLive();
       var screenSpec = app.screens[current];
       titleEl.innerHTML = esc(app.product) + " <span>/ " + esc(screenSpec.name) + "</span>";
       tabsEl.innerHTML = screenSpec.tabs.map(function (item, index) {
@@ -6650,18 +6995,22 @@
 
     document.addEventListener("mouseover", function (event) {
       var card = document.getElementById("dwg-card");
-      var el = event.target.closest("[data-tip]");
+      var el = event.target.closest("[data-tip], .pid-instrument");
+      if (!el) {
+        var live = event.target.closest("[data-live]");
+        if (live && live.ownerSVGElement && live.ownerSVGElement.querySelector(".pid-instrument")) el = live;
+      }
       if (el && el.closest(".dwg-stage")) {
         tipEl.style.display = "none";
-        var raw = el.getAttribute("data-tip") || "";
-        var cut = raw.indexOf(" — ");
-        card.querySelector("b").textContent = cut < 0 ? raw : raw.slice(0, cut);
-        card.querySelector("p").textContent = cut < 0 ? "" : raw.slice(cut + 3);
+        if (!fillPidCard(card, el)) plainDwgCard(card, el.getAttribute("data-tip") || "");
         card.hidden = false;
         placeDwgCard(card, event);
         return;
       }
-      if (card) card.hidden = true;
+      if (card) {
+        card.hidden = true;
+        card.removeAttribute("data-hover");
+      }
       if (!el) {
         tipEl.style.display = "none";
         return;

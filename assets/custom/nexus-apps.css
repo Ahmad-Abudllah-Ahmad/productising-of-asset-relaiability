@@ -930,13 +930,22 @@ tr.is-checked { background: #eaf3ff; }
 }
 .dwg-wait { margin: 24px; color: var(--muted); font-size: 13px; }
 .dwg-stage .ol-hit, .dwg-stage .pl-hit, .dwg-stage .pid-hit { pointer-events: all; }
-.dwg-stage [data-tip] { cursor: pointer; }
+.dwg-stage [data-tip],
+.dwg-stage .pid-instrument,
+.dwg-stage [data-live] { cursor: pointer; }
+.dwg-stage .pid-instrument:hover .pid-bubble,
+.dwg-stage .pid-instrument.is-on .pid-bubble {
+  stroke: #1f6feb;
+  stroke-width: 1.6;
+}
 .dwg-stage g[data-tip]:hover > .ol-hit,
 .dwg-stage g[data-tip]:hover > .pl-hit,
 .dwg-stage g[data-tip]:hover > .pid-hit,
+.dwg-stage g.pid-instrument:hover > .pid-hit,
 .dwg-stage g[data-tip].is-on > .ol-hit,
 .dwg-stage g[data-tip].is-on > .pl-hit,
-.dwg-stage g[data-tip].is-on > .pid-hit {
+.dwg-stage g[data-tip].is-on > .pid-hit,
+.dwg-stage g.pid-instrument.is-on > .pid-hit {
   fill: rgba(31, 111, 235, 0.14);
   stroke: #1f6feb;
   stroke-width: 1.6;
@@ -949,3 +958,85 @@ tr.is-checked { background: #eaf3ff; }
 #dwg-card[hidden] { display: none; }
 #dwg-card b { display: block; font-size: 13px; }
 #dwg-card p { margin: 4px 0 0; color: #475467; font-size: 12px; line-height: 1.45; }
+#dwg-card.is-pid {
+  width: 304px;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(16, 24, 40, 0.18);
+}
+#dwg-card.is-pid .dwg-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 0;
+}
+#dwg-card.is-pid b {
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+#dwg-card .dwg-live {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-radius: 999px;
+  padding: 3px 7px;
+}
+#dwg-card.is-pid .dwg-card-name {
+  padding: 3px 14px 0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+}
+#dwg-card.is-pid p {
+  margin: 6px 14px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#dwg-card.is-pid p:empty { display: none; margin: 0; padding: 0; border: 0; }
+#dwg-card.is-pid .dwg-card-name:empty { display: none; }
+#dwg-card .dwg-graphs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 4px;
+}
+#dwg-card .dwg-graph-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+#dwg-card .dwg-graph-h span {
+  color: #667085;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+#dwg-card .dwg-graph-h b { font-size: 12px; }
+#dwg-card .dwg-graph-k {
+  margin-top: 1px;
+  color: #98a2b3;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+#dwg-card .dwg-graph svg { display: block; width: 100%; height: 36px; margin-top: 4px; }
+#dwg-card .dwg-area { fill: rgba(31, 111, 235, 0.14); stroke: none; }
+#dwg-card .dwg-line { fill: none; stroke: #1f6feb; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+#dwg-card .dwg-empty { color: var(--muted); font-size: 12px; }
+#dwg-card .dwg-card-foot {
+  padding: 4px 14px 10px;
+  color: #98a2b3;
+  font-size: 10px;
+  letter-spacing: 0.01em;
+}
