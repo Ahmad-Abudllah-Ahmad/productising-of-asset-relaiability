@@ -87,9 +87,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     localStorage.setItem("language", language);
   }, [language]);
 
-  const logoSrc =
-    theme === "light" ? encodeURI("/logo-1.png") : "/logo-2.png";
-
   return (
     <ThemeProvider value={{ theme, setTheme }}>
     <LanguageProvider value={{ language, setLanguage, t, tp, tLabel }}>
@@ -109,20 +106,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
 
         {/* Left — Logo */}
-        <div className="flex items-center h-full py-1">
-          <div className="flex items-center h-[78px] shrink-0 w-[min(62vw,540px)] md:w-[580px] pl-1 pr-2">
-            <img
-              src={logoSrc}
-              alt="AzərEnerji"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                objectPosition: "left center",
-              }}
-              className="block"
-            />
-          </div>
+        <div className="flex items-center h-full py-1 min-w-0">
+          <a
+            href="/"
+            aria-label="NEXUS OS"
+            className="shrink-0 text-[15px] font-bold tracking-[-0.03em] leading-none no-underline"
+            style={{ color: "var(--layout-text)" }}
+          >
+            NEXUS OS
+          </a>
         </div>
 
         {/* Right — Language + Theme + User */}
@@ -261,6 +253,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {t("header.user")}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem("nexus-session");
+              var back = window.location.pathname + window.location.search;
+              if (back.charAt(0) !== "/" || back.charAt(1) === "/" || back.indexOf("\\") !== -1) back = "/dashboard";
+              window.location.assign("/login/?next=" + encodeURIComponent(back));
+            }}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.backgroundColor = "var(--theme-segment-active-bg)";
+              event.currentTarget.style.color = "var(--theme-segment-active-fg)";
+              event.currentTarget.style.borderColor = "transparent";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.backgroundColor = "var(--theme-toggle-bg)";
+              event.currentTarget.style.color = "var(--layout-text)";
+              event.currentTarget.style.borderColor = "var(--theme-toggle-border)";
+            }}
+            className="h-9 shrink-0 rounded-full border font-semibold"
+            style={{
+              borderColor: "var(--theme-toggle-border)",
+              color: "var(--layout-text)",
+              backgroundColor: "var(--theme-toggle-bg)",
+              fontSize: "12px",
+              letterSpacing: "0.06em",
+              padding: "0 16px",
+              transition: "background-color 180ms ease, color 180ms ease, border-color 180ms ease",
+            }}
+          >
+            Log out
+          </button>
         </div>
       </header>
 
