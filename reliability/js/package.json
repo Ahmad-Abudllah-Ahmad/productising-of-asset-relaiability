@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks the Reliability domain and data modules as native ES modules so Node can run their unit tests. Browsers ignore this file."
+}

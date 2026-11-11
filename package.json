@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node scripts/export-static.js"
+    "build": "node scripts/export-static.js",
+    "test": "node --test \"reliability/js/test/*.test.js\""
   }
 }
 
