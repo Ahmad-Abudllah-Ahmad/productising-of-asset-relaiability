@@ -95,7 +95,7 @@ test.describe('registry fixes', () => {
     await expect(panel(page)).toContainText('Scores as of 2026-11-11');
   });
 
-  test('Components (1,346 rows): sorting, filtering and scrolling stay fast', async ({ page }) => {
+  test('Components (1,382 rows): sorting, filtering and scrolling stay fast', async ({ page }) => {
     await open(page);
     await openRegistry(page, 'Components');
     const t = await page.evaluate(async () => {
@@ -114,7 +114,7 @@ test.describe('registry fixes', () => {
       out.scrollWorst = Math.max(...frames);
       return out;
     });
-    expect(t.rows).toBe(1346);
+    expect(t.rows).toBe(1382);
     // generous bounds: this is about "not janky", and CI machines vary
     for (const k of ['sort', 'sortBack', 'filter', 'unfilter']) expect(t[k], k).toBeLessThan(500);
     expect(t.scrollWorst).toBeLessThan(120);

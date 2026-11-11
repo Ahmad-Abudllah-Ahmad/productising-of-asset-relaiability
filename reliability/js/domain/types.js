@@ -197,6 +197,7 @@ export const WORK_ORDER_STATUSES = Object.freeze(['open', 'in_progress', 'comple
  * @property {Array<{defect_id:string,true_asset_id:string,finding_ids:string[]}>} repeatSightings
  * @property {Object<string,string[]>} sameModel   design_family label -> asset_ids
  * @property {Object<string,string>} dgaProfiles   transformer id -> profile name
+ * @property {{tower_ids:string[], span_ids:string[], commissioned:string}} newSection  towers and spans built after the last campaign: never inspected, not assessed
  * @property {Array<{repair_id:string,work_order_id:string,defect_id:string,effective:boolean,closes_finding_ids:string[]}>} repairs
  *   effective=false means the defect was sighted again after the repair
  */

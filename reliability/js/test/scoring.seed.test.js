@@ -159,3 +159,18 @@ test('scoring never changes the data', () => {
   for (const id of ['L-132-01', 'L-220-03', 'L-500-01', 'TX-2A']) risk(c2, id, NOW);
   assert.equal(JSON.stringify(copy), before);
 });
+
+test('the newly built towers and spans are not assessed, and left out of the line roll-up', () => {
+  const ns = seed.groundTruth.newSection;
+  for (const id of [...ns.tower_ids, ...ns.span_ids]) {
+    const r = healthIndex(ctx, id, NOW);
+    assert.equal(r.score, null, id);
+    assert.equal(r.band, null, id);
+    assert.match(r.breakdown.reason, /no evidence/, id);
+  }
+  const line = lineHi(ctx, 'L-132-01', NOW);
+  assert.equal(line.breakdown.counts.towers, 44 + 3, '44 towers plus the 3 duplicate records of this line, none of them assessed');
+  for (const id of [...ns.tower_ids, ...ns.span_ids]) assert.ok(line.breakdown.notAssessed.includes(id), `${id} is listed as not assessed`);
+  assert.ok(line.breakdown.coverageByLength < 1);
+  assert.equal(risk(ctx, ns.tower_ids[0], NOW).score, null);
+});

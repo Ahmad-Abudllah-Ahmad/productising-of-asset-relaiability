@@ -313,3 +313,26 @@ test('scoring does not mutate its inputs', () => {
   lineHi(ctx, 'L1', AFTER_C1);
   assert.equal(JSON.stringify(data), before);
 });
+
+test('a campaign that ended before an asset was built did not fly it', () => {
+  const { ctx, data } = fixture();
+  data.assets.find((a) => a.asset_id === 'T3').install_date = '2026-06-01'; // built after C1 (ended 2026-03-01)
+  const c2 = { ...data.campaigns[1], inspected_tower_ids: ['T1', 'T2', 'T3'] };
+  // C1 flew T3 on paper, but T3 did not exist; C2 (ended 2026-09-01) did fly it
+  assert.equal(towerHi(ctx, 'T3', AFTER_C1).score, null, 'before it existed: not assessed');
+  assert.equal(towerHi(ctx, 'T3', '2026-05-01').score, null);
+  const later = fixture();
+  later.data.assets.find((a) => a.asset_id === 'T3').install_date = '2026-06-01';
+  later.data.campaigns[1] = c2;
+  const ctx2 = (async () => (await import('../domain/context.js')).createContext(later.data))();
+  return ctx2.then((c) => assert.equal(towerHi(c, 'T3', '2026-09-02').score, 100, 'once a campaign has flown it: assessed'));
+});
+
+test('a span built after the campaigns is not assessed just because its neighbour tower was flown', () => {
+  const { ctx, data } = fixture();
+  data.assets.find((a) => a.asset_id === 'S2').install_date = '2026-10-15'; // S2 joins T2 (flown) and T3 (flown), built after C2
+  const r = spanHi(ctx, 'S2', '2026-11-01');
+  assert.equal(r.score, null);
+  assert.match(r.breakdown.reason, /no evidence/);
+  assert.equal(spanHi(ctx, 'S1', '2026-11-01').score, 100, 'the span next to it, built earlier, is assessed');
+});

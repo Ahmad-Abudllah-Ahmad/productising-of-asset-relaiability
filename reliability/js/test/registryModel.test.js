@@ -9,7 +9,7 @@ import { risk } from '../domain/risk.js';
 
 const make = () => createRepository(generateSeed(), { storage: null, clock: () => '2026-11-12T09:00:00.000Z' });
 const snapOf = async (repo) => loadSnapshot(repo);
-const COUNTS = { lines: 3, towers: 155, spans: 147, components: 1346, substations: 12, transformers: 7 };
+const COUNTS = { lines: 3, towers: 159, spans: 151, components: 1382, substations: 12, transformers: 7 };
 
 test('the six categories are lines, towers, spans, components, substations and transformers', () => {
   assert.deepEqual(CATEGORIES.map((c) => c.id), ['lines', 'towers', 'spans', 'components', 'substations', 'transformers']);
@@ -124,9 +124,10 @@ test('KPI cards: four per tab, different for each tab, and consistent with the r
   const towers = kpisFor(snap, 'towers');
   const { columns, rows } = tableFor(snap, 'towers');
   const hi = columns.indexOf('Health index');
-  const original = rows.filter((r) => !r.id.startsWith('MX-'));
+  const assessed = rows.filter((r) => r.cells[hi].tone !== 'x');
   assert.equal(towers[0].v, String(rows.length));
-  assert.equal(towers[0].s, `${original.length} assessed · incl. 5 possible duplicates`);
+  assert.equal(assessed.length, 150, '154 towers, 4 of them newly built and never inspected, are not assessed; neither are the 5 duplicates');
+  assert.equal(towers[0].s, `${assessed.length} assessed · incl. 5 possible duplicates`);
   const attention = rows.filter((r) => ['a', 'r'].includes(r.cells[hi].tone)).length;
   assert.equal(towers[2].v, String(attention));
   assert.equal(towers[2].s, `${rows.filter((r) => r.cells[hi].tone === 'r').length} poor · ${rows.filter((r) => r.cells[hi].tone === 'a').length} moderate`);
@@ -142,7 +143,7 @@ test('sparklines come from real scores at each campaign date and today; a single
   assert.equal(avg.length, 4);
   assert.ok(avg.every((v) => v > 0 && v <= 100));
   const comps = kpisFor(snap, 'components')[0].spark;
-  assert.deepEqual(comps, [1346, 1346], 'no history for a count with one value: flat, not an invented trend');
+  assert.deepEqual(comps, [1382, 1382], 'no history for a count with one value: flat, not an invented trend');
 });
 
 test('Links KPIs follow decisions and merges', async () => {
@@ -164,14 +165,14 @@ test('Links KPIs follow decisions and merges', async () => {
 test('a merge changes the registry: the duplicate leaves the Towers tab and the KPI counts follow', async () => {
   const repo = make();
   const before = await snapOf(repo);
-  assert.equal(tableFor(before, 'towers').rows.length, 155);
+  assert.equal(tableFor(before, 'towers').rows.length, 159);
   const { original, duplicate } = (await repo.getGroundTruth()).duplicates.find((d) => d.duplicate.startsWith('MX-TOW'));
   await repo.mergeAssets({ from: duplicate, into: original });
   const after = await snapOf(repo);
   const rows = tableFor(after, 'towers').rows;
-  assert.equal(rows.length, 154);
+  assert.equal(rows.length, 158);
   assert.ok(!rows.some((r) => r.id === duplicate));
-  assert.equal(kpisFor(after, 'towers')[0].v, '154');
+  assert.equal(kpisFor(after, 'towers')[0].v, '158');
 });
 
 test('the substations tab counts stations, bays and the transformers behind them', async () => {

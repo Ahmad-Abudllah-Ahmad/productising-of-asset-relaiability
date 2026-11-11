@@ -618,6 +618,71 @@ export function generateSeed(options = {}) {
     }
   }
 
+  // ---- a newly built section: four towers added to the end of L-132-01 after the last campaign.
+  // They are commissioned but never flown and have no findings, so "not assessed" is the honest answer.
+  // Own random stream: nothing above this line changes.
+  const newSection = { tower_ids: [], span_ids: [], commissioned: addDays(campaigns[campaigns.length - 1].end, 5) };
+  {
+    const xr = makeRng(((options.seed ?? SEED.seed) ^ 0x4e57) >>> 0);
+    const xBetween = (a, b) => a + xr() * (b - a);
+    const spec = spec132;
+    const meta = lineMeta[spec.id];
+    const lineAsset = byId.get(spec.id);
+    const [prev2, prev1] = meta.towers.slice(-2);
+    const dxy = (a, b) => ({ x: (b.lng - a.lng) * M_PER_DEG * Math.cos((a.lat * Math.PI) / 180), y: (b.lat - a.lat) * M_PER_DEG });
+    const dir = dxy(prev2.location, prev1.location);
+    const norm = Math.hypot(dir.x, dir.y);
+    let last = prev1;
+    let addedKm = 0;
+    for (let n = meta.towers.length + 1; n <= meta.towers.length + 4; n += 1) {
+      const spacing = spec.spacingM * xBetween(0.9, 1.1);
+      const wobble = xBetween(-0.05, 0.05);
+      const dx = (dir.x / norm) * Math.cos(wobble) - (dir.y / norm) * Math.sin(wobble);
+      const dy = (dir.x / norm) * Math.sin(wobble) + (dir.y / norm) * Math.cos(wobble);
+      const loc = offset(last.location, dx * spacing, dy * spacing);
+      const id = `${meta.short}-${pad(n, 3)}`;
+      const tcrit = crit[spec.kv];
+      const tower = add({
+        asset_id: `TWR-${id}`, category: 'structure', class: 'tower', parent_id: spec.id, name: `T-${pad(n, 3)}`,
+        external_ids: { sap: `SAP-TWR-${spec.kv}${meta.short.slice(-2)}${pad(n, 3)}`, gis: `GIS-TWR-${id}` }, location: loc, voltage_kv: spec.kv,
+        install_date: newSection.commissioned, criticality: tcrit,
+        labels: [...meta.base, lab('corrosion_zone', CORROSION[spec.corridor]), lab('design_family', 'Lattice-Y1'), critClass(tcrit)],
+        ext: { index: n, tower_type: 'Lattice-Y1', height_m: round(xBetween(25, 35), 1), corrosion_zone: CORROSION[spec.corridor] },
+      });
+      newSection.tower_ids.push(tower.asset_id);
+      const cl = (extra = []) => [...meta.base, critClass(tcrit), ...extra];
+      const part = (a) => add({ category: 'line_component', parent_id: tower.asset_id, location: loc, voltage_kv: spec.kv, install_date: tower.install_date, criticality: tcrit, ...a });
+      part({ asset_id: `FND-${id}`, category: 'structure', class: 'foundation', name: `${tower.name} foundation`, external_ids: { gis: `GIS-FND-${id}` }, labels: cl(), ext: { type: 'pad-and-chimney' } });
+      ['A', 'B', 'C'].forEach((phase) => {
+        const mk = INSUL_MAKERS[(n + phase.charCodeAt(0)) % INSUL_MAKERS.length];
+        part({ asset_id: `INS-${id}-${phase}`, class: 'insulator_string', name: `${tower.name} string ${phase}`, external_ids: { sap: `SAP-INS-${id}-${phase}` }, labels: cl([lab('manufacturer', mk)]), ext: { phase, position: 'suspension', manufacturer: mk, model: 'GL-300' } });
+      });
+      part({ asset_id: `EW-${id}`, class: 'earthwire', name: `${tower.name} earthwire`, external_ids: { sap: `SAP-EW-${id}` }, labels: cl(), ext: { position: 'peak', model: 'OPGW-24' } });
+      [1, 2].forEach((side) => {
+        const mk = DAMPER_MAKERS[(n + side) % DAMPER_MAKERS.length];
+        part({ asset_id: `DMP-${id}-${side}`, class: 'damper', name: `${tower.name} damper ${side}`, external_ids: { sap: `SAP-DMP-${id}-${side}` }, labels: cl([lab('manufacturer', mk)]), ext: { phase: 'A', position: side === 1 ? 'back-span' : 'ahead-span', manufacturer: mk, model: 'SD-2' } });
+      });
+      const sid = `SPN-${meta.short}-${pad(n - 1, 3)}-${pad(n, 3)}`;
+      const length = round(distM(last.location, loc), 1);
+      addedKm += length / 1000;
+      const span = add({
+        asset_id: sid, category: 'line_network', class: 'span', parent_id: spec.id, name: `${last.name}/${tower.name}`, external_ids: { gis: `GIS-${sid}` },
+        location: { type: 'line', coordinates: [[last.location.lat, last.location.lng], [loc.lat, loc.lng]] }, voltage_kv: spec.kv, install_date: newSection.commissioned,
+        criticality: tcrit, labels: [...meta.base, critClass(tcrit)],
+        ext: { from_tower: last.asset_id, to_tower: tower.asset_id, length_m: length, min_clearance_m: round(xBetween(6.5, 10), 1) },
+      });
+      add({ asset_id: `CND-${meta.short}-${pad(n - 1, 3)}`, category: 'line_component', class: 'conductor', parent_id: sid, name: `${span.name} conductor`, external_ids: { sap: `SAP-CND-${meta.short}-${pad(n - 1, 3)}` },
+        location: span.location, voltage_kv: spec.kv, install_date: newSection.commissioned, criticality: tcrit, labels: span.labels, ext: { conductor_type: 'ACSR Drake', phases: 3 } });
+      add({ asset_id: `ROW-${meta.short}-${pad(n - 1, 3)}`, category: 'right_of_way', class: 'span_corridor_segment', parent_id: sid, name: `${span.name} corridor`, external_ids: { gis: `GIS-ROW-${meta.short}-${pad(n - 1, 3)}` },
+        location: span.location, voltage_kv: spec.kv, install_date: newSection.commissioned, criticality: tcrit, labels: span.labels, ext: { clearance_m: round(xBetween(4, 12), 1), encroachment_type: null } });
+      newSection.span_ids.push(sid);
+      lineAsset.location.coordinates.push([loc.lat, loc.lng]);
+      last = tower;
+    }
+    lineAsset.ext.length_km = round(lineAsset.ext.length_km + addedKm, 2);
+  }
+  groundTruth.newSection = newSection;
+
   // ---- links known from the asset master and the topology (rule/resemblance links come in Phase 3)
   const links = [];
   let ln = 0;

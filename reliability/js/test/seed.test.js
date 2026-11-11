@@ -15,12 +15,13 @@ test('deterministic: same seed gives identical output, different seed differs', 
   assert.notEqual(JSON.stringify(generateSeed({ seed: 1 })), JSON.stringify(seed));
 });
 
-test('three lines at 132, 220 and 500 kV with 150 towers in total', () => {
+test('three lines at 132, 220 and 500 kV with 150 towers, plus 4 newly built ones', () => {
   const lines = assets.filter((a) => a.class === 'line');
   assert.deepEqual(lines.map((l) => l.voltage_kv).sort((a, b) => a - b), [132, 220, 500]);
   const towers = originals.filter((a) => a.class === 'tower');
-  assert.equal(towers.length, 150);
-  assert.equal(originals.filter((a) => a.class === 'span').length, 147);
+  assert.equal(towers.length, 154);
+  assert.equal(towers.filter((t) => !groundTruth.newSection.tower_ids.includes(t.asset_id)).length, 150);
+  assert.equal(originals.filter((a) => a.class === 'span').length, 151);
 });
 
 test('two substations with six transformers, each with bushings, tap changer, cooling and tank', () => {
@@ -179,4 +180,35 @@ test('same-model answer key groups transformers by design family', () => {
 
 test('campaign coverage lists real towers', () => {
   for (const c of campaigns) for (const id of c.inspected_tower_ids) assert.equal(byId.get(id)?.class, 'tower');
+});
+
+test('a newly built section: four towers and spans commissioned after the last campaign, never inspected, no findings', () => {
+  const ns = groundTruth.newSection;
+  assert.equal(ns.tower_ids.length, 4);
+  assert.equal(ns.span_ids.length, 4);
+  const lastEnd = campaigns.at(-1).end;
+  assert.ok(ns.commissioned > lastEnd && ns.commissioned < CONFIG.seed.referenceDate, `commissioned ${ns.commissioned}`);
+  const flown = new Set(campaigns.flatMap((c) => c.inspected_tower_ids));
+  for (const id of ns.tower_ids) {
+    const t = byId.get(id);
+    assert.equal(t.install_date, ns.commissioned);
+    assert.equal(t.parent_id, 'L-132-01');
+    assert.ok(!flown.has(id), `${id} was never flown`);
+    assert.ok(!findings.some((f) => f.asset_id === id || f.tower_id === id), `${id} has no findings`);
+    assert.ok(assets.some((a) => a.parent_id === id && a.class === 'insulator_string'), 'with its components');
+  }
+  // the section continues the line: indexes 41-44, joined to tower 40 by a span
+  assert.deepEqual(ns.tower_ids.map((id) => byId.get(id).ext.index), [41, 42, 43, 44]);
+  assert.equal(byId.get(ns.span_ids[0]).ext.from_tower, 'TWR-132-01-040');
+  const line = byId.get('L-132-01');
+  assert.equal(line.location.coordinates.length, 44);
+  assert.ok(line.ext.length_km > 11.7);
+  assert.ok(links.some((l) => l.type === 'hierarchy' && l.from_asset === ns.tower_ids[0] && l.to_asset === 'L-132-01'));
+});
+
+test('the new section does not change any earlier part of the seed', () => {
+  // ids of everything that existed before the section, and one finding, are as they were
+  assert.equal(findings.length, 400);
+  assert.equal(findings[0].finding_id, 'F-0001');
+  assert.equal(assets.length, 1703 + 44, 'the 1,703 assets of the earlier seed plus 4 towers, 4 spans and their 36 components');
 });

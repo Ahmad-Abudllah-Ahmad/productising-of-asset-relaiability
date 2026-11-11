@@ -33,6 +33,7 @@
 //      campaign. A transformer needs at least one of DGA, oil, tests or visual evidence; age alone
 //      is not evidence. Review status is not time-versioned: the status in the data is used for
 //      every asOf.
+//      A campaign only counts as having flown an asset that existed when the campaign ended (install_date).
 //  A14. WORST COMPONENT CAPS ITS GROUP with margin 0: a group scores the same as its worst
 //      component. A margin above 0 lets the group average rise above the worst by that much.
 //  A15. LINE HI is the length-weighted mean of assessed towers and spans. A tower's weight is half

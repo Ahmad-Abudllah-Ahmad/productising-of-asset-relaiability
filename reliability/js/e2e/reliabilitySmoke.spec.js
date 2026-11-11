@@ -10,8 +10,8 @@ const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 const RAIL = ['Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History', 'Reliability Dashboard'];
 const REGISTRY_TABS = ['Lines', 'Towers', 'Spans', 'Components', 'Substations', 'Transformers', 'Links'];
 const OLD_TABS = ['Production', 'Sourcing', 'Overview', 'Matrix', 'Forecast', 'Issues', 'Entities', 'Recommendations', 'Blackboard', 'Schedule', 'Graph', 'Register', 'Hierarchy'];
-// seed: 150 towers + 5 unmerged duplicates; 147 spans; 2 stations + 10 bays; 6 transformers + 1 duplicate
-const ROWS = { Lines: 3, Towers: 155, Spans: 147, Components: 1346, Substations: 12, Transformers: 7 };
+// seed: 150 towers + 4 newly built + 5 unmerged duplicates; 151 spans; 2 stations + 10 bays; 6 transformers + 1 duplicate
+const ROWS = { Lines: 3, Towers: 159, Spans: 151, Components: 1382, Substations: 12, Transformers: 7 };
 
 const rail = (page) => page.locator('[data-go]');
 const tabs = (page) => page.locator('#tabs [data-tab]');
@@ -103,7 +103,7 @@ test.describe('Asset Registry', () => {
     await open(page);
     await openRegistry(page, 'Towers');
     const visible = () => page.locator('#stage table.reg-table tbody tr:not([hidden])');
-    await expect(visible()).toHaveCount(155);
+    await expect(visible()).toHaveCount(159);
     await page.locator('#stage select[aria-label="Line"]').selectOption('L-220-03');
     await expect(visible()).toHaveCount(60);
     await page.locator('#stage select[aria-label="Health band"]').selectOption('poor');
@@ -114,7 +114,7 @@ test.describe('Asset Registry', () => {
     await expect(visible()).toHaveCount(0);
     await expect(page.locator('#stage .empty-note')).toHaveClass(/show/);
     await page.locator('#stage .clear-filters').click();
-    await expect(visible()).toHaveCount(155);
+    await expect(visible()).toHaveCount(159);
   });
 
   test('clicking a column heading sorts the table, both ways', async ({ page }) => {
@@ -207,7 +207,7 @@ test.describe('Links tab (Link Review)', () => {
   test('a merge removes the duplicate from the Towers tab', async ({ page }) => {
     await open(page);
     await openRegistry(page, 'Towers');
-    await expect(rows(page)).toHaveCount(155);
+    await expect(rows(page)).toHaveCount(159);
     await openRegistry(page, 'Links');
     await queue(page).filter({ hasText: 'duplicate of' }).first().click();
     const dupTowerLink = queue(page).filter({ hasText: 'duplicate of' }).filter({ hasText: /T-\d+ ↔ T-0?\d+|Tower/ });
@@ -218,7 +218,7 @@ test.describe('Links tab (Link Review)', () => {
     await page.getByTestId('merge').click();
     await expect(queue(page)).toHaveCount(29);
     await openRegistry(page, 'Towers');
-    const expected = cls.includes('tower') ? 154 : 155;
+    const expected = cls.includes('tower') ? 158 : 159;
     await expect(rows(page)).toHaveCount(expected);
   });
 

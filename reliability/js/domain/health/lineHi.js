@@ -95,9 +95,11 @@ function computeOwnerHi(ctx, ownerId, asOf) {
   if (!groups) return notAssessed(asOf, `no line health index for class ${owner.class}`);
 
   const f = ctx.findingsFor(ownerId, asOf);
-  const flown = owner.class === 'tower'
+  // a campaign can only have flown an asset that existed when it ended
+  const existed = (d) => !owner.install_date || d >= owner.install_date;
+  const flown = (owner.class === 'tower'
     ? ctx.coverageDates(ownerId, asOf)
-    : [owner.ext.from_tower, owner.ext.to_tower].filter((t) => t && !ctx.isMerged(t)).flatMap((t) => ctx.coverageDates(t, asOf));
+    : [owner.ext.from_tower, owner.ext.to_tower].filter((t) => t && !ctx.isMerged(t)).flatMap((t) => ctx.coverageDates(t, asOf))).filter(existed);
   const newest = maxDate([...f.evidence.map((x) => x.date), ...flown]);
   if (!f.evidence.length && !flown.length) return notAssessed(asOf, 'no evidence on or before asOf', { closedFindingIds: [] });
 
