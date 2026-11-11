@@ -30,7 +30,8 @@ test('getAsset, getChildren and getAncestors walk the hierarchy', async () => {
 test('getLinks matches either end and filters by type', async () => {
   const l = await repo.getLinks({ asset_id: 'TX-2A', type: 'electrical' });
   assert.ok(l.length > 0 && l.every((x) => x.type === 'electrical' && (x.from_asset === 'TX-2A' || x.to_asset === 'TX-2A')));
-  assert.equal((await repo.getLinks({ status: 'proposed' })).length, 0);
+  const proposed = await repo.getLinks({ status: 'proposed' });
+  assert.ok(proposed.length > 0 && proposed.every((x) => x.status === 'proposed' && x.source === 'resemblance'));
 });
 
 test('getFindings filters by campaign, class, status and score', async () => {

@@ -2,9 +2,9 @@
 //
 //   component score  = lowest condition (1-5) among its open findings; no finding = 5
 //   group score      = min(mean of its components, worst component + groupCapMargin)   [margin 0: the worst component]
-//   tower/span HI    = ( sum_g w_g * S_g ) / ( 5 * sum_g w_g ) * 100, then capped by the worst group:
-//                      a group at condition 1 caps at the top of the poor band, condition 2 at the top
-//                      of the moderate band (config scoring.conditionCap)
+//   tower/span HI    = ( sum_g w_g * S_g ) / ( 5 * sum_g w_g ) * 100, then limited by the worst group:
+//                      a group at condition 1 scales the score into the poor band, condition 2 into the
+//                      moderate band (config scoring.conditionCap); a cap never raises a score
 //   line HI          = length-weighted mean of assessed tower and span HIs (not capped by the worst)
 //
 // Every function takes asOf and uses only evidence and repairs dated on or before it.
@@ -48,21 +48,32 @@ function groupScore(ctx, owner, group, findings) {
 }
 
 /**
- * Condition-limiting cap. Returns the cap that applies (the strongest one) and which groups cause it.
- * `applied` is true only when the cap actually lowers the weighted score.
+ * Condition-limiting cap. The weighted score is scaled into the capped band, so two assets with the
+ * same worst group still differ by the rest of their condition:
+ *   poor:     capped = bandTop(poor) x uncapped / 100
+ *   moderate: capped = poorBelow + (bandTop(moderate) - poorBelow) x uncapped / 100
+ * The strongest (lowest) result among the groups that trigger a cap wins. A cap never raises a score.
  */
+function scaleIntoBand(config, band, uncapped) {
+  const top = bandTop(config, band);
+  const bottom = band === 'moderate' ? config.bands.poorBelow : 0;
+  return round1(bottom + ((top - bottom) * uncapped) / 100);
+}
+
 function conditionCap(ctx, scoredGroups, weighted) {
   const mapping = ctx.config.scoring.conditionCap;
   const candidates = scoredGroups
     .map((g) => ({ group: g.group, condition: Math.round(g.score), band: mapping[Math.round(g.score)] }))
     .filter((c) => c.band)
-    .map((c) => ({ ...c, limit: bandTop(ctx.config, c.band) }));
-  if (!candidates.length) return { applied: false, limit: null, band: null, condition: null, causedBy: [], uncappedScore: weighted };
-  const limit = Math.min(...candidates.map((c) => c.limit));
-  const causes = candidates.filter((c) => c.limit === limit);
+    .map((c) => ({ ...c, scaled: scaleIntoBand(ctx.config, c.band, weighted) }));
+  if (!candidates.length) {
+    return { applied: false, band: null, condition: null, causedBy: [], uncappedScore: weighted, bandTop: null, scaledScore: null };
+  }
+  const lowest = Math.min(...candidates.map((c) => c.scaled));
+  const causes = candidates.filter((c) => c.scaled === lowest);
   return {
-    applied: limit < weighted, limit, band: causes[0].band, condition: causes[0].condition,
-    causedBy: causes.map((c) => c.group), uncappedScore: weighted,
+    applied: lowest < weighted, band: causes[0].band, condition: causes[0].condition, causedBy: causes.map((c) => c.group),
+    uncappedScore: weighted, bandTop: bandTop(ctx.config, causes[0].band), scaledScore: lowest,
   };
 }
 
@@ -95,7 +106,7 @@ function computeOwnerHi(ctx, ownerId, asOf) {
   const wSum = scored.reduce((s, g) => s + g.weight, 0);
   const weighted = round1((scored.reduce((s, g) => s + g.weight * g.score, 0) / (TOP * wSum)) * 100);
   const cap = conditionCap(ctx, scored, weighted);
-  const hi = cap.applied ? cap.limit : weighted;
+  const hi = cap.applied ? cap.scaledScore : weighted;
   const lastRepair = ctx.repairsFor(ownerId).filter((r) => r.date <= asOf).map((r) => r.date).sort().at(-1) ?? null;
 
   return {

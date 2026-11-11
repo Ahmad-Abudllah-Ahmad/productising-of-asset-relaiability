@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliability v2 · NEXUS OS</title>
+<link rel="icon" href="/assets/custom/favicon.svg">
+<meta name="color-scheme" content="dark light">
+<script>
+  // Apply the saved theme before first paint so there is no flash. Dark is the default.
+  try { if (localStorage.getItem('nexus.reliability.theme') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) {}
+</script>
+<link rel="stylesheet" href="/reliability/js/ui/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="app"><p class="boot">Loading Reliability v2...</p></div>
+<noscript><p class="boot">This page needs JavaScript.</p></noscript>
+<script type="module" src="/reliability/js/ui/app.js"></script>
+</body>
+</html>

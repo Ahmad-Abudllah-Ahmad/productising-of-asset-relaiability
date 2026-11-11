@@ -82,7 +82,7 @@ test('the worst component caps its group: one broken string is not averaged away
   assert.equal(g.score, 1);
   assert.equal(g.capped, true);
   assert.equal(r.breakdown.cap.uncappedScore, 86.7); // (1 + 25) / 30, before the condition cap
-  assert.equal(r.score, 39.9); // a group at condition 1 caps the tower at the top of the poor band
+  assert.equal(r.score, 34.6); // a group at condition 1 scales the score into the poor band: 39.9 x 86.7 / 100
 });
 
 test('the cap margin setting lets the group rise above its worst component', () => {
@@ -119,8 +119,8 @@ test('bands: 70 and above normal, 40-69 moderate, below 40 poor', () => {
   assert.deepEqual(at([4, 4, 4, 4, 4, 4]), [80, 'normal']);
   assert.deepEqual(at([3, 3, 3, 3, 3, 3]), [60, 'moderate']);
   assert.deepEqual(at([3, 3, 3, 3, 2, 2]), [53.3, 'moderate']);
-  assert.deepEqual(at([1, 1, 1, 1, 1, 5]), [33.3, 'poor']);
-  assert.deepEqual(at([1, 1, 1, 1, 1, 1]), [20, 'poor']);
+  assert.deepEqual(at([1, 1, 1, 1, 1, 5]), [13.3, 'poor']);
+  assert.deepEqual(at([1, 1, 1, 1, 1, 1]), [8, 'poor']);
 });
 
 // ------------------------------------------------ review status rules
@@ -254,11 +254,11 @@ test('a line with nothing assessed has HI null', () => {
 test('line breakdown: counts per band and the five worst towers and spans', () => {
   const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10'), F('F2', 'S1-CND', 'conductor', 1, '2026-02-10')] });
   const r = lineHi(ctx, 'L1', AFTER_C1);
-  // T2 has a group at condition 2 (capped at 69.9, moderate); S1 has a group at condition 1 (capped at 39.9, poor)
+  // T2 has a group at condition 2 (scaled into moderate: 66.9); S1 has a group at condition 1 (scaled into poor: 29.2)
   assert.deepEqual(r.breakdown.bandCounts.all, { normal: 3, moderate: 1, poor: 1 });
   assert.deepEqual(r.breakdown.bandCounts.tower, { normal: 2, moderate: 1, poor: 0 });
   assert.equal(r.breakdown.worst.length, 5);
-  assert.deepEqual(r.breakdown.worst.map((w) => [w.assetId, w.score]).slice(0, 2), [['S1', 39.9], ['T2', 69.9]]);
+  assert.deepEqual(r.breakdown.worst.map((w) => [w.assetId, w.score]).slice(0, 2), [['S1', 29.2], ['T2', 66.9]]);
   assert.ok(r.breakdown.worst.every((w, i, a) => i === 0 || a[i - 1].score <= w.score));
   assert.deepEqual(r.breakdown.findingIds, ['F1', 'F2']);
 });

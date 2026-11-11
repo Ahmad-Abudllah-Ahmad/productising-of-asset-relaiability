@@ -11,8 +11,8 @@
 //      inputs until the client's engineering team supplies values. [open question 5]
 //  A4. Health bands: normal at HI >= 70, moderate 40-69, poor < 40. The cut-offs are the plan's
 //      examples, not client values. [open question 5]
-//  A5. Link thresholds are placeholders: auto-link at score >= 0.85, review queue 0.50-0.85,
-//      dropped below 0.50. To be tuned with Musharraf on real data. [open question 2]
+//  A5. Link thresholds are placeholders: auto-link at score >= 0.90, review queue 0.60-0.90,
+//      dropped below 0.60. To be tuned with Musharraf on real data. [open question 2]
 //  A6. Proposed links are confirmed by reliability engineers (the plan leaves this open; the config
 //      only records the role name used in audit fields). [open question 3]
 //  A7. The mapping of the 23 line defect classes to the eight component groups below is a DRAFT
@@ -48,10 +48,22 @@
 //      feeding them), at most +2, consequence capped at 5. Risk bands low/medium/high/critical at
 //      200/500/1000 are invented defaults.
 //  A19. CONDITION-LIMITING CAP (tower and span only). After the weighted group average, the score is
-//      capped by the worst group: a group at condition 1 caps the asset at the top of the poor band
-//      (just below bands.poorBelow); a group at condition 2 caps it at the top of the moderate band
-//      (just below bands.normalMin). The mapping is scoring.conditionCap. A cap only ever lowers a
-//      score. Line HI is not capped: it stays the length-weighted mean of the capped tower and span HIs.
+//      scaled into the band set by the worst group, so capped assets still differ by the rest of their
+//      condition: condition 1 -> poor: capped = 39.9 x uncapped / 100; condition 2 -> moderate:
+//      capped = 40 + (69.9 - 40) x uncapped / 100 (bands.poorBelow / bands.normalMin, minus
+//      capStepBelowBandTop). The mapping is scoring.conditionCap. A cap never raises a score. Line HI is
+//      not capped: it stays the length-weighted mean of the capped tower and span HIs.
+//  A20. MANAGED LABELS (A1) are the fixed list in MANAGED_LABELS below. The seed may only use labels
+//      from it; a typo throws. Failure-mode labels are the defect class ids.
+//  A21. RESEMBLANCE. Four signals (identifier, attribute, spatial, visual) are combined as a weighted
+//      mean of the signals that exist for a pair. Name-only identifier matches score 0.85, a shared
+//      serial or external id 1.0. Records with clearly different identifiers (a differing short or
+//      numeric token, such as string A and string B) are capped at 0.45, whatever else matches. Pairs
+//      further apart than the spatial gate are not comparable. Visual similarity is a STUB over seeded
+//      feature vectors, not an image model: it marks the place for Musharraf's model.
+//  A22. RULE LINKS. A finding is linked to the nearest tower within 60 m, else the nearest span within
+//      60 m. A line is linked to a substation when its end tower is within 500 m (spatial) or the line
+//      lists it as an end substation (electrical). Rules only add links the data does not already have.
 //
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 
@@ -106,7 +118,28 @@ function deepFreeze(obj) {
 
 const equal = (keys) => Object.fromEntries(keys.map((k) => [k, 1]));
 
+/** Label kinds (assumption A1: labels, not a Labs feature area). */
+export const LABEL_KINDS = Object.freeze([
+  'corridor', 'circuit', 'substation', 'region', 'corrosion_zone', 'criticality_class', 'manufacturer', 'design_family', 'failure_mode',
+]);
+
+/** The managed label list (A20). A label id is `${kind}:${slug(value)}`. */
+export const MANAGED_LABELS = deepFreeze({
+  corridor: ['Corridor North', 'Corridor Coastal', 'Corridor Inland'],
+  circuit: ['L-132-01', 'L-220-03', 'L-500-01'],
+  substation: ['Substation S-1', 'Substation S-2'],
+  region: ['Region North', 'Region Central', 'Region East'],
+  corrosion_zone: ['C2', 'C3', 'C4'],
+  criticality_class: ['A', 'B', 'C', 'D'],
+  manufacturer: [
+    'Northwind Ceramics', 'Kestrel Glassworks', 'Halden Polymer', 'Vortex Dynamics', 'Stockline Fittings', 'Aurelian Power', 'Brandt Transformers',
+  ],
+  design_family: ['Lattice-Y1', 'Lattice-Z2', 'Lattice-X5', 'AP-150', 'BT-150', 'AP-400', 'BT-400'],
+  failure_mode: [...DEFECT_CLASSES, ...TX_DEFECT_CLASSES].map((d) => d.id),
+});
+
 export const CONFIG = deepFreeze({
+  labels: MANAGED_LABELS,
   condition: { min: 1, max: 5 },
 
   // A3: equal weights. Weights are relative, not required to sum to 1.
@@ -121,7 +154,7 @@ export const CONFIG = deepFreeze({
   scoring: {
     countUnreviewedFindings: true,       // A11
     groupCapMargin: 0,                   // A14
-    // A19: group condition (rounded) -> band whose top the asset is capped at. Bands come from `bands`.
+    // A19: group condition (rounded) -> band the asset's score is scaled into. Bands come from `bands`.
     conditionCap: { 1: 'poor', 2: 'moderate' },
     capStepBelowBandTop: 0.1,            // top of a band = its upper bound minus this step
     // Groups scored for each kind of owner. A span owns its conductor, spacers and corridor.
@@ -176,12 +209,23 @@ export const CONFIG = deepFreeze({
     bands: { mediumAtOrAbove: 200, highAtOrAbove: 500, criticalAtOrAbove: 1000 },
   },
 
-  // A5, A6.
+  // A5, A6, A21, A22.
   linking: {
-    autoLinkAtOrAbove: 0.85,
-    dropBelow: 0.5,
-    spatialMaxMeters: { findingToTower: 60, lineEndToSubstation: 400 },
+    autoLinkAtOrAbove: 0.9,       // score >= this: linked automatically and logged
+    dropBelow: 0.6,               // score below this: dropped; in between: Link Review queue
+    spatialMaxMeters: { findingToTower: 60, findingToSpan: 60, lineEndToSubstation: 500 },
     confirmerRole: 'reliability_engineer',
+    blocking: { cellMeters: 100 },
+    resemblance: {
+      weights: {
+        asset: { identifier: 0.4, attribute: 0.3, spatial: 0.3 },
+        finding: { identifier: 0.3, attribute: 0.15, spatial: 0.25, visual: 0.3 },
+      },
+      nameOnlyIdentifierScore: 0.85,
+      distinctIdentifierCap: 0.45,
+      spatialGateMeters: { asset: 50, finding: 40 },   // farther apart than this: not comparable
+      visual: { minCosine: 0.3, fullCosine: 0.9 },     // STUB mapping from cosine to 0-1
+    },
   },
 
   // A9: days after which a score is shown as stale.

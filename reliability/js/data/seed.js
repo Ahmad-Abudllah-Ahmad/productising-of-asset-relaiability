@@ -2,7 +2,7 @@
 // Same options -> byte-identical output. No Date.now(), no Math.random().
 // All names, manufacturers and IDs are invented demo data.
 
-import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
+import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES, MANAGED_LABELS, LABEL_KINDS } from '../domain/config.js';
 
 const SEED = CONFIG.seed;
 
@@ -103,9 +103,12 @@ export function generateSeed(options = {}) {
 
   // ---- managed label list
   const labelMap = new Map();
+  for (const kind of LABEL_KINDS) {
+    for (const value of MANAGED_LABELS[kind]) labelMap.set(`${kind}:${slug(value)}`, { label_id: `${kind}:${slug(value)}`, kind, value });
+  }
   const lab = (kind, value) => {
     const id = `${kind}:${slug(value)}`;
-    if (!labelMap.has(id)) labelMap.set(id, { label_id: id, kind, value });
+    if (!labelMap.has(id)) throw new Error(`Label ${id} is not in the managed label list (config MANAGED_LABELS)`);
     return id;
   };
 
@@ -570,6 +573,21 @@ export function generateSeed(options = {}) {
     }
   });
 
+  // ---- STUB visual features (assumption A21). NOT image embeddings.
+  // Each finding gets an 8-number vector: sightings of the same physical defect share a base vector plus
+  // a little noise, so they look alike; different defects do not. A real image model (Musharraf's) replaces
+  // these numbers; nothing downstream reads where they came from.
+  const vr = makeRng(((options.seed ?? SEED.seed) ^ 0xfea7) >>> 0);
+  const vgauss = () => Math.sqrt(-2 * Math.log(1 - vr())) * Math.cos(2 * Math.PI * vr());
+  const unit = (v) => { const n = Math.hypot(...v); return v.map((x) => x / n); };
+  const visualFeatures = {};
+  for (const d of defects) {
+    const base = unit(Array.from({ length: 8 }, vgauss));
+    for (const id of findingIdsByDefect.get(d.defect_id) ?? []) {
+      visualFeatures[id] = unit(base.map((x) => x + vgauss() * 0.12)).map((x) => round(x, 3));
+    }
+  }
+
   // ---- DGA history (demo data, assumption A2)
   const GAS_BASE = { h2: [20, 60], ch4: [15, 40], c2h6: [10, 30], c2h4: [5, 25], co: [200, 400], co2: [2000, 4000] };
   const GROWTH = {
@@ -628,6 +646,6 @@ export function generateSeed(options = {}) {
 
   return {
     assets, links, labels: [...labelMap.values()].sort((x, y) => x.label_id.localeCompare(y.label_id)),
-    campaigns, captures, findings, workOrders, repairs, dga, groundTruth,
+    campaigns, captures, findings, workOrders, repairs, dga, visualFeatures, groundTruth,
   };
 }
