@@ -115,7 +115,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null }
   // -------------------------------------------------------------- keyboard
 
   function onKey(e) {
-    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || document.body.classList.contains('a360-open')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || document.body.classList.contains('a360-open') || document.body.classList.contains('fv-open')) return;
     const k = e.key;
     if (k === 'ArrowDown' || k === 'j') { e.preventDefault(); move(1); }
     else if (k === 'ArrowUp' || k === 'k') { e.preventDefault(); move(-1); }
@@ -203,9 +203,10 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null }
   function endCard(end, title) {
     const r = end.record;
     const img = end.kind === 'finding' && end.capture?.image
-      ? h('div', { class: 'lr-thumb' },
+      ? h('button', { class: 'lr-thumb', type: 'button', 'data-finding': r.finding_id, title: 'Open the finding viewer (demo image)', 'aria-label': `Open finding ${r.finding_id}`, onClick: (ev) => window.NexusReliability?.openFinding?.(r.finding_id, { opener: ev.currentTarget }) },
         h('img', { src: end.capture.image, alt: `Capture ${end.capture.capture_id}, ${r.defect_class.replace(/_/g, ' ')}`, loading: 'lazy' }),
-        r.bbox ? h('span', { class: 'lr-box', style: { left: `${r.bbox.x * 100}%`, top: `${r.bbox.y * 100}%`, width: `${r.bbox.w * 100}%`, height: `${r.bbox.h * 100}%` }, title: `confidence ${r.confidence}` }) : null)
+        r.bbox ? h('span', { class: 'lr-box', style: { left: `${r.bbox.x * 100}%`, top: `${r.bbox.y * 100}%`, width: `${r.bbox.w * 100}%`, height: `${r.bbox.h * 100}%` }, title: `confidence ${r.confidence}` }) : null,
+        h('span', { class: 'lr-demo' }, 'Demo'))
       : null;
     return h('div', { class: 'lr-card' }, h('h4', {}, title), img);
   }

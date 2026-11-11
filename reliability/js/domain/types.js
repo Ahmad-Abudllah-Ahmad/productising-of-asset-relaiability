@@ -137,6 +137,8 @@ export const SENSORS = Object.freeze(['rgb', 'thermal', 'lidar']);
  * @property {1|2|3|4|5} condition_score 1 very poor to 5 very good
  * @property {ReviewStatus} review_status
  * @property {string|null} confirmed_by
+ * @property {{corrected:boolean, relinked:boolean, rejected_reason:string|null, by:string, at:string, original:Object}} [edit]
+ *   present when a reviewer changed the finding: what they changed, and the AI's original values
  */
 
 /** @typedef {'open'|'in_progress'|'completed'|'cancelled'} WorkOrderStatus */

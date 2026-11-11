@@ -6,11 +6,13 @@
 //
 // Decisions (confirm, reject, merge) live in an overlay. The overlay is kept in memory and mirrored to
 // browser storage (localStorage) when it is available, so a reload keeps the demo state. resetDemoData()
-// clears both. Merging sets merged_into on the duplicate record and moves its evidence to the survivor,
+// clears both. Reviewer actions on findings (confirm, reject, correct, relink, revert) live in the same overlay.
+// A finding's effective review status, class, condition, box and asset come from the overlay; scores recompute
+// from getContext(). Rejected findings are left out of scores. Merging sets merged_into on the duplicate record and moves its evidence to the survivor,
 // and scores are recomputed from the new view (getContext()).
 
 import { generateSeed } from './seed.js';
-import { CONFIG } from '../domain/config.js';
+import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { createContext } from '../domain/context.js';
 import { buildRuleLinks } from '../domain/linking/rules.js';
 import { generateResemblanceLinks } from '../domain/linking/candidates.js';
@@ -27,7 +29,13 @@ function deepFreeze(obj) {
 
 const withoutKey = ({ groundTruth, ...rest }) => rest;
 const asList = (v) => (v === undefined || v === null ? null : Array.isArray(v) ? v : [v]);
-const freshOverlay = () => ({ version: 1, seq: 0, decisions: {}, merges: [], audit: [] });
+const freshOverlay = () => ({ version: 1, seq: 0, decisions: {}, merges: [], audit: [], findingEdits: {} });
+
+const DEFECT_GROUP = new Map([...DEFECT_CLASSES, ...TX_DEFECT_CLASSES].map((d) => [d.id, d.group]));
+const validBox = (b) => b && ['x', 'y', 'w', 'h'].every((k) => typeof b[k] === 'number' && Number.isFinite(b[k]))
+  && b.x >= 0 && b.y >= 0 && b.w > 0.005 && b.h > 0.005 && b.x + b.w <= 1.0001 && b.y + b.h <= 1.0001;
+const round3 = (n) => Math.round(n * 1000) / 1000;
+const EDIT_KEYS = ['review_status', 'defect_class', 'condition_score', 'bbox', 'asset_id', 'tower_id', 'reason', 'by', 'at', 'corrected', 'relinked', 'original'];
 
 function browserStorage() {
   try {
@@ -81,6 +89,16 @@ export function createRepository(data, options = {}) {
         if (assetIds.has(m.from) && assetIds.has(m.into) && m.from !== m.into && !gone.has(m.from) && !gone.has(m.into)) { o.merges.push(m); gone.add(m.from); }
       }
       o.audit = Array.isArray(saved.audit) ? saved.audit : [];
+      const known = new Set(base.findings.map((f) => f.finding_id));
+      for (const [id, e] of Object.entries(saved.findingEdits ?? {})) {
+        if (!known.has(id) || !e || typeof e !== 'object' || !e.original) continue;
+        if (e.review_status && !['confirmed', 'rejected', 'pending'].includes(e.review_status)) continue;
+        if (e.defect_class && !DEFECT_GROUP.has(e.defect_class)) continue;
+        if (e.condition_score && ![1, 2, 3, 4].includes(e.condition_score)) continue;
+        if (e.bbox && !validBox(e.bbox)) continue;
+        if (e.asset_id && !assetIds.has(e.asset_id)) continue;
+        o.findingEdits[id] = Object.fromEntries(Object.entries(e).filter(([k]) => EDIT_KEYS.includes(k)));
+      }
       o.seq = Number(saved.seq) || o.audit.length;
     } catch { /* a corrupt overlay is ignored: start clean */ }
     return o;
@@ -112,13 +130,28 @@ export function createRepository(data, options = {}) {
       const parent = a.parent_id && into.has(a.parent_id) ? resolve(a.parent_id) : a.parent_id;
       return merged || parent !== a.parent_id ? Object.freeze({ ...a, parent_id: parent, ...(merged ? { merged_into: merged } : {}) }) : a;
     });
-    const findings = base.findings.map((f) => (into.has(f.asset_id) || into.has(f.tower_id)
-      ? Object.freeze({ ...f, asset_id: resolve(f.asset_id), tower_id: f.tower_id ? resolve(f.tower_id) : f.tower_id }) : f));
+    const findings = base.findings.map((f) => {
+      const e = overlay.findingEdits[f.finding_id];
+      const remap = into.has(f.asset_id) || into.has(f.tower_id);
+      if (!e && !remap) return f;
+      const g = remap ? { ...f, asset_id: resolve(f.asset_id), tower_id: f.tower_id ? resolve(f.tower_id) : f.tower_id } : { ...f };
+      if (e) {
+        if (e.review_status) { g.review_status = e.review_status; g.confirmed_by = e.review_status === 'pending' ? null : e.by; }
+        if (e.defect_class) { g.defect_class = e.defect_class; g.group = DEFECT_GROUP.get(e.defect_class); }
+        if (e.condition_score) g.condition_score = e.condition_score;
+        if (e.bbox) g.bbox = e.bbox;
+        if (e.asset_id) { g.asset_id = resolve(e.asset_id); g.tower_id = e.tower_id ?? null; g.component_hint = null; }
+        g.edit = { corrected: Boolean(e.corrected), relinked: Boolean(e.relinked), rejected_reason: e.reason ?? null, by: e.by, at: e.at, original: e.original };
+      }
+      return Object.freeze(g);
+    });
+    const findingStatus = new Map(findings.map((f) => [f.finding_id, f.review_status]));
     const repairs = base.repairs.map((r) => (into.has(r.asset_id) ? Object.freeze({ ...r, asset_id: resolve(r.asset_id) }) : r));
     const workOrders = base.workOrders.map((w) => (into.has(w.asset_id) ? Object.freeze({ ...w, asset_id: resolve(w.asset_id) }) : w));
     const links = allLinks.map((l) => {
       const d = overlay.decisions[l.link_id];
-      const obsolete = (l.from_kind === 'asset' && into.has(l.from_asset)) || (l.to_kind === 'asset' && into.has(l.to_asset));
+      const obsolete = (l.from_kind === 'asset' && into.has(l.from_asset)) || (l.to_kind === 'asset' && into.has(l.to_asset))
+        || (l.from_kind === 'finding' && findingStatus.get(l.from_asset) === 'rejected') || (l.to_kind === 'finding' && findingStatus.get(l.to_asset) === 'rejected');
       const merged = overlay.merges.some((m) => m.link_id === l.link_id);
       if (!d && !(obsolete && l.status === 'proposed')) return l;
       return Object.freeze({
@@ -141,7 +174,7 @@ export function createRepository(data, options = {}) {
 
   function audit(entry) {
     overlay.seq += 1;
-    overlay.audit.push({ id: `AUD-U-${String(overlay.seq).padStart(4, '0')}`, at: clock(), actor: entry.by ?? 'reviewer', action: entry.action, link_id: entry.link_id ?? null, detail: entry.detail });
+    overlay.audit.push({ id: `AUD-U-${String(overlay.seq).padStart(4, '0')}`, at: clock(), actor: entry.by ?? 'reviewer', action: entry.action, link_id: entry.link_id ?? null, ...(entry.finding_id ? { finding_id: entry.finding_id } : {}), detail: entry.detail });
   }
 
   function decide(link_id, status, by) {
@@ -154,6 +187,29 @@ export function createRepository(data, options = {}) {
     changed();
     return v().linkById.get(link_id);
   }
+
+  // ---- reviewer actions on findings
+  function baseFinding(id) {
+    const f = base.findings.find((x) => x.finding_id === id);
+    if (!f) throw new Error(`Unknown finding ${id}`);
+    return f;
+  }
+  function editOf(id) {
+    const f = baseFinding(id);
+    return (overlay.findingEdits[id] ??= {
+      original: { review_status: f.review_status, defect_class: f.defect_class, condition_score: f.condition_score, bbox: f.bbox, asset_id: f.asset_id, tower_id: f.tower_id, component_hint: f.component_hint },
+    });
+  }
+  function towerOf(assetId) {
+    let cur = v().byId.get(assetId);
+    for (let i = 0; i < 6 && cur; i += 1) {
+      if (cur.class === 'tower') return cur.asset_id;
+      if (cur.class === 'span') return cur.ext.from_tower;
+      cur = cur.parent_id ? v().byId.get(cur.parent_id) : null;
+    }
+    return null;
+  }
+  function stamp(e, by) { e.by = by; e.at = clock(); }
 
   return {
     // ----------------------------------------------------------------- reads
@@ -330,6 +386,91 @@ export function createRepository(data, options = {}) {
       audit({ by, action: 'merge', link_id, detail: `Merged ${from} into ${into}` });
       changed();
       return { from, into, link_id };
+    },
+
+    /** Confirm a finding as a real defect. Idempotent on a finding that is already confirmed. */
+    async confirmFinding(id, { by = 'reviewer' } = {}) {
+      baseFinding(id);
+      const now = v().findingById.get(id);
+      if (now.review_status === 'confirmed') return now;
+      const e = editOf(id);
+      e.review_status = 'confirmed'; stamp(e, by);
+      audit({ by, action: 'finding_confirm', finding_id: id, detail: `Confirmed ${id} (${now.defect_class.replace(/_/g, ' ')})` });
+      changed();
+      return v().findingById.get(id);
+    },
+
+    /** Reject a finding: it is not a defect. It no longer counts toward any score. */
+    async rejectFinding(id, { by = 'reviewer', reason = null } = {}) {
+      baseFinding(id);
+      const now = v().findingById.get(id);
+      if (now.review_status === 'rejected') return now;
+      const e = editOf(id);
+      e.review_status = 'rejected'; e.reason = reason; stamp(e, by);
+      audit({ by, action: 'finding_reject', finding_id: id, detail: `Rejected ${id}${reason ? `: ${reason}` : ''}` });
+      changed();
+      return v().findingById.get(id);
+    },
+
+    /**
+     * Correct what the AI proposed: its class, severity (condition 1-4) or box. A correction also confirms the finding.
+     * @param {{defect_class?: string, condition_score?: number, bbox?: {x:number,y:number,w:number,h:number}}} changes
+     */
+    async correctFinding(id, changes, { by = 'reviewer' } = {}) {
+      baseFinding(id);
+      const now = v().findingById.get(id);
+      const c = {};
+      if (changes.defect_class !== undefined && changes.defect_class !== now.defect_class) {
+        if (!DEFECT_GROUP.has(changes.defect_class)) throw new Error(`Unknown defect class ${changes.defect_class}`);
+        c.defect_class = changes.defect_class;
+      }
+      if (changes.condition_score !== undefined && changes.condition_score !== now.condition_score) {
+        if (![1, 2, 3, 4].includes(changes.condition_score)) throw new Error('Severity must be a condition from 1 (critical) to 4 (minor)');
+        c.condition_score = changes.condition_score;
+      }
+      if (changes.bbox !== undefined) {
+        if (!validBox(changes.bbox)) throw new Error('The box must lie inside the image');
+        const b = { x: round3(changes.bbox.x), y: round3(changes.bbox.y), w: round3(changes.bbox.w), h: round3(changes.bbox.h) };
+        if (!now.bbox || ['x', 'y', 'w', 'h'].some((k) => Math.abs(now.bbox[k] - b[k]) > 0.0005)) c.bbox = b;
+      }
+      if (!Object.keys(c).length) throw new Error('Nothing to change');
+      const e = editOf(id);
+      Object.assign(e, c);
+      e.corrected = true; e.review_status = 'confirmed'; stamp(e, by);
+      const parts = [];
+      if (c.defect_class) parts.push(`class ${now.defect_class.replace(/_/g, ' ')} to ${c.defect_class.replace(/_/g, ' ')}`);
+      if (c.condition_score) parts.push(`severity ${now.condition_score} to ${c.condition_score}`);
+      if (c.bbox) parts.push('box adjusted');
+      audit({ by, action: 'finding_correct', finding_id: id, detail: `Corrected ${id}: ${parts.join(', ')}` });
+      changed();
+      return v().findingById.get(id);
+    },
+
+    /** Link a finding to a different asset. The scores of both assets recompute. */
+    async relinkFinding(id, assetId, { by = 'reviewer' } = {}) {
+      baseFinding(id);
+      const now = v().findingById.get(id);
+      const target = v().byId.get(assetId);
+      if (!target) throw new Error(`Unknown asset ${assetId}`);
+      if (target.merged_into) throw new Error(`${assetId} was merged into ${target.merged_into}`);
+      if (assetId === now.asset_id) return now;
+      const e = editOf(id);
+      e.asset_id = assetId; e.tower_id = towerOf(assetId); e.relinked = true;
+      if (now.review_status === 'pending') e.review_status = 'confirmed';
+      stamp(e, by);
+      audit({ by, action: 'finding_relink', finding_id: id, detail: `Linked ${id} to ${assetId} (was ${now.asset_id})` });
+      changed();
+      return v().findingById.get(id);
+    },
+
+    /** Put a finding back exactly as the AI proposed it. */
+    async revertFinding(id, { by = 'reviewer' } = {}) {
+      baseFinding(id);
+      if (!overlay.findingEdits[id]) return v().findingById.get(id);
+      delete overlay.findingEdits[id];
+      audit({ by, action: 'finding_revert', finding_id: id, detail: `Reverted ${id} to the AI proposal` });
+      changed();
+      return v().findingById.get(id);
     },
 
     /** Forget every decision and merge, in memory and in browser storage. */

@@ -10,6 +10,7 @@ import { loadAssetDetail } from './assetModel.js';
 import { parseHash, hashFor } from './hashState.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview } from './navigation.js';
+import { openFinding } from './findingViewer.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SEV_TONE = { critical: 'r', serious: 'r', moderate: 'a', minor: 'b', none: 'g' };
@@ -94,7 +95,7 @@ function hide() {
 }
 
 function onEscape(e) {
-  if (!ctl.state.open || e.key !== 'Escape') return;
+  if (!ctl.state.open || e.key !== 'Escape' || document.body.classList.contains('fv-open')) return;
   e.preventDefault();
   e.stopPropagation();
   closeAsset();
@@ -111,7 +112,7 @@ function trapTab(e) {
 }
 
 function keepFocusInside(e) {
-  if (ctl.state.open && ctl.panel && !ctl.panel.contains(e.target)) (ctl.panel.querySelector(FOCUSABLE) ?? ctl.panel).focus();
+  if (ctl.state.open && ctl.panel && !ctl.panel.contains(e.target) && !document.body.classList.contains('fv-open')) (ctl.panel.querySelector(FOCUSABLE) ?? ctl.panel).focus();
 }
 
 // ----------------------------------------------------------------- loading
@@ -348,12 +349,14 @@ function duvalView(dv) {
 // ----------------------------------------------------------------- findings
 
 function thumb(f) {
+  const open = (e) => openFinding(f.id, { opener: e.currentTarget });
   if (f.image) {
-    return h('span', { class: 'a360-thumb', 'data-finding': f.id, title: `${f.label}, capture ${f.captureId}` },
-      h('img', { src: f.image, alt: `${f.label}, capture ${f.captureId}`, loading: 'lazy' }),
-      f.bbox ? h('span', { class: 'a360-box', style: { left: `${f.bbox.x * 100}%`, top: `${f.bbox.y * 100}%`, width: `${f.bbox.w * 100}%`, height: `${f.bbox.h * 100}%` } }) : null);
+    return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (demo image)`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },
+      h('img', { src: f.image, alt: '', loading: 'lazy' }),
+      f.bbox ? h('span', { class: 'a360-box', style: { left: `${f.bbox.x * 100}%`, top: `${f.bbox.y * 100}%`, width: `${f.bbox.w * 100}%`, height: `${f.bbox.h * 100}%` } }) : null,
+      h('span', { class: 'a360-demo' }, 'Demo'));
   }
-  return h('span', { class: 'a360-thumb a360-thumb-empty', 'data-finding': f.id, title: 'No image for this sensor' }, f.sensor === 'lidar' ? 'LiDAR' : 'no image');
+  return h('button', { class: 'a360-thumb a360-thumb-empty', type: 'button', 'data-finding': f.id, title: `Open ${f.label}`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open }, f.sensor === 'lidar' ? 'LiDAR' : 'no image');
 }
 
 function findingsView(d) {

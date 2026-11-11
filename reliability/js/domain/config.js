@@ -217,6 +217,23 @@ export const CONFIG = deepFreeze({
     spatialMaxMeters: { findingToTower: 60, findingToSpan: 60, lineEndToSubstation: 500 },
     confirmerRole: 'reliability_engineer',
     blocking: { cellMeters: 100 },
+    // Asset suggestions for "Link to asset" in the finding viewer: which assets could this finding be about?
+    suggest: {
+      gateMeters: 60,            // candidates must be this close to the finding's GPS (the current asset is always listed)
+      maxResults: 6,
+      weights: { spatial: 0.5, classFit: 0.5 },
+      ownerFit: 0.4,             // a tower, span or transformer when the exact component is not identified
+      // where each kind of defect is recorded: the asset classes it can belong to
+      defectTargets: {
+        broken_strand: ['conductor'], conductor_corrosion: ['conductor'], sag_excessive: ['conductor'], spacer_damaged: ['conductor'],
+        damper_displaced: ['damper'], damper_damaged: ['damper'], clamp_loose: ['insulator_string'],
+        insulator_cracked: ['insulator_string'], insulator_contaminated: ['insulator_string'], insulator_flashover_mark: ['insulator_string'], insulator_missing_disc: ['insulator_string'],
+        steel_corrosion: ['tower'], bent_member: ['tower'], missing_bolt: ['tower'], cotter_pin_missing: ['tower'], arrester_damaged: ['tower'], bird_nest: ['tower'], sign_missing: ['tower'],
+        foundation_cracked: ['foundation'], foundation_erosion: ['foundation'], earthwire_damaged: ['earthwire'],
+        vegetation_encroachment: ['span_corridor_segment'], structure_encroachment: ['span_corridor_segment'],
+        oil_leak: ['tank_oil'], bushing_hotspot: ['bushing'], radiator_corrosion: ['cooling'], tank_damage: ['tank_oil'],
+      },
+    },
     resemblance: {
       weights: {
         asset: { identifier: 0.4, attribute: 0.3, spatial: 0.3 },

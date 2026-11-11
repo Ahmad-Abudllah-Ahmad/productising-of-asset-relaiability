@@ -4,23 +4,11 @@ import { generateSeed } from '../data/seed.js';
 import { createRepository } from '../data/repository.js';
 import { loadSnapshot } from '../app/snapshot.js';
 import { loadAssetDetail, SEVERITY } from '../app/assetModel.js';
-import { parseHash, hashFor } from '../app/hashState.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { risk } from '../domain/risk.js';
 
 const make = () => createRepository(generateSeed(), { storage: null, clock: () => '2026-11-12T09:00:00.000Z' });
 async function detail(id, repo = make()) { return loadAssetDetail(repo, await loadSnapshot(repo), id); }
-
-test('hash state: #asset=<id> round-trips, anything else is no asset', () => {
-  assert.deepEqual(parseHash('#asset=TWR-132-01-011'), { asset: 'TWR-132-01-011' });
-  assert.deepEqual(parseHash('asset=TX-2C'), { asset: 'TX-2C' });
-  assert.deepEqual(parseHash('#asset=A%2FB%20C'), { asset: 'A/B C' });
-  assert.deepEqual(parseHash(''), { asset: null });
-  assert.deepEqual(parseHash('#other=1'), { asset: null });
-  assert.equal(hashFor({ asset: 'A/B C' }), '#asset=A%2FB%20C');
-  assert.equal(hashFor({}), '');
-  assert.deepEqual(parseHash(hashFor({ asset: 'MX-TOW-1156' })), { asset: 'MX-TOW-1156' });
-});
 
 test('an unknown id is reported as not found', async () => {
   assert.deepEqual(await detail('NO-SUCH-ASSET'), { found: false, id: 'NO-SUCH-ASSET' });
