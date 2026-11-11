@@ -3,31 +3,8 @@ import assert from 'node:assert/strict';
 import { generateSeed } from '../data/seed.js';
 import { createRepository } from '../data/repository.js';
 import { loadItems, loadCounts, resolveEnd, describe, sideBySide, reasonsOf, mergeCheck, scoreBand, thresholds, REVIEW_SOURCES } from '../ui/linkReviewModel.js';
-import { SCREENS, screenById, DEFAULT_SCREEN } from '../ui/screens.js';
-import { parseHash, hrefFor } from '../ui/router.js';
 
 const repo = () => createRepository(generateSeed(), { storage: null });
-
-test('the shell lists the ten screens of the plan; only Link Review is built', () => {
-  assert.equal(SCREENS.length, 10);
-  assert.deepEqual(SCREENS.map((s) => s.title), [
-    'Reliability Dashboard', 'Asset Registry', 'Asset 360', 'Line Health', 'Tower Health', 'Transformer Health',
-    'Visual Inspection Viewer', 'Risk Map', 'Link Review', 'Maintenance History',
-  ]);
-  assert.deepEqual(SCREENS.filter((s) => s.built).map((s) => s.id), ['link-review']);
-  assert.equal(new Set(SCREENS.map((s) => s.id)).size, 10);
-  assert.ok(SCREENS.every((s) => s.purpose && s.elements));
-  assert.equal(screenById('nope'), null);
-  assert.equal(DEFAULT_SCREEN, 'link-review');
-});
-
-test('hash routes parse and build', () => {
-  assert.deepEqual(parseHash('#/link-review'), { id: 'link-review', params: {} });
-  assert.deepEqual(parseHash('#/risk-map?label=corridor-north&v=220'), { id: 'risk-map', params: { label: 'corridor-north', v: '220' } });
-  assert.deepEqual(parseHash(''), { id: '', params: {} });
-  assert.equal(hrefFor('asset-360', { id: 'TX-1A' }), '#/asset-360?id=TX-1A');
-  assert.equal(hrefFor('dashboard'), '#/dashboard');
-});
 
 test('the queue holds proposed matcher links, highest score first, each with reasons', async () => {
   const r = repo();

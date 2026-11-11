@@ -1,4 +1,4 @@
-// Playwright smoke tests for the Reliability v2 shell and Link Review.
+// Playwright config for the end-to-end tests under reliability/js/e2e.
 // Uses the Chrome that is already installed (channel "chrome"), so no browser download is needed.
 // Run:  npm run test:e2e      (starts server.js on port 3100 by itself)
 const { defineConfig } = require('@playwright/test');
@@ -17,7 +17,7 @@ module.exports = defineConfig({
   },
   webServer: {
     command: 'node server.js',
-    url: 'http://localhost:3100/reliability-v2/',
+    url: 'http://localhost:3100/reliability',
     env: { PORT: '3100' },
     reuseExistingServer: true,
     timeout: 30000,
