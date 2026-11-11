@@ -1118,6 +1118,16 @@
       localStorage.removeItem("nexus-session");
       location.assign("/login/");
     });
+    // the NEXUS OS logo signs out (NEXUS session and the Module 02 server session) and returns to the homepage
+    document.querySelector(".top .brand").addEventListener("click", function (e) {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      try { localStorage.removeItem("nexus-session"); } catch (err) { /* ignore */ }
+      var done = false;
+      function go() { if (!done) { done = true; location.assign("/"); } }
+      setTimeout(go, 1500);
+      try { fetch("/api/auth/logout", { method: "POST", credentials: "include", keepalive: true }).then(go, go); } catch (err) { go(); }
+    });
     var current = 0;
     var tabIndex = 0;
     var titleEl = document.getElementById("app-title");

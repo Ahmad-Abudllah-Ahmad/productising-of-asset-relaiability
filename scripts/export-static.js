@@ -83,12 +83,31 @@ for (const route of [
   "map",
   "review-queue",
   "settings",
-  "live-drone-feed"
+  "live-drone-feed",
+  "register",
+  "pending",
+  "join",
+  "forgot-password",
+  "reset-password",
+  "team",
+  "defect-analysis",
+  "asset-health",
+  "components",
+  "volt",
+  "nova",
+  "admin"
 ]) {
   const folder = path.join(dest, route);
   fs.mkdirSync(folder, { recursive: true });
   fs.copyFileSync(path.join(dest, "inspection.html"), path.join(folder, "index.html"));
 }
+
+// Module 02 entry: the inspection app opened on its own landing page (see assets/custom/ai-inspection-entry.js)
+fs.mkdirSync(path.join(dest, "ai-inspection"), { recursive: true });
+fs.writeFileSync(
+  path.join(dest, "ai-inspection", "index.html"),
+  fs.readFileSync(path.join(dest, "inspection.html"), "utf8").replace("<head>", '<head><script src="/assets/custom/ai-inspection-entry.js"></script>')
+);
 
 const leaked = [];
 function findLeaks(dir) {

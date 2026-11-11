@@ -972,7 +972,7 @@
           window.location.assign("/login/?next=" + encodeURIComponent(url));
         }
         if (isInspection) {
-          continueTo("/dashboard");
+          continueTo("/ai-inspection");
           return;
         }
         var routeName = title ? title.textContent.replace(/\s+/g, " ").trim() : "";
@@ -1009,4 +1009,29 @@
   } else {
     mount();
   }
+})();
+
+/* Logo = sign out and go home. Clicking the NEXUS OS logo in the navbar or footer ends the NEXUS session and
+   the Module 02 server session (POST /api/auth/logout clears its cookie), then opens the homepage.
+   Modified clicks (new tab / window) keep the browser's default behaviour. */
+(function () {
+  var busy = false;
+  function signOutHome() {
+    if (busy) return;
+    busy = true;
+    try { localStorage.removeItem("nexus-session"); } catch (e) { /* storage blocked */ }
+    var done = false;
+    function go() { if (!done) { done = true; window.location.assign("/"); } }
+    setTimeout(go, 1500);
+    try {
+      fetch("/api/auth/logout", { method: "POST", credentials: "include", keepalive: true }).then(go, go);
+    } catch (e) { go(); }
+  }
+  document.addEventListener("click", function (event) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    var link = event.target.closest && event.target.closest("a.navbar5_logo-link, a.footer6_logo-link");
+    if (!link) return;
+    event.preventDefault();
+    signOutHome();
+  });
 })();

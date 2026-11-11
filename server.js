@@ -22,6 +22,18 @@ const INSPECTION_ROUTES = [
   "/review-queue",
   "/settings",
   "/live-drone-feed",
+  "/register",
+  "/pending",
+  "/join",
+  "/forgot-password",
+  "/reset-password",
+  "/team",
+  "/defect-analysis",
+  "/asset-health",
+  "/components",
+  "/volt",
+  "/nova",
+  "/admin",
 ];
 
 const MIME_TYPES = {
@@ -102,6 +114,17 @@ const server = http.createServer((req, res) => {
     res.writeHead(301, { Location: "/" });
     res.end();
     return;
+  }
+
+  // Module 02 entry: the inspection app opened on its own landing page (see assets/custom/ai-inspection-entry.js)
+  if (cleanPath === "/ai-inspection") {
+    const shell = path.join(INSPECTION_DIST, "index.html");
+    if (fs.existsSync(shell)) {
+      const html = fs.readFileSync(shell, "utf8").replace("<head>", '<head><script src="/assets/custom/ai-inspection-entry.js"></script>');
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store, no-cache, must-revalidate" });
+      res.end(html);
+      return;
+    }
   }
 
   // Prevent directory traversal

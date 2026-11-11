@@ -358,8 +358,9 @@ test.describe('Asset 360 panel', () => {
   test('the page itself loads no chart library until a chart is needed', async ({ page }) => {
     const seen = [];
     page.on('request', (r) => { if (r.url().includes('echarts')) seen.push(r.url()); });
-    await open(page);
-    await openRegistry(page, 'Towers');
+    // open straight on the Towers table: the dashboard and registry overview draw charts, the table does not
+    await open(page, '/reliability?screen=registry&tab=2');
+    await expect(tab(page, 'Towers')).toHaveClass(/is-on/);
     await page.waitForTimeout(300);
     expect(seen).toEqual([]);
     await rows(page).filter({ hasText: 'TWR-132-01-011' }).click();

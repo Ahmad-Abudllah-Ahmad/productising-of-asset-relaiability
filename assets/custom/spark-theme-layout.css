@@ -1943,3 +1943,14 @@ html {
 
 
 
+
+/* Hero fits the first screen: the film (and the caption pinned to its bottom) takes the visible height under the
+   navigation bar, so the headline and button are never pushed below the fold on shorter windows. */
+html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] { --nx-hero-nav: 55px; }
+@media (max-width: 991px) { html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] { --nx-hero-nav: 73px; } }
+html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] .section_logos,
+html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] .home_logo-image {
+  height: calc(100vh - var(--nx-hero-nav)) !important;
+  height: calc(100svh - var(--nx-hero-nav)) !important;
+  min-height: 30rem !important;
+}

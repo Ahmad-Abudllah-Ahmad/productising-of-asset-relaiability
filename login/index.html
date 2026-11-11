@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Log in | NEXUS OS</title>
   <link rel="icon" href="/assets/custom/favicon.svg" type="image/svg+xml"/>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
   <style>
     @font-face {
       font-family: "DM Sans";
@@ -163,19 +164,105 @@
       .visual-copy { margin-top: 28px; margin-bottom: 8px; }
       .panel { min-height: auto; }
     }
+
+    /* ---------------------------------------------------------------- module-aware redesign */
+    :root { --acc: #8ea2ff; --acc-2: #c4b5fd; --acc-ink: #0b1020; }
+    body[data-mod] .visual { background: radial-gradient(1100px 620px at 30% 70%, color-mix(in srgb, var(--acc) 16%, transparent), transparent 62%), linear-gradient(180deg, #070b16 0%, #05070f 100%); }
+    .stage3d { position: absolute; inset: 0; z-index: 0; opacity: 0; transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .stage3d.is-on { opacity: 1; }
+    .stage3d canvas { width: 100%; height: 100%; display: block; }
+    .stage3d::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(5,7,15,.72) 0%, rgba(5,7,15,0) 22%, rgba(5,7,15,0) 48%, rgba(5,7,15,.86) 82%, #05070f 100%), linear-gradient(90deg, rgba(5,7,15,.55) 0%, rgba(5,7,15,0) 45%); }
+    body.has-3d .dot-field { opacity: 0.18; transition: opacity 1.2s; }
+    .labels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+    .labels .lbl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; font-size: 11.5px; font-weight: 700; letter-spacing: .01em; color: #fff; padding: 6px 10px 6px 22px; border-radius: 999px; background: rgba(8, 12, 24, .72); border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent); backdrop-filter: blur(8px); box-shadow: 0 8px 24px -10px rgba(0,0,0,.8); transition: opacity .4s; }
+    .labels .lbl::before { content: ""; position: absolute; left: 9px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 30%, transparent); animation: lblPulse 1.6s infinite; }
+    .labels .lbl.t-crit { border-color: rgba(248, 113, 113, .7); } .labels .lbl.t-crit::before { background: #f87171; box-shadow: 0 0 0 3px rgba(248,113,113,.3); }
+    .labels .lbl.t-ok::before { background: #4ade80; box-shadow: none; animation: none; } .labels .lbl.t-warn::before { background: #fbbf24; box-shadow: none; animation: none; } .labels .lbl.t-muted { border-color: rgba(255,255,255,.18); } .labels .lbl.t-muted::before { background: #94a3b8; box-shadow: none; animation: none; }
+    .labels .lbl::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 70%, transparent), transparent); }
+    @keyframes lblPulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--acc) 0%, transparent); } }
+    .mod-chip { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 6px 12px 6px 6px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(10px); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #e5e7eb; opacity: 0; transform: translateY(10px); transition: opacity .8s .15s, transform .8s .15s cubic-bezier(0.16, 1, 0.3, 1); }
+    .mod-chip b { display: inline-grid; place-items: center; min-width: 30px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-size: 11.5px; letter-spacing: .02em; }
+    .visual-copy.is-in .mod-chip { opacity: 1; transform: none; }
+    .tagline { position: relative; z-index: 1; margin: 16px 0 0; max-width: 30rem; color: #c7cbe0; font-size: 15px; line-height: 1.55; opacity: 0; transform: translateY(12px); transition: opacity .9s .55s, transform .9s .55s cubic-bezier(0.16, 1, 0.3, 1); }
+    .visual-copy.is-in .tagline { opacity: 1; transform: none; }
+    .caps { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; list-style: none; }
+    .caps li { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: #f1f5f9; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(10px); opacity: 0; transform: translateY(14px) scale(.97); transition: opacity .7s, transform .7s cubic-bezier(0.16, 1, 0.3, 1), border-color .3s, background .3s; }
+    .caps li i { width: 8px; height: 8px; border-radius: 2px; background: var(--acc); transform: rotate(45deg); flex: 0 0 auto; }
+    .caps li:hover { border-color: color-mix(in srgb, var(--acc) 60%, transparent); background: color-mix(in srgb, var(--acc) 12%, transparent); }
+    .visual-copy.is-in .caps li { opacity: 1; transform: none; }
+    body[data-mod] .visual h1 .spark-word { background: linear-gradient(180deg, #fff 35%, color-mix(in srgb, var(--acc) 60%, #fff) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: .06em; }
+    .mark a { display: inline-block; }
+    .mark .nx-logo { height: 38px; width: auto; display: block; }
+    /* right panel */
+    body[data-mod] .panel { position: relative; overflow: hidden; background: radial-gradient(700px 360px at 85% 0%, color-mix(in srgb, var(--acc) 10%, transparent), transparent 70%), #0f131c; }
+    body[data-mod] .panel::before { content: ""; position: absolute; inset: -40%; pointer-events: none; background: conic-gradient(from 0deg, transparent 0 70%, color-mix(in srgb, var(--acc) 14%, transparent) 80%, transparent 90%); animation: sweep 14s linear infinite; opacity: .5; }
+    @keyframes sweep { to { transform: rotate(360deg); } }
+    .panel > * { position: relative; }
+    body[data-mod] .card { padding: 28px 28px 24px; border-radius: 20px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.09); backdrop-filter: blur(18px); box-shadow: 0 40px 80px -40px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06); animation: cardIn 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+    .ctx { display: flex; align-items: center; gap: 12px; margin: 0 0 20px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+    .ctx-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; background: color-mix(in srgb, var(--acc) 18%, transparent); color: var(--acc); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
+    .ctx-ico svg { width: 22px; height: 22px; }
+    .ctx-txt { flex: 1; min-width: 0; }
+    .ctx-txt small { display: block; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #9ca3af; font-weight: 700; }
+    .ctx-txt b { display: block; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctx-live { font-size: 11px; font-weight: 700; color: #4ade80; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .ctx-live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.6); animation: ping 1.8s infinite; }
+    @keyframes ping { 70% { box-shadow: 0 0 0 7px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 22px; }
+    .kpis div { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); }
+    .kpis b { display: block; font-size: 18px; letter-spacing: -.02em; color: #fff; font-variant-numeric: tabular-nums; }
+    .kpis span { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    body[data-mod] .modes { padding: 4px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+    body[data-mod] .modes button { border: 0; height: 34px; transition: background .25s, color .25s; }
+    body[data-mod] .modes button.is-on { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); box-shadow: 0 8px 20px -10px var(--acc); }
+    body[data-mod] input { background: rgba(5,7,15,.55); border-color: rgba(255,255,255,.1); transition: border-color .2s, box-shadow .2s; }
+    body[data-mod] input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 22%, transparent); }
+    body[data-mod] .submit { position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 82%, #fff), var(--acc)); color: var(--acc-ink); box-shadow: 0 14px 32px -14px var(--acc); transition: transform .2s, box-shadow .2s; }
+    body[data-mod] .submit:hover { transform: translateY(-1px); box-shadow: 0 18px 36px -14px var(--acc); }
+    body[data-mod] .submit::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-20deg); animation: shine 3.6s 1.2s infinite; }
+    @keyframes shine { 0% { left: -60%; } 40%, 100% { left: 130%; } }
+    body[data-mod] .dummy { border-color: color-mix(in srgb, var(--acc) 45%, transparent); color: #f1f5f9; }
+    body[data-mod] .dummy:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }
+    body[data-mod] .hint { color: var(--acc); }
+    .trust { display: flex; gap: 14px; justify-content: center; margin-top: 18px; font-size: 11.5px; color: #8b93a7; }
+    .trust span { display: inline-flex; align-items: center; gap: 6px; }
+    .trust span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); opacity: .8; }
+    @media (prefers-reduced-motion: reduce) { body[data-mod] .panel::before, body[data-mod] .submit::after, .labels .lbl::before, .ctx-live::before { animation: none; } body[data-mod] .card { animation: none; } }
+    @media (max-width: 860px) { .labels { display: none; } .caps { display: none; } }
   </style>
 </head>
 <body>
   <section class="visual">
     <canvas class="dot-field" id="dot-field" aria-hidden="true"></canvas>
-    <div class="mark"><a href="/">NEXUS OS</a></div>
+    <div class="stage3d" id="stage3d" aria-hidden="true"><canvas id="scene3d"></canvas></div>
+    <div class="labels" id="labels" aria-hidden="true"></div>
+    <div class="mark"><a href="/" aria-label="NEXUS OS home"><svg class="nx-logo" width="158" height="36" viewBox="0 0 158 36" role="img" aria-label="NEXUS OS"><text class="nx-word" x="0" y="27" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.03em">NEXUS OS</text></svg></a></div>
+    <script>
+      /* the NEXUS OS logo signs out (NEXUS session and the Module 02 server session) and returns to the homepage */
+      document.querySelector(".mark a").addEventListener("click", function (e) {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        try { localStorage.removeItem("nexus-session"); } catch (err) {}
+        var done = false;
+        function go() { if (!done) { done = true; window.location.assign("/"); } }
+        setTimeout(go, 1500);
+        try { fetch("/api/auth/logout", { method: "POST", credentials: "include", keepalive: true }).then(go, go); } catch (err) { go(); }
+      });
+    </script>
     <div class="visual-copy">
+      <div class="mod-chip" id="mod-chip" hidden><b id="mod-code">01</b><span id="mod-kind">NEXUS OS module</span></div>
       <h1 id="module-title">Asset Reliability Intelligence</h1>
+      <p class="tagline" id="mod-tagline" hidden></p>
+      <ul class="caps" id="mod-caps" hidden></ul>
     </div>
   </section>
   <section class="panel">
     <div class="panel-top"><a href="/">Back to the site</a></div>
     <main class="card">
+      <div class="ctx" id="mod-ctx" hidden><span class="ctx-ico" id="ctx-ico"></span><div class="ctx-txt"><small id="ctx-kicker">Module</small><b id="ctx-name"></b></div><span class="ctx-live">Live</span></div>
+      <div class="kpis" id="mod-kpis" hidden></div>
       <div class="modes" role="tablist">
         <button type="button" id="show-login" class="is-on" role="tab" aria-selected="true">Log in</button>
         <button type="button" id="show-signup" role="tab" aria-selected="false">Sign up</button>
@@ -200,6 +287,7 @@
         <button class="submit" id="submit" type="submit">Sign in</button>
         <button class="dummy" id="dummy" type="button">Dummy login</button>
       </form>
+      <div class="trust" id="mod-trust" hidden><span>SSO-ready</span><span>Audit-logged</span><span>Role-based access</span></div>
     </main>
   </section>
   <script>
@@ -217,7 +305,8 @@
         "/forecast/index.html": ["Risk & Maintenance Forecasting", "See the inspections that need manual engineering review next quarter."],
         "/finance/index.html": ["Financial Intelligence", "Compare the approved budget with the remaining repair backlog."],
         "/workforce/index.html": ["Workforce & Safety", "Confirm work authorization and a qualified crew before the repair starts."],
-        "/dashboard": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."]
+        "/dashboard": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."],
+        "/ai-inspection": ["AI Inspection & Quality", "Open the inspection workspace for the verified structural findings."]
       };
       var chosen = modules[next] || ["Sign in", ""];
       var title = document.getElementById("module-title");
@@ -428,6 +517,62 @@
       layoutDots();
       requestAnimationFrame(drawDots);
     })();
+  </script>
+  <script type="module">
+    // Module identity and the 3D hero scene. Reads the same ?next= target as the sign-in script above and
+    // only changes presentation; the sign-in flow is untouched.
+    var next = new URLSearchParams(location.search).get("next") || "/";
+    var seg = (next.match(/^\/([a-z-]+)/) || [])[1] || "";
+    var I = {
+      tower: '<path d="M12 2 7 22M12 2l5 20M8.5 15h7M9.6 10h4.8M5 6h14M7 22h10"/>',
+      drone: '<circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7 7l3 3M17 7l-3 3M7 17l3-3M17 17l-3-3"/><rect x="10" y="10" width="4" height="4" rx="1"/>',
+      truck: '<path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+      bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+      box: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+      forecast: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-6"/>',
+      dollar: '<path d="M12 2v20M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.8 7 7s2.2 3 5 3.6 5 1.6 5 4-2.2 3.9-5 3.9-5-1.2-5-3.1"/>',
+      shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/>'
+    };
+    var MODS = {
+      reliability: { code: "01", key: "reliability", acc: "#2dd4bf", ico: "tower", kind: "Asset reliability", tag: "Associate every verified defect with its tower, span and component, follow condition across repeated aerial inspections, and rank risk as condition × criticality × consequence.", caps: ["Health index per tower & span", "Explainable C × C × C risk", "Overdue engineering reviews"], kpis: [["159", "towers scored"], ["5", "critical risk"], ["91.8", "fleet health index"]] },
+      dashboard: { code: "02", key: "inspection", acc: "#a78bfa", ico: "drone", kind: "AI inspection", tag: "Upload drone, helicopter or ground batches; a 23-class vision model marks insulators, conductors, steel and foundations with georeferenced evidence for engineering review.", caps: ["23-class CV detection", "Georeferenced evidence", "Human review queue"], kpis: [["400", "findings"], ["0.93", "top confidence"], ["104", "awaiting review"]] },
+      operations: { code: "03", key: "operations", acc: "#fb923c", ico: "truck", kind: "Field operations", tag: "Turn approved defects into prioritised work, group nearby repairs into one outage visit, and keep SAP PM and IBM Maximo in step until the job is closed in the field.", caps: ["Defects → prioritised work", "Grouped outage visits", "SAP PM & Maximo sync"], kpis: [["42", "open work orders"], ["5", "tasks in one visit"], ["25 d", "median turnaround"]] },
+      grid: { code: "04", key: "grid", acc: "#38bdf8", ico: "bolt", kind: "Grid performance", tag: "Connect SCADA, EMS and historian telemetry to loading, voltage and trip history, and correlate verified physical defects with operating stress and weather.", caps: ["SCADA / EMS telemetry", "Loading & voltage stability", "Defect × stress correlation"], kpis: [["810", "MW system demand"], ["50.02", "Hz frequency"], ["7.2", "SAIDI minutes"]] },
+      inventory: { code: "05", key: "inventory", acc: "#f59e0b", ico: "box", kind: "Supply chain", tag: "Map each defect class to approved replacement parts, audit warehouse stock against planned work, and flag supplier lead times before a crew is dispatched.", caps: ["Defect → part catalogue", "Stock vs planned work", "Lead-time shortage alerts"], kpis: [["22", "approved items"], ["3", "depots"], ["85 %", "work-order fill rate"]] },
+      forecast: { code: "06", key: "forecast", acc: "#818cf8", ico: "forecast", kind: "Risk forecasting", tag: "Learn how defects recur across structures and environments, forecast workload by zone, and plan inspections by risk instead of by calendar.", caps: ["Defect recurrence models", "Risk-based inspection", "Deterioration forecasts"], kpis: [["86", "reviews next quarter"], ["101", "P90 upper bound"], ["4", "quarters ahead"]] },
+      finance: { code: "07", key: "finance", acc: "#34d399", ico: "dollar", kind: "Financial intelligence", tag: "Cost every repair plan in labour, equipment and materials, track spend by corridor, and justify budgets with repair-versus-replace life-cycle economics.", caps: ["Repair-plan costing", "Spend by corridor", "Repair vs replace NPV"], kpis: [["$831k", "budget remaining"], ["$1.13M", "repair backlog"], ["42", "work orders costed"]] },
+      workforce: { code: "08", key: "workforce", acc: "#facc15", ico: "shield", kind: "Workforce & safety", tag: "Assign crews by qualification and high-voltage authorisation, run permit-to-work digitally, and keep before-and-after evidence in an audit trail.", caps: ["Qualified HV crews", "Digital permit-to-work", "Before / after evidence"], kpis: [["46", "authorised people"], ["8", "crews"], ["0", "lost-time injuries"]] }
+    };
+    MODS["ai-inspection"] = MODS.dashboard;
+    var m = MODS[seg];
+    if (m) {
+      var body = document.body;
+      body.setAttribute("data-mod", m.key);
+      body.style.setProperty("--acc", m.acc);
+      var $ = function (id) { return document.getElementById(id); };
+      $("mod-code").textContent = m.code; $("mod-kind").textContent = "Module " + m.code + " · " + m.kind; $("mod-chip").hidden = false;
+      $("mod-tagline").textContent = m.tag; $("mod-tagline").hidden = false;
+      $("mod-caps").innerHTML = m.caps.map(function (c, i) { return '<li style="transition-delay:' + (800 + i * 120) + 'ms"><i></i>' + c + '</li>'; }).join(""); $("mod-caps").hidden = false;
+      $("ctx-ico").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + I[m.ico] + '</svg>';
+      $("ctx-kicker").textContent = "Module " + m.code; $("ctx-name").textContent = document.getElementById("module-title").textContent; $("mod-ctx").hidden = false;
+      $("mod-kpis").innerHTML = m.kpis.map(function (k) { return '<div><b>' + k[0] + '</b><span>' + k[1] + '</span></div>'; }).join(""); $("mod-kpis").hidden = false;
+      $("mod-trust").hidden = false;
+      // 3D scene: needs WebGL and the three.js CDN; without them the dot field above stays as the backdrop
+      var gl = (function () { try { var c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; } })();
+      if (gl) {
+        var labelsEl = $("labels"); var nodes = [];
+        import("./scene.js").then(function (mod) {
+          mod.mountScene($("scene3d"), m.key, {
+            accent: m.acc,
+            onLabels: function (ls) {
+              while (nodes.length < ls.length) { var n = document.createElement("div"); n.className = "lbl"; labelsEl.appendChild(n); nodes.push(n); }
+              ls.forEach(function (l, i) { var n = nodes[i]; if (n.textContent !== l.text) n.textContent = l.text; n.className = "lbl t-" + l.tone; n.style.left = l.x.toFixed(1) + "px"; n.style.top = (l.y - 16).toFixed(1) + "px"; n.style.opacity = l.vis ? "1" : "0"; });
+            }
+          });
+          requestAnimationFrame(function () { $("stage3d").classList.add("is-on"); body.classList.add("has-3d"); });
+        }).catch(function (err) { console.warn("3D scene unavailable; keeping the 2D backdrop.", err); });
+      }
+    }
   </script>
 </body>
 </html>

@@ -118,9 +118,11 @@
 /* ---- Asset 360 panel. Everything is namespaced a360-. */
 .a360-root { position: fixed; inset: 0; z-index: 2000; }
 .a360-root[hidden] { display: none; }
-.a360-backdrop { position: absolute; inset: 0; background: rgba(16, 24, 40, 0.38); }
-.a360 { position: absolute; top: 0; right: 0; bottom: 0; width: min(720px, 94vw); background: var(--card, #fff); color: var(--ink); box-shadow: -10px 0 34px rgba(16, 24, 40, 0.2); overflow-y: auto; transform: translateX(100%); transition: transform 0.18s ease; outline: none; font-size: 13px; }
-.a360.is-in { transform: none; }
+.a360-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(3px); }
+/* centred dialog: scales in at the middle of the window */
+.a360 { position: absolute; top: 50%; left: 50%; width: min(880px, calc(100vw - 48px)); max-height: calc(100vh - 48px); background: var(--card, #fff); color: var(--ink); border-radius: 16px; border: 1px solid rgba(226, 232, 240, .9); box-shadow: 0 32px 72px -16px rgba(15, 23, 42, 0.45), 0 8px 20px rgba(15, 23, 42, 0.1); overflow-y: auto; transform: translate(-50%, -48%) scale(.97); opacity: 0; transition: transform 0.2s cubic-bezier(.2,.8,.2,1), opacity 0.16s ease; outline: none; font-size: 13px; }
+.a360.is-in { transform: translate(-50%, -50%); opacity: 1; }
+.a360 .a360-bar { border-radius: 16px 16px 0 0; }
 @media (prefers-reduced-motion: reduce) { .a360 { transition: none; } }
 .a360 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .a360 h2 { margin: 0; font-size: 20px; line-height: 1.2; }
