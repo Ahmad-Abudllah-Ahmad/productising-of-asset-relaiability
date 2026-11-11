@@ -570,7 +570,6 @@
 
     // 5. Supporting Child Blur-Reveal Elements
     var childGroups = [
-      { selector: '.home-hero_content .button-group, .home-hero_content .button-wrapper', delay: 180 },
       { selector: '.ar-subnav', delay: 60 },
       { selector: '.features_content-left .button-group, .features_grid .button-wrapper', delay: 160 },
       { selector: '.layout353_content-item .module-card_title, .layout353_content-item .module-screens_wrap, .layout353_content-item .module-caps_wrap, .layout353_content-item .module-io_box', delay: 100 },
