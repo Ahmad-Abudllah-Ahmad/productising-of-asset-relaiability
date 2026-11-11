@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Asset Reliability Intelligence</title>
 <link rel="icon" href="/assets/custom/favicon.svg"/>
-<link rel="stylesheet" href="/assets/custom/nexus-apps.css?v=38"/>
+<link rel="stylesheet" href="/assets/custom/nexus-apps.css?v=39"/>
+<link rel="stylesheet" href="/reliability/js/ui/reliability.css?v=1"/>
 </head>
 <body>
-<script src="/assets/custom/nexus-apps.js?v=38"></script>
-<script>NexusApps.open("reliability");</script>
+<script src="/reliability/js/legacy/nexus-reliability.js?v=2"></script>
+<script type="module" src="/reliability/js/app/boot.js?v=2" onerror="NexusReliability.open('reliability')"></script>
 </body>
 </html>
