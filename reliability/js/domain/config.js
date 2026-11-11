@@ -28,7 +28,7 @@
 //      Set scoring.countUnreviewedFindings to false to count confirmed findings only.
 //  A12. A repair closes the findings it lists from its date onwards, and the repaired component is
 //      scored as fully restored (condition 5) until new evidence says otherwise.
-//  A13. NOT ASSESSED. An asset with no evidence on or before asOf gets HI null and is left out of
+//  A13. NOT ASSESSED (confirmed by the project owner: flown with no findings = 100, never inspected = null). An asset with no evidence on or before asOf gets HI null and is left out of
 //      roll-ups. Evidence is any finding (even a rejected one) or being flown in a completed
 //      campaign. A transformer needs at least one of DGA, oil, tests or visual evidence; age alone
 //      is not evidence. Review status is not time-versioned: the status in the data is used for
@@ -47,6 +47,11 @@
 //      consequence (line assets look at the transformers they feed; transformers look at the lines
 //      feeding them), at most +2, consequence capped at 5. Risk bands low/medium/high/critical at
 //      200/500/1000 are invented defaults.
+//  A19. CONDITION-LIMITING CAP (tower and span only). After the weighted group average, the score is
+//      capped by the worst group: a group at condition 1 caps the asset at the top of the poor band
+//      (just below bands.poorBelow); a group at condition 2 caps it at the top of the moderate band
+//      (just below bands.normalMin). The mapping is scoring.conditionCap. A cap only ever lowers a
+//      score. Line HI is not capped: it stays the length-weighted mean of the capped tower and span HIs.
 //
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 
@@ -116,6 +121,9 @@ export const CONFIG = deepFreeze({
   scoring: {
     countUnreviewedFindings: true,       // A11
     groupCapMargin: 0,                   // A14
+    // A19: group condition (rounded) -> band whose top the asset is capped at. Bands come from `bands`.
+    conditionCap: { 1: 'poor', 2: 'moderate' },
+    capStepBelowBandTop: 0.1,            // top of a band = its upper bound minus this step
     // Groups scored for each kind of owner. A span owns its conductor, spacers and corridor.
     ownerGroups: {
       tower: ['insulators', 'steel_structure', 'foundation', 'conductor_accessories', 'lightning_protection', 'tower_accessories'],

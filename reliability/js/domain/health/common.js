@@ -33,3 +33,11 @@ export const maxDate = (dates) => dates.reduce((m, d) => (m === null || d > m ? 
 export function notAssessed(asOf, reason, extra = {}) {
   return { score: null, band: null, breakdown: { assessed: false, asOf, reason, ...extra } };
 }
+
+/** Highest score still inside a band: just below the next band's lower bound. */
+export function bandTop(config, band) {
+  const step = config.scoring.capStepBelowBandTop;
+  if (band === 'poor') return round1(config.bands.poorBelow - step);
+  if (band === 'moderate') return round1(config.bands.normalMin - step);
+  return 100;
+}

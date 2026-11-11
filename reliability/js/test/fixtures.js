@@ -57,7 +57,7 @@ export function fixture(o = {}) {
     TX('TX1', o.tx1), TX('TX2', o.tx2 ?? { ext: {} }),
     A('TX1-BSH', 'bushing', 'TX1', { category: 'transformer' }),
     ...(o.tx3 ? [TX('TX3', POOR_TX)] : []),
-    ...(o.dup && o.dup !== 'none' ? [A('T2-DUP', 'tower', 'L1', { category: 'structure', ext: { index: 2 }, ...(o.dup === 'merged' ? { mergedInto: 'T2' } : {}) })] : []),
+    ...(o.dup && o.dup !== 'none' ? [A('T2-DUP', 'tower', 'L1', { category: 'structure', ext: { index: 2 }, ...(o.dup === 'merged' ? { merged_into: 'T2' } : {}) })] : []),
     ...(o.extraAssets ?? []),
   ];
   const campaigns = [

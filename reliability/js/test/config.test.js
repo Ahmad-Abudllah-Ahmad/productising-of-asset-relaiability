@@ -75,5 +75,5 @@ test('DGA limits are ordered for every scored gas', () => {
 test('the assumptions are listed at the top of config.js', async () => {
   const { readFile } = await import('node:fs/promises');
   const head = (await readFile(new URL('../domain/config.js', import.meta.url), 'utf8')).split('export')[0];
-  for (const n of ['A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A17', 'A18']) assert.ok(head.includes(`${n}.`), n);
+  for (const n of ['A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A17', 'A18', 'A19']) assert.ok(head.includes(`${n}.`), n);
 });

@@ -14,7 +14,7 @@ const OWNER_CLASSES = new Set(['tower', 'span', 'power_transformer']);
  */
 export function createContext(data, config = CONFIG) {
   const assetById = new Map(data.assets.map((a) => [a.asset_id, a]));
-  const isMerged = (a) => Boolean(a && a.mergedInto);
+  const isMerged = (a) => Boolean(a && a.merged_into);
   const campaigns = data.campaigns ?? [];
 
   // children, ignoring merged records

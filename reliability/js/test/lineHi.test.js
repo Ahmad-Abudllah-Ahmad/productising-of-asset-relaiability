@@ -53,23 +53,24 @@ test('a span is assessed through the campaign that flew either end tower', () =>
 
 // ------------------------------------------------------- group maths
 
-test('HI formula: one group at condition 2 and five at 5 gives 90', () => {
-  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10')] });
+test('HI formula: one group at condition 3 and five at 5 gives 93.3 (no cap at condition 3)', () => {
+  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10')] });
   const r = towerHi(ctx, 'T2', AFTER_C1);
-  assert.equal(r.score, 90); // (2 + 5*5) / (5*6) * 100
+  assert.equal(r.score, 93.3); // (3 + 5*5) / (5*6) * 100
+  assert.equal(r.breakdown.cap.applied, false);
   assert.equal(r.band, 'normal');
   assert.deepEqual(r.breakdown.findingIds, ['F1']);
   const g = r.breakdown.groups.find((x) => x.group === 'insulators');
-  assert.equal(g.score, 2);
+  assert.equal(g.score, 3);
   assert.equal(g.weight, 1);
   assert.deepEqual(g.components.map((c) => c.componentId), ['T2-INS-A']);
 });
 
 test('findings in several groups combine through the weights (equal, then custom)', () => {
-  const findings = [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10'), F('F2', 'T2-FND', 'foundation', 3, '2026-02-11')];
-  assert.equal(towerHi(fixture({ findings }).ctx, 'T2', AFTER_C1).score, 83.3); // (2+3+4*5)/30
+  const findings = [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10'), F('F2', 'T2-FND', 'foundation', 4, '2026-02-11')];
+  assert.equal(towerHi(fixture({ findings }).ctx, 'T2', AFTER_C1).score, 90); // (3+4+4*5)/30
   const heavy = withConfig({ weights: { lineGroups: { ...CONFIG.weights.lineGroups, insulators: 4 } } });
-  assert.equal(towerHi(fixture({ findings, config: heavy }).ctx, 'T2', AFTER_C1).score, 68.9); // (4*2+3+4*5)/(5*9)
+  assert.equal(towerHi(fixture({ findings, config: heavy }).ctx, 'T2', AFTER_C1).score, 80); // (4*3+4+4*5)/(5*9)
 });
 
 test('the worst component caps its group: one broken string is not averaged away', () => {
@@ -80,7 +81,8 @@ test('the worst component caps its group: one broken string is not averaged away
   assert.equal(g.worst, 1);
   assert.equal(g.score, 1);
   assert.equal(g.capped, true);
-  assert.equal(r.score, 86.7); // (1 + 25) / 30
+  assert.equal(r.breakdown.cap.uncappedScore, 86.7); // (1 + 25) / 30, before the condition cap
+  assert.equal(r.score, 39.9); // a group at condition 1 caps the tower at the top of the poor band
 });
 
 test('the cap margin setting lets the group rise above its worst component', () => {
@@ -103,22 +105,22 @@ test('a finding attached to the tower only (component unknown) still counts and 
 });
 
 test('a span scores its conductor, accessories and corridor groups', () => {
-  const { ctx } = fixture({ findings: [F('F1', 'S1-CND', 'conductor', 2, '2026-02-10')] });
+  const { ctx } = fixture({ findings: [F('F1', 'S1-CND', 'conductor', 3, '2026-02-10')] });
   const r = spanHi(ctx, 'S1', AFTER_C1);
-  assert.equal(r.score, 80); // (2+5+5)/15
+  assert.equal(r.score, 86.7); // (3+5+5)/15
   assert.deepEqual(r.breakdown.groups.map((g) => g.group), ['conductor', 'conductor_accessories', 'right_of_way']);
   assert.equal(towerHi(ctx, 'T1', AFTER_C1).score, 100, 'a conductor finding does not touch the towers');
 });
 
 test('bands: 70 and above normal, 40-69 moderate, below 40 poor', () => {
-  // n groups at condition 1 and the rest at 5: n=2 gives 73.3, n=3 gives 60, n=5 gives 33.3, n=6 gives 20
-  const g = (id, group, s) => F(id, 'T2', group, s, '2026-02-10');
   const all = ['insulators', 'steel_structure', 'foundation', 'conductor_accessories', 'lightning_protection', 'tower_accessories'];
-  const mk = (n) => fixture({ findings: all.slice(0, n).map((grp, i) => g(`F${i}`, grp, 1)) }).ctx;
-  assert.deepEqual([towerHi(mk(2), 'T2', AFTER_C1).score, towerHi(mk(2), 'T2', AFTER_C1).band], [73.3, 'normal']);
-  assert.deepEqual([towerHi(mk(3), 'T2', AFTER_C1).score, towerHi(mk(3), 'T2', AFTER_C1).band], [60, 'moderate']);
-  assert.deepEqual([towerHi(mk(5), 'T2', AFTER_C1).score, towerHi(mk(5), 'T2', AFTER_C1).band], [33.3, 'poor']);
-  assert.deepEqual([towerHi(mk(6), 'T2', AFTER_C1).score, towerHi(mk(6), 'T2', AFTER_C1).band], [20, 'poor']);
+  const tower = (scores) => towerHi(fixture({ findings: all.map((g, i) => F(`F${i}`, 'T2', g, scores[i], '2026-02-10')) }).ctx, 'T2', AFTER_C1);
+  const at = (scores) => { const r = tower(scores); return [r.score, r.band]; };
+  assert.deepEqual(at([4, 4, 4, 4, 4, 4]), [80, 'normal']);
+  assert.deepEqual(at([3, 3, 3, 3, 3, 3]), [60, 'moderate']);
+  assert.deepEqual(at([3, 3, 3, 3, 2, 2]), [53.3, 'moderate']);
+  assert.deepEqual(at([1, 1, 1, 1, 1, 5]), [33.3, 'poor']);
+  assert.deepEqual(at([1, 1, 1, 1, 1, 1]), [20, 'poor']);
 });
 
 // ------------------------------------------------ review status rules
@@ -132,9 +134,9 @@ test('rejected findings are excluded from the score but still show the tower was
 });
 
 test('AI-proposed (pending) findings count by default and are flagged as unreviewed', () => {
-  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10', 'pending'), F('F2', 'T2-FND', 'foundation', 5, '2026-02-10', 'confirmed')] });
+  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10', 'pending'), F('F2', 'T2-FND', 'foundation', 5, '2026-02-10', 'confirmed')] });
   const r = towerHi(ctx, 'T2', AFTER_C1);
-  assert.equal(r.score, 90);
+  assert.equal(r.score, 93.3);
   assert.deepEqual(r.breakdown.findingIds, ['F1', 'F2']);
   assert.deepEqual(r.breakdown.unreviewedFindingIds, ['F1']);
 });
@@ -155,19 +157,19 @@ test('the default for counting unreviewed findings is true', () => {
 // --------------------------------------------------- asOf and repairs
 
 test('findings dated after asOf are ignored (a finding on asOf itself counts)', () => {
-  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-10-01')] });
+  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-10-01')] });
   assert.equal(towerHi(ctx, 'T2', '2026-09-30').score, 100);
-  assert.equal(towerHi(ctx, 'T2', '2026-10-01').score, 90);
+  assert.equal(towerHi(ctx, 'T2', '2026-10-01').score, 93.3);
 });
 
 test('asOf before and after a repair: the repair closes its finding only from its date', () => {
   const { ctx } = fixture({
-    findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10')],
+    findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10')],
     repairs: [repair('R1', 'T2-INS-A', '2026-04-01', ['F1'])],
   });
   const before = towerHi(ctx, 'T2', '2026-03-31');
   const onDay = towerHi(ctx, 'T2', '2026-04-01');
-  assert.equal(before.score, 90);
+  assert.equal(before.score, 93.3);
   assert.deepEqual(before.breakdown.findingIds, ['F1']);
   assert.equal(onDay.score, 100);
   assert.deepEqual(onDay.breakdown.findingIds, []);
@@ -188,11 +190,11 @@ test('a repair closes only the findings it lists; others stay open', () => {
 
 test('a defect that is sighted again after its repair is open again', () => {
   const { ctx } = fixture({
-    findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10'), F('F2', 'T2-INS-A', 'insulators', 2, '2026-08-15')],
+    findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10'), F('F2', 'T2-INS-A', 'insulators', 3, '2026-08-15')],
     repairs: [repair('R1', 'T2-INS-A', '2026-04-01', ['F1'])],
   });
   assert.equal(towerHi(ctx, 'T2', '2026-05-01').score, 100);
-  assert.equal(towerHi(ctx, 'T2', '2026-09-02').score, 90);
+  assert.equal(towerHi(ctx, 'T2', '2026-09-02').score, 93.3);
 });
 
 test('a closed finding still counts as evidence: after a full repair the tower is assessed, not null', () => {
@@ -216,10 +218,10 @@ test('line HI is the length-weighted mean of assessed towers and spans', () => {
   // weights: towers T1 200, T2 500, T3 300 (half of adjoining spans); spans S1 400, S2 600
   const base = lineHi(fixture().ctx, 'L1', AFTER_C1);
   assert.equal(base.score, 100);
-  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10')] });
+  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10')] });
   const r = lineHi(ctx, 'L1', AFTER_C1);
-  // T2 is 90 with weight 500 out of 2000 total: (2000 - 500*10) / 2000 = 97.5
-  assert.equal(r.score, 97.5);
+  // T2 is 93.3 with weight 500 out of 2000 total: 100 - 500*6.7/2000 = 98.3
+  assert.equal(r.score, 98.3);
   assert.equal(r.band, 'normal');
 });
 
@@ -234,7 +236,7 @@ test('line HI is not capped by its worst tower', () => {
 });
 
 test('unassessed towers and spans are left out of the mean and listed', () => {
-  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10')] });
+  const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10')] });
   const r = lineHi(ctx, 'L1', AFTER_C1);
   assert.deepEqual(r.breakdown.notAssessed, ['T4']);
   assert.equal(r.breakdown.counts.towers, 4);
@@ -252,20 +254,21 @@ test('a line with nothing assessed has HI null', () => {
 test('line breakdown: counts per band and the five worst towers and spans', () => {
   const { ctx } = fixture({ findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10'), F('F2', 'S1-CND', 'conductor', 1, '2026-02-10')] });
   const r = lineHi(ctx, 'L1', AFTER_C1);
-  assert.deepEqual(r.breakdown.bandCounts.all, { normal: 5, moderate: 0, poor: 0 });
-  assert.deepEqual(r.breakdown.bandCounts.tower, { normal: 3, moderate: 0, poor: 0 });
+  // T2 has a group at condition 2 (capped at 69.9, moderate); S1 has a group at condition 1 (capped at 39.9, poor)
+  assert.deepEqual(r.breakdown.bandCounts.all, { normal: 3, moderate: 1, poor: 1 });
+  assert.deepEqual(r.breakdown.bandCounts.tower, { normal: 2, moderate: 1, poor: 0 });
   assert.equal(r.breakdown.worst.length, 5);
-  assert.deepEqual(r.breakdown.worst.map((w) => w.assetId).slice(0, 2), ['S1', 'T2']); // S1 = 73.3, T2 = 90
+  assert.deepEqual(r.breakdown.worst.map((w) => [w.assetId, w.score]).slice(0, 2), [['S1', 39.9], ['T2', 69.9]]);
   assert.ok(r.breakdown.worst.every((w, i, a) => i === 0 || a[i - 1].score <= w.score));
   assert.deepEqual(r.breakdown.findingIds, ['F1', 'F2']);
 });
 
 test('line HI follows asOf through a repair', () => {
   const { ctx } = fixture({
-    findings: [F('F1', 'T2-INS-A', 'insulators', 2, '2026-02-10')],
+    findings: [F('F1', 'T2-INS-A', 'insulators', 3, '2026-02-10')],
     repairs: [repair('R1', 'T2-INS-A', '2026-04-01', ['F1'])],
   });
-  assert.equal(lineHi(ctx, 'L1', '2026-03-31').score, 97.5);
+  assert.equal(lineHi(ctx, 'L1', '2026-03-31').score, 98.3);
   assert.equal(lineHi(ctx, 'L1', '2026-04-01').score, 100);
 });
 

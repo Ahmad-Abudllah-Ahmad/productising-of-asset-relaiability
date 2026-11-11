@@ -136,7 +136,7 @@ export function transformerHi(ctx, txId, asOf) {
 function compute(ctx, txId, asOf) {
   const tx = ctx.asset(txId);
   if (!tx || tx.class !== 'power_transformer') return notAssessed(asOf, 'not a transformer');
-  if (ctx.isMerged(txId)) return notAssessed(asOf, `merged into ${tx.mergedInto}`);
+  if (ctx.isMerged(txId)) return notAssessed(asOf, `merged into ${tx.merged_into}`);
 
   const inputs = {
     dga: dgaInput(ctx, txId, asOf), oil: oilInput(ctx, tx, asOf), age: ageInput(ctx, tx, asOf),

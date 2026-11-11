@@ -71,7 +71,7 @@ export const SENSORS = Object.freeze(['rgb', 'thermal', 'lidar']);
  * @property {number|null} health_index            0-100; null until the scoring phase fills it
  * @property {string|null} health_updated_at       ISO date
  * @property {Object} ext                          category-specific fields
- * @property {string|null} [mergedInto]            asset_id of the surviving record when this one is a merged duplicate.
+ * @property {string|null} [merged_into]            asset_id of the surviving record when this one is a merged duplicate.
  *                                                 Roll-ups and scores ignore merged records. Phase 3 sets it.
  */
 

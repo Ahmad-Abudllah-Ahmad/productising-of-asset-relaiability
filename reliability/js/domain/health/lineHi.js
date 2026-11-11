@@ -2,12 +2,14 @@
 //
 //   component score  = lowest condition (1-5) among its open findings; no finding = 5
 //   group score      = min(mean of its components, worst component + groupCapMargin)   [margin 0: the worst component]
-//   tower/span HI    = ( sum_g w_g * S_g ) / ( 5 * sum_g w_g ) * 100
+//   tower/span HI    = ( sum_g w_g * S_g ) / ( 5 * sum_g w_g ) * 100, then capped by the worst group:
+//                      a group at condition 1 caps at the top of the poor band, condition 2 at the top
+//                      of the moderate band (config scoring.conditionCap)
 //   line HI          = length-weighted mean of assessed tower and span HIs (not capped by the worst)
 //
 // Every function takes asOf and uses only evidence and repairs dated on or before it.
 
-import { assertAsOf, round1, healthBand, freshness, maxDate, notAssessed } from './common.js';
+import { assertAsOf, round1, healthBand, freshness, maxDate, notAssessed, bandTop } from './common.js';
 
 const TOP = 5;
 
@@ -45,6 +47,25 @@ function groupScore(ctx, owner, group, findings) {
   };
 }
 
+/**
+ * Condition-limiting cap. Returns the cap that applies (the strongest one) and which groups cause it.
+ * `applied` is true only when the cap actually lowers the weighted score.
+ */
+function conditionCap(ctx, scoredGroups, weighted) {
+  const mapping = ctx.config.scoring.conditionCap;
+  const candidates = scoredGroups
+    .map((g) => ({ group: g.group, condition: Math.round(g.score), band: mapping[Math.round(g.score)] }))
+    .filter((c) => c.band)
+    .map((c) => ({ ...c, limit: bandTop(ctx.config, c.band) }));
+  if (!candidates.length) return { applied: false, limit: null, band: null, condition: null, causedBy: [], uncappedScore: weighted };
+  const limit = Math.min(...candidates.map((c) => c.limit));
+  const causes = candidates.filter((c) => c.limit === limit);
+  return {
+    applied: limit < weighted, limit, band: causes[0].band, condition: causes[0].condition,
+    causedBy: causes.map((c) => c.group), uncappedScore: weighted,
+  };
+}
+
 /** HI of one tower or span. */
 function ownerHi(ctx, ownerId, asOf) {
   assertAsOf(asOf);
@@ -58,7 +79,7 @@ function ownerHi(ctx, ownerId, asOf) {
 function computeOwnerHi(ctx, ownerId, asOf) {
   const owner = ctx.asset(ownerId);
   if (!owner) return notAssessed(asOf, 'unknown asset');
-  if (ctx.isMerged(ownerId)) return notAssessed(asOf, `merged into ${owner.mergedInto}`);
+  if (ctx.isMerged(ownerId)) return notAssessed(asOf, `merged into ${owner.merged_into}`);
   const groups = ctx.config.scoring.ownerGroups[owner.class];
   if (!groups) return notAssessed(asOf, `no line health index for class ${owner.class}`);
 
@@ -72,7 +93,9 @@ function computeOwnerHi(ctx, ownerId, asOf) {
   const weights = ctx.config.weights.lineGroups;
   const scored = groups.map((g) => ({ ...groupScore(ctx, owner, g, f.counted), weight: weights[g] }));
   const wSum = scored.reduce((s, g) => s + g.weight, 0);
-  const hi = round1((scored.reduce((s, g) => s + g.weight * g.score, 0) / (TOP * wSum)) * 100);
+  const weighted = round1((scored.reduce((s, g) => s + g.weight * g.score, 0) / (TOP * wSum)) * 100);
+  const cap = conditionCap(ctx, scored, weighted);
+  const hi = cap.applied ? cap.limit : weighted;
   const lastRepair = ctx.repairsFor(ownerId).filter((r) => r.date <= asOf).map((r) => r.date).sort().at(-1) ?? null;
 
   return {
@@ -80,8 +103,9 @@ function computeOwnerHi(ctx, ownerId, asOf) {
     band: healthBand(hi, ctx.config),
     breakdown: {
       assessed: true, asOf, assetId: ownerId, class: owner.class,
-      formula: 'HI = sum(weight x group score) / (5 x sum(weight)) x 100',
+      formula: 'HI = min(cap, sum(weight x group score) / (5 x sum(weight)) x 100)',
       groups: scored,
+      cap,
       findingIds: f.counted.map((x) => x.finding_id).sort(),
       unreviewedFindingIds: f.unreviewed.map((x) => x.finding_id).sort(),
       closedFindingIds: f.closed.map((x) => x.finding_id).sort(),
@@ -115,7 +139,7 @@ export function lineHi(ctx, lineId, asOf) {
 function computeLineHi(ctx, lineId, asOf) {
   const line = ctx.asset(lineId);
   if (!line || line.class !== 'line') return notAssessed(asOf, 'not a line');
-  if (ctx.isMerged(lineId)) return notAssessed(asOf, `merged into ${line.mergedInto}`);
+  if (ctx.isMerged(lineId)) return notAssessed(asOf, `merged into ${line.merged_into}`);
 
   const kids = ctx.children(lineId);
   const spans = kids.filter((a) => a.class === 'span');

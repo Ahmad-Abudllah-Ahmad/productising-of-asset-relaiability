@@ -443,9 +443,13 @@ export function generateSeed(options = {}) {
 
   const sightingsFlat = [];
   defects.forEach((d, di) => {
-    let score = pick([1, 2, 2, 3, 3, 3, 4]);
+    // Severity mix at first sighting: most findings minor, a few critical.
+    // 4 minor 50%, 3 moderate 32%, 2 serious 14%, 1 critical 4%. A defect worsens by one step
+    // between sightings 20% of the time. (One random draw each, so the rest of the seed is unchanged.)
+    const u = rand();
+    let score = u < 0.04 ? 1 : u < 0.18 ? 2 : u < 0.5 ? 3 : 4;
     d.seen.forEach((ci, k) => {
-      if (k > 0 && chance(0.4)) score = Math.max(1, score - 1);
+      if (k > 0 && chance(0.2)) score = Math.max(1, score - 1);
       sightingsFlat.push({ d, di, ci, score });
     });
   });

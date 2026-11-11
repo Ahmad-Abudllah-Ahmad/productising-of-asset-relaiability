@@ -111,10 +111,10 @@ test('the transformer with an arcing DGA profile scores lower on DGA than the he
   assert.ok(dga('TX-2A').detail.trend.penalty > 0, 'the thermal profile is rising fast');
 });
 
-test('seed duplicates: merging them (mergedInto) does not change any line HI', () => {
+test('seed duplicates: merging them (merged_into) does not change any line HI', () => {
   const merged = generateSeed();
   const dupToOriginal = new Map(merged.groundTruth.duplicates.map((d) => [d.duplicate, d.original]));
-  for (const a of merged.assets) if (dupToOriginal.has(a.asset_id)) a.mergedInto = dupToOriginal.get(a.asset_id);
+  for (const a of merged.assets) if (dupToOriginal.has(a.asset_id)) a.merged_into = dupToOriginal.get(a.asset_id);
   const mctx = createContext(merged);
   for (const id of ['L-132-01', 'L-220-03', 'L-500-01']) {
     assert.equal(lineHi(mctx, id, NOW).score, lineHi(ctx, id, NOW).score, id);

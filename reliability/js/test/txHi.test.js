@@ -176,7 +176,7 @@ test('freshness uses the newest of the evidence dates, never the install date', 
 });
 
 test('a merged transformer record is ignored; a non-transformer is rejected', () => {
-  const merged = fixture({ tx2: { mergedInto: 'TX1' } }).ctx;
+  const merged = fixture({ tx2: { merged_into: 'TX1' } }).ctx;
   assert.match(transformerHi(merged, 'TX2', NOW).breakdown.reason, /merged into TX1/);
   assert.match(transformerHi(fixture().ctx, 'T2', NOW).breakdown.reason, /not a transformer/);
   assert.equal(healthIndex(fixture().ctx, 'TX1', NOW).score, 100);
