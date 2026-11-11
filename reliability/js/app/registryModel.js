@@ -25,6 +25,18 @@ const cell = (text, opts = {}) => ({ text: String(text), tone: opts.tone ?? null
 const none = (text = '-') => cell(text, { sort: -1 });
 const cls = (c) => c.replace(/_/g, ' ');
 
+/** "Possible duplicate" chips for a row: they open the link in the Links tab. */
+function dupChips(snap, a) {
+  const rec = snap.dupRecord.get(a.asset_id);
+  if (rec) return [{ text: rec.status === 'proposed' ? 'possible duplicate' : 'duplicate, not merged', tone: rec.status === 'proposed' ? 'a' : 'b', link: rec.link_id, status: rec.status }];
+  const orig = snap.dupOriginal.get(a.asset_id);
+  if (orig) return [{ text: orig.status === 'proposed' ? 'has a possible duplicate' : 'has a duplicate', tone: orig.status === 'proposed' ? 'a' : 'b', link: orig.link_id, status: orig.status }];
+  return [];
+}
+const nameCell = (snap, a) => ({ ...cell(a.name, { sort: a.name }), chips: dupChips(snap, a) });
+const dupCount = (snap, assets) => assets.filter((a) => snap.dupRecord.has(a.asset_id)).length;
+const incl = (n) => (n ? ` · incl. ${plural(n, 'possible duplicate')}` : '');
+
 // ---------------------------------------------------------------- lookups
 
 function lineIdOf(snap, a) {
@@ -108,7 +120,7 @@ function lines(snap, assets, score) {
       id: a.asset_id, tip: hiTip(a, hi, null),
       zone: zoneOf([a.asset_id, `${a.voltage_kv} kV`, ...corr, bandWord(hi)]),
       facets: { line: a.asset_id, kv: `${a.voltage_kv} kV`, corridor: corr, band: bandWord(hi) },
-      cells: [cell(a.name, { sort: a.name }), cell(corr.join(', ') || '-'), cell(a.voltage_kv, { sort: a.voltage_kv }), cell(a.ext.length_km, { sort: a.ext.length_km }),
+      cells: [nameCell(snap, a), cell(corr.join(', ') || '-'), cell(a.voltage_kv, { sort: a.voltage_kv }), cell(a.ext.length_km, { sort: a.ext.length_km }),
         hiCell(hi), weak === null ? none() : { text: `${weak} of ${assessed}`, tone: weak ? 'a' : null, sort: weak },
         openCell(b.findingIds?.length ?? 0, b.unreviewedFindingIds?.length ?? 0), evidenceCell(hi), linksCell(snap, a.asset_id), labelsCell(snap, a)],
     };
@@ -122,7 +134,7 @@ function ownerRows(snap, assets, score, withLength) {
     const line = lineIdOf(snap, a);
     const corr = corridorsOf(snap, a);
     const b = hi.breakdown;
-    const cells = [cell(a.name, { sort: a.name }), cell(a.asset_id, { sort: a.asset_id }), cell(line ?? '-'), cell(a.voltage_kv, { sort: a.voltage_kv })];
+    const cells = [nameCell(snap, a), cell(a.asset_id, { sort: a.asset_id }), cell(line ?? '-'), cell(a.voltage_kv, { sort: a.voltage_kv })];
     if (withLength) cells.push(cell(Math.round(a.ext.length_m), { sort: a.ext.length_m }));
     cells.push(hiCell(hi), riskCell(risk), openCell(b.findingIds?.length ?? 0, b.unreviewedFindingIds?.length ?? 0), evidenceCell(hi), linksCell(snap, a.asset_id), labelsCell(snap, a));
     return { id: a.asset_id, tip: hiTip(a, hi, risk), zone: zoneOf([line, `${a.voltage_kv} kV`, ...corr, bandWord(hi)]), facets: { line, kv: `${a.voltage_kv} kV`, corridor: corr, band: bandWord(hi) }, cells };
@@ -145,7 +157,7 @@ function components(snap, assets) {
       tip: worst === null ? `${a.name}${a.ext.manufacturer ? ` (${a.ext.manufacturer})` : ''}: no open findings.` : `${a.name}: ${f.length} open finding${f.length === 1 ? '' : 's'}, worst condition ${worst} (${CONDITION[worst]}).${unrev ? ` ${unrev} not yet confirmed by a reviewer.` : ''}`,
       zone: zoneOf([line, `${a.voltage_kv} kV`, ...corr, cls(a.class), worst === null ? 'clean' : 'with findings']),
       facets: { line, kv: `${a.voltage_kv} kV`, corridor: corr, class: cls(a.class), findings: worst === null ? 'clean' : 'with findings' },
-      cells: [cell(a.name, { sort: a.name }), cell(a.asset_id, { sort: a.asset_id }), cell(cls(a.class)), cell(parent ? parent.name : '-'), condition, openCell(f.length, unrev),
+      cells: [nameCell(snap, a), cell(a.asset_id, { sort: a.asset_id }), cell(cls(a.class)), cell(parent ? parent.name : '-'), condition, openCell(f.length, unrev),
         linksCell(snap, a.asset_id), labelsCell(snap, a)],
     };
   });
@@ -169,7 +181,17 @@ function substations(snap, assets) {
         cell(what), openCell(open), linksCell(snap, a.asset_id), labelsCell(snap, a)],
     };
   });
-  return { columns: ['Name', 'ID', 'Class', 'kV', 'Station', 'Connects', 'Open findings on transformers', 'Links', 'Labels'], rows };
+  // bays are shown under their substation, so 12 rows read as 2 substations with 10 bays
+  const byRowId = new Map(rows.map((r) => [r.id, r]));
+  const ordered = [];
+  for (const sub of assets.filter((a) => a.class === 'substation')) {
+    ordered.push({ ...byRowId.get(sub.asset_id), level: 'parent' });
+    for (const bay of assets.filter((a) => a.class === 'bay' && a.parent_id === sub.asset_id)) {
+      const r = byRowId.get(bay.asset_id);
+      ordered.push({ ...r, level: 'child', cells: [{ ...r.cells[0], text: `\u21B3 ${r.cells[0].text}` }, ...r.cells.slice(1)] });
+    }
+  }
+  return { columns: ['Name', 'ID', 'Class', 'kV', 'Station', 'Connects', 'Open findings on transformers', 'Links'].concat(['Labels']), rows: ordered, nested: true };
 }
 
 function transformers(snap, assets, score) {
@@ -185,7 +207,7 @@ function transformers(snap, assets, score) {
       id: a.asset_id, tip: hiTip(a, hi, risk) + (zone ? ` Latest gas pattern: Duval zone ${zone} (${b.duval.label}).` : ''),
       zone: zoneOf([station?.name, `${a.voltage_kv} kV`, ...corr, bandWord(hi)]),
       facets: { station: station?.name, kv: `${a.voltage_kv} kV`, corridor: corr, band: bandWord(hi) },
-      cells: [cell(a.name, { sort: a.name }), cell(a.asset_id, { sort: a.asset_id }), cell(station ? station.name : '-'), cell(a.ext.rating_mva, { sort: a.ext.rating_mva }),
+      cells: [nameCell(snap, a), cell(a.asset_id, { sort: a.asset_id }), cell(station ? station.name : '-'), cell(a.ext.rating_mva, { sort: a.ext.rating_mva }),
         ageIn ? cell(ageIn.detail.ageYears, { sort: ageIn.detail.ageYears }) : none(), hiCell(hi), riskCell(risk), zone ? { text: zone, tone: 'x', sort: zone } : none(),
         weakest ? { text: `${weakest.input} ${weakest.score}`, tone: weakest.score < 50 ? 'a' : null, sort: weakest.score } : none(),
         openCell(b.findingIds?.length ?? 0, b.unreviewedFindingIds?.length ?? 0), linksCell(snap, a.asset_id)],
@@ -242,11 +264,12 @@ export function kpisFor(snap, categoryId) {
   const hist = ['lines', 'towers', 'spans', 'transformers'].includes(categoryId) ? snap.dates.map((d) => statsAt(snap, assets, d)) : null;
   const now = hist ? hist[hist.length - 1] : null;
   const unit = { lines: 'line', towers: 'tower', spans: 'span', transformers: 'transformer' }[categoryId];
+  const dups = dupCount(snap, assets);
 
   if (hist) {
     const unreviewed = assets.reduce((n, a) => n + (snap.scores.get(a.asset_id)?.hi.breakdown.unreviewedFindingIds?.length ?? 0), 0);
     const base = [
-      { l: CATEGORIES.find((c) => c.id === categoryId).title, v: String(assets.length), s: `${now.assessed} assessed`, tip: `${assets.length} ${unit}s in the registry. Only assessed ones have a health index.`, spark: series(hist.map((h) => h.assessed)) },
+      { l: CATEGORIES.find((c) => c.id === categoryId).title, v: String(assets.length), s: `${now.assessed} assessed${incl(dups)}`, tip: `${assets.length} ${unit}s in the registry. Only assessed ones have a health index.${dups ? ` The count includes ${plural(dups, 'record')} that look like duplicates of another ${unit}; they stay until merged in Links.` : ''}`, spark: series(hist.map((h) => h.assessed)) },
       { l: 'Average health index', v: now.avg === null ? '-' : String(now.avg), s: `of ${now.assessed} assessed`, tip: 'Mean health index of the assessed assets, at each campaign date and today.', spark: series(hist.map((h) => h.avg)), color: now.avg !== null && now.avg < CONFIG.bands.normalMin ? '#d97706' : undefined },
       { l: 'Needs attention', v: String(now.attention), s: `${now.poor} poor · ${now.attention - now.poor} moderate`, tip: `Health index below ${CONFIG.bands.normalMin}.`, spark: series(hist.map((h) => h.attention)), color: now.attention ? '#d97706' : undefined },
     ];
@@ -266,7 +289,7 @@ export function kpisFor(snap, categoryId) {
     const owners = snap.assets.filter((a) => ['tower', 'span'].includes(a.class));
     const openAt = (d) => owners.reduce((n, o) => n + snap.ctx.findingsFor(o.asset_id, d).counted.filter((f) => f.asset_id !== o.asset_id).length, 0);
     return [
-      { l: 'Components', v: String(assets.length), s: `${new Set(assets.map((a) => a.class)).size} classes`, tip: 'Insulator strings, dampers, conductors, earthwires, foundations and corridor segments.', spark: series([assets.length]) },
+      { l: 'Components', v: String(assets.length), s: `${new Set(assets.map((a) => a.class)).size} classes${incl(dupCount(snap, assets))}`, tip: `Insulator strings, dampers, conductors, earthwires, foundations and corridor segments.${dupCount(snap, assets) ? ' Includes records that look like duplicates; they stay until merged in Links.' : ''}`, spark: series([assets.length]) },
       { l: 'With open findings', v: String(withF.length), s: `${assets.length ? Math.round((withF.length / assets.length) * 100) : 0}% of components`, tip: 'Components with at least one open finding recorded on them.', spark: series(snap.dates.map(openAt)), color: withF.length ? '#d97706' : undefined },
       { l: 'Worst condition', v: worst === null ? '-' : `${worst}`, s: worst === null ? 'none open' : `${CONDITION[worst]} · ${worstClass}`, tip: 'Lowest condition score (1 very poor to 5 very good) among open findings on components.', spark: series([worst]), color: worst !== null && worst <= 2 ? '#d14343' : undefined },
       { l: 'Unreviewed', v: String(unrev), s: 'AI-proposed, not confirmed', tip: 'Open findings on components that no reviewer has confirmed yet. They still count toward scores.', spark: series([unrev]) },
@@ -281,7 +304,7 @@ export function kpisFor(snap, categoryId) {
     const open = tx.reduce((n, t) => n + (snap.findingsByOwner.get(t.asset_id)?.length ?? 0), 0);
     return [
       { l: 'Stations and bays', v: String(assets.length), s: `${plural(subs.length, 'substation')} · ${plural(bays.length, 'bay')}`, tip: 'Substations and the bays inside them.', spark: series([assets.length]) },
-      { l: 'Transformers behind them', v: String(tx.length), s: `${mva} MVA`, tip: 'Power transformers fed through these bays.', spark: series([tx.length]) },
+      { l: 'Transformers behind them', v: String(tx.length), s: `${mva} MVA${incl(dupCount(snap, tx))}`, tip: `Power transformers fed through these bays.${dupCount(snap, tx) ? ' The count and the MVA include a record that looks like a duplicate; it stays until merged in Links.' : ''}`, spark: series([tx.length]) },
       { l: 'Line terminations', v: String(terminations), s: 'lines ending at a station', tip: 'Confirmed electrical links from a line to the substation where it ends.', spark: series([terminations]) },
       { l: 'Open findings', v: String(open), s: 'on transformers', tip: 'Visual and thermal findings on transformers and their parts.', spark: series([open]), color: open ? '#d97706' : undefined },
     ];

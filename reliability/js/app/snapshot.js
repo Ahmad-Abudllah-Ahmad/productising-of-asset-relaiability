@@ -51,8 +51,18 @@ export async function loadSnapshot(repo, asOf = AS_OF) {
     if (l.to_kind !== 'finding') bump(l.to_asset, key);
   }
 
+  // Records the matcher thinks are duplicates of another asset: still in the registry until someone merges them.
+  // dupRecord: the extra record (link.from_asset); dupOriginal: the record it would be merged into (link.to_asset).
+  const dupRecord = new Map();
+  const dupOriginal = new Map();
+  for (const l of links) {
+    if (l.type !== 'same_asset' || l.relation !== 'duplicate_of' || l.obsolete || l.merged || !['proposed', 'confirmed'].includes(l.status)) continue;
+    if (!dupRecord.has(l.from_asset) || dupRecord.get(l.from_asset).confidence < l.confidence) dupRecord.set(l.from_asset, l);
+    if (!dupOriginal.has(l.to_asset) || dupOriginal.get(l.to_asset).confidence < l.confidence) dupOriginal.set(l.to_asset, l);
+  }
+
   const labelValue = new Map(managedLabels().map((l) => [l.label_id, l.value]));
   const dates = [...new Set([...campaigns.map((c) => c.end), asOf])].filter((d) => d <= asOf).sort();
 
-  return { asOf, dates, ctx, assets, byId, scores, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, labelValue, campaigns };
+  return { asOf, dates, ctx, assets, byId, scores, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
 }

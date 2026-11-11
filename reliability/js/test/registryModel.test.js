@@ -126,7 +126,7 @@ test('KPI cards: four per tab, different for each tab, and consistent with the r
   const hi = columns.indexOf('Health index');
   const original = rows.filter((r) => !r.id.startsWith('MX-'));
   assert.equal(towers[0].v, String(rows.length));
-  assert.equal(towers[0].s, `${original.length} assessed`);
+  assert.equal(towers[0].s, `${original.length} assessed · incl. 5 possible duplicates`);
   const attention = rows.filter((r) => ['a', 'r'].includes(r.cells[hi].tone)).length;
   assert.equal(towers[2].v, String(attention));
   assert.equal(towers[2].s, `${rows.filter((r) => r.cells[hi].tone === 'r').length} poor · ${rows.filter((r) => r.cells[hi].tone === 'a').length} moderate`);
@@ -182,4 +182,47 @@ test('the substations tab counts stations, bays and the transformers behind them
   assert.equal(k[2].v, '4');
   const { rows, columns } = tableFor(snap, 'substations');
   assert.match(rows.find((r) => r.id === 'SUB-S1').cells[columns.indexOf('Connects')].text, /3 transformers · 2 lines/);
+});
+
+test('rows of possible duplicates carry a chip with the link to open; others have none', async () => {
+  const repo = make();
+  const snap = await snapOf(repo);
+  const { rows } = tableFor(snap, 'towers');
+  const chipsOf = (id) => rows.find((r) => r.id === id).cells[0].chips;
+  assert.deepEqual(chipsOf('MX-TOW-1156').map((c) => [c.text, c.status]), [['possible duplicate', 'proposed']]);
+  assert.deepEqual(chipsOf('TWR-132-01-012').map((c) => [c.text, c.status]), [['has a possible duplicate', 'proposed']]);
+  assert.deepEqual(chipsOf('MX-TOW-1212').map((c) => [c.text, c.status]), [['duplicate, not merged', 'confirmed']]);
+  assert.equal(chipsOf('MX-TOW-1156')[0].link, chipsOf('TWR-132-01-012')[0].link, 'both rows open the same link');
+  assert.deepEqual(chipsOf('TWR-132-01-001'), []);
+  const total = rows.filter((r) => r.cells[0].chips.length).length;
+  assert.equal(total, 10, 'five duplicates and their five originals');
+});
+
+test('KPI cards say what they include', async () => {
+  const snap = await snapOf(make());
+  assert.match(kpisFor(snap, 'transformers')[0].s, /incl\. 1 possible duplicate$/);
+  assert.match(kpisFor(snap, 'spans')[0].s, /^147 assessed$/);
+  assert.match(kpisFor(snap, 'components')[0].s, /incl\. 2 possible duplicates$/);
+  assert.match(kpisFor(snap, 'substations')[1].s, /incl\. 1 possible duplicate$/);
+  assert.match(kpisFor(snap, 'towers')[0].tip, /count includes 5 records that look like duplicates/);
+});
+
+test('a decided duplicate leaves the chips and the KPI wording', async () => {
+  const repo = make();
+  const link = (await repo.getLinks({ status: 'proposed' })).find((l) => l.relation === 'duplicate_of');
+  await repo.mergeAssets({ from: link.from_asset, into: link.to_asset, link_id: link.link_id });
+  const snap = await snapOf(repo);
+  assert.match(kpisFor(snap, 'towers')[0].s, /incl\. 4 possible duplicates$/);
+  assert.equal(tableFor(snap, 'towers').rows.filter((r) => r.cells[0].chips.some((c) => c.status === 'proposed')).length, 0);
+});
+
+test('substations: bays follow their substation, indented, and the table is flagged as nested', async () => {
+  const snap = await snapOf(make());
+  const t = tableFor(snap, 'substations');
+  assert.equal(t.nested, true);
+  assert.deepEqual(t.rows.map((r) => r.level), ['parent', ...Array(5).fill('child'), 'parent', ...Array(5).fill('child')]);
+  assert.equal(t.rows[0].id, 'SUB-S1');
+  assert.ok(t.rows[1].cells[0].text.startsWith('↳ '));
+  assert.equal(t.rows[6].id, 'SUB-S2');
+  assert.equal(tableFor(snap, 'towers').nested, undefined);
 });

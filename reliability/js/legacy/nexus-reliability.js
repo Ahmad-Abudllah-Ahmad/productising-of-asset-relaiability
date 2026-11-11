@@ -1247,6 +1247,20 @@
       tipEl.style.top = y + "px";
     });
 
+    activeGo = function (screenId, tabName) {
+      var index = app.screens.findIndex(function (item) { return item.id === screenId; });
+      if (index < 0) return false;
+      current = index;
+      tabIndex = 0;
+      if (tabName) {
+        var found = app.screens[index].tabs.findIndex(function (item) { return item.name === tabName; });
+        if (found >= 0) tabIndex = found;
+      }
+      document.querySelectorAll("[data-go]").forEach(function (item, position) { item.classList.toggle("is-on", position === index); });
+      render();
+      return true;
+    };
+
     render();
   }
 
@@ -1264,9 +1278,13 @@
     };
   }
 
+  // set by mount(): switches the page to another screen and tab, as if the person had clicked there
+  var activeGo = null;
+
   window.NexusReliability = {
     // the legacy rendering helpers, so new tabs keep the same look (KPI cards, tags, table markup)
     kit: { esc: esc, tip: tip, tag: tag, kpis: kpis, areaSpark: areaSpark, icon: icon },
+    go: function (screenId, tabName) { return activeGo ? activeGo(screenId, tabName) : false; },
     open: function (id, options) {
       var app = APPS[id];
       if (!app) return;

@@ -14,12 +14,13 @@ const BAND_CLASS = { 'auto-link': 'is-auto', review: 'is-review', dropped: 'is-d
 
 /**
  * @param {HTMLElement} root
- * @param {{repo: any, flags?: {delay?: number, fail?: boolean}}} deps
+ * @param {{repo: any, flags?: {delay?: number, fail?: boolean}, select?: {id: string, status?: string}|null}} deps
+ *   select: a link to show first (the Links tab is opened from a "possible duplicate" chip)
  * @returns {{destroy: () => void}}
  */
-export function mountLinkReview(root, { repo, flags = {} }) {
+export function mountLinkReview(root, { repo, flags = {}, select: first = null }) {
   const state = {
-    view: 'review', status: 'proposed', type: 'all', items: null, counts: null, labels: new Map(), selected: null, detail: null,
+    view: 'review', status: first?.status === 'confirmed' ? 'confirmed' : 'proposed', type: 'all', items: null, counts: null, labels: new Map(), selected: first?.id ?? null, detail: null,
     audit: [], loading: true, error: null, confirmReset: false, toast: '', help: false, busy: false, lastIndex: 0,
   };
   let request = 0;
@@ -114,7 +115,7 @@ export function mountLinkReview(root, { repo, flags = {} }) {
   // -------------------------------------------------------------- keyboard
 
   function onKey(e) {
-    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || document.body.classList.contains('a360-open')) return;
     const k = e.key;
     if (k === 'ArrowDown' || k === 'j') { e.preventDefault(); move(1); }
     else if (k === 'ArrowUp' || k === 'k') { e.preventDefault(); move(-1); }

@@ -2,14 +2,16 @@
 // with the new Asset Registry tabs. If anything fails, the page still opens; the registry tab then says
 // it could not be loaded (see the fallback tab in the legacy bundle).
 //
-// Demo and test switches in the query string:  ?delay=800 slows the Link Review load,  ?fail=1 makes it fail once.
+// Demo and test switches in the query string:  ?delay=800 slows the Link Review load,  ?fail=1 makes it fail once;
+// ?paneldelay=1200 slows the asset panel,  ?panelfail=1 makes its first load fail.
 
 import { repository } from '../data/repository.js';
 import { loadSnapshot } from './snapshot.js';
 import { createRegistryTabs } from './registryTabs.js';
+import { initAssetPanel, openAsset } from './assetPanel.js';
 
 const query = new URLSearchParams(location.search);
-const flags = { delay: Number(query.get('delay')) || 0, fail: query.get('fail') === '1' };
+const flags = { delay: Number(query.get('delay')) || 0, fail: query.get('fail') === '1', panelDelay: Number(query.get('paneldelay')) || 0, panelFail: query.get('panelfail') === '1' };
 
 const state = { snapshot: null };
 const listeners = new Set();
@@ -30,6 +32,8 @@ try {
     flags,
   });
   window.NexusReliability.open('reliability', { screens: { registry: { tabs } } });
+  window.NexusReliability.openAsset = openAsset; // any screen can open an asset's panel
+  initAssetPanel({ repo: repository, getSnapshot: () => state.snapshot, subscribeSnapshot: (fn) => { listeners.add(fn); return () => listeners.delete(fn); }, flags });
 } catch (error) {
   console.error('Reliability: could not build the registry', error);
   window.NexusReliability.open('reliability');

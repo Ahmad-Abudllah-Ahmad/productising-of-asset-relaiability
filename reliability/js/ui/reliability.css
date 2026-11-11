@@ -105,3 +105,81 @@
 .lr-help { position: absolute; right: 8px; top: 40px; width: 290px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; box-shadow: var(--shadow); z-index: 4; }
 .lr-help dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 8px 0 12px; }
 .lr-help dd { margin: 0; }
+
+/* ---- registry additions: chips, nesting, reference date */
+.reg-chip { border: 0; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; margin-left: 4px; }
+.reg-chip:hover { filter: brightness(0.95); text-decoration: underline; }
+.asof { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.reg-table tbody tr.reg-parent td { font-weight: 650; background: #fafbfc; }
+.reg-table tbody tr.reg-child td:first-child { padding-left: 22px; color: var(--muted); }
+.reg-table.is-nested thead th { cursor: default; }
+.reg-table tbody tr:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+/* ---- Asset 360 panel. Everything is namespaced a360-. */
+.a360-root { position: fixed; inset: 0; z-index: 2000; }
+.a360-root[hidden] { display: none; }
+.a360-backdrop { position: absolute; inset: 0; background: rgba(16, 24, 40, 0.38); }
+.a360 { position: absolute; top: 0; right: 0; bottom: 0; width: min(720px, 94vw); background: var(--card, #fff); color: var(--ink); box-shadow: -10px 0 34px rgba(16, 24, 40, 0.2); overflow-y: auto; transform: translateX(100%); transition: transform 0.18s ease; outline: none; font-size: 13px; }
+.a360.is-in { transform: none; }
+@media (prefers-reduced-motion: reduce) { .a360 { transition: none; } }
+.a360 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.a360 h2 { margin: 0; font-size: 20px; line-height: 1.2; }
+.a360 h4 { margin: 12px 0 6px; font-size: 13px; }
+.a360-muted { color: var(--muted); }
+.a360-small { font-size: 12px; }
+.a360-note { margin: 6px 0; }
+.a360-spacer { flex: 1; }
+.a360-id { font: 12px ui-monospace, Consolas, monospace; color: var(--muted); }
+.a360-bar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--card, #fff); border-bottom: 1px solid var(--line); }
+.a360-close { border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink); border-radius: 6px; width: 32px; height: 32px; font-size: 20px; line-height: 1; cursor: pointer; }
+.a360-close:hover { border-color: var(--blue); }
+.a360-head { padding: 14px 16px 8px; border-bottom: 1px solid var(--line); }
+.a360-titlerow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.a360-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 8px 0; }
+.a360-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.a360-banner { border-radius: 8px; padding: 8px 12px; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.a360-banner.a { background: #fff6e5; border: 1px solid #f1d9a8; }
+.a360-banner.b { background: var(--blue-soft); border: 1px solid #b9d3f8; }
+.a360-scores { display: grid; grid-template-columns: minmax(150px, 190px) 1fr; gap: 10px; margin: 10px 0; align-items: stretch; }
+.a360-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--card, #fff); min-width: 0; }
+.a360-wide { display: flex; flex-direction: column; justify-content: center; }
+.a360-k { font-size: 11px; color: var(--muted); font-weight: 600; }
+.a360-n { font-size: 24px; font-weight: 700; line-height: 1.15; }
+.a360-sub { font-size: 12px; color: var(--muted); }
+.a360-risk { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+.a360-risk .a360-card { flex: 1 1 82px; }
+.a360-op { align-self: center; font-size: 18px; color: var(--muted); }
+.a360-result { background: var(--blue-soft); border-color: #b9d3f8; }
+.a360-asof { margin: 2px 0 6px; }
+.a360-pad { padding: 4px 16px 28px; }
+.a360-sec { margin-top: 18px; }
+.a360-sec h3 { margin: 0 0 8px; font-size: 14px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.a360-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0; }
+.a360-table th, .a360-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #f2f4f7; vertical-align: top; }
+.a360-table thead th { font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.a360-table tbody th { font-weight: 500; }
+.a360-chart { width: 100%; height: 220px; }
+.a360-chart-s { height: 190px; }
+.a360-bands { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0; }
+.a360-mini { display: inline-block; width: 60px; height: 6px; background: #eef2f6; border-radius: 3px; vertical-align: middle; overflow: hidden; }
+.a360-mini > span { display: block; height: 100%; background: var(--blue); }
+.a360-findings { list-style: none; padding: 0; margin: 0; }
+.a360-finding { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid #f2f4f7; }
+.a360-thumb { position: relative; display: block; width: 92px; height: 64px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: #eef2f6; font-size: 11px; color: var(--muted); text-align: center; line-height: 64px; }
+.a360-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.a360-box { position: absolute; border: 2px solid var(--amber); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.a360-link { border: 0; background: none; color: var(--blue); font: inherit; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.a360-links { list-style: none; margin: 0 0 8px; padding: 0; }
+.a360-links li { padding: 3px 0; }
+.a360-duvalrow { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; }
+.a360-duval { width: 220px; height: 190px; }
+.a360-tri { fill: #f8fafc; stroke: var(--muted); stroke-width: 1.2; }
+.a360-tri-l { font-size: 10px; fill: var(--muted); }
+.a360-tri-p { fill: var(--red); stroke: #fff; stroke-width: 2; }
+.a360-empty, .a360-error { text-align: center; padding-top: 40px; }
+.a360-error h2 { color: var(--red); }
+.a360-skel { background: linear-gradient(90deg, #eef2f6, #e1e6ec, #eef2f6); background-size: 200% 100%; animation: lr-shimmer 1.2s infinite linear; border-radius: 6px; }
+.a360-skel-title { height: 28px; width: 55%; margin: 14px 0; }
+.a360-skel-block { height: 110px; margin-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) { .a360-skel { animation: none; } }
+@media (max-width: 640px) { .a360-scores, .a360-duvalrow { grid-template-columns: 1fr; } }
