@@ -5,13 +5,12 @@ const url = require("url");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const INSPECTION_DIST = path.join(
-  ROOT,
-  "azeri enerji dashbaord v3 - Copy",
-  "power-lines-system",
-  "frontend",
-  "dist"
-);
+const INSPECTION_DIST_CANDIDATES = [
+  path.join(ROOT, "azeri enerji dashbaord v3 - Copy(updated)", "power-lines-system", "frontend", "dist"),
+  path.join(ROOT, "azeri enerji dashbaord v3 - Copy", "power-lines-system", "frontend", "dist"),
+  path.join(ROOT, "public")
+];
+const INSPECTION_DIST = INSPECTION_DIST_CANDIDATES.find(function (p) { return fs.existsSync(p); }) || path.join(ROOT, "public");
 const INSPECTION_ROUTES = [
   "/dashboard",
   "/runs",
@@ -134,12 +133,25 @@ const server = http.createServer((req, res) => {
         return cleanPath === route || cleanPath.startsWith(route + "/");
       })
     ) {
-      filePath = path.join(INSPECTION_DIST, "index.html");
+      const fallbackIndex = path.join(INSPECTION_DIST, "index.html");
+      if (fs.existsSync(fallbackIndex)) {
+        filePath = fallbackIndex;
+      } else {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("404 Not Found");
+        return;
+      }
     } else {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("404 Not Found");
       return;
     }
+  }
+
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("404 Not Found");
+    return;
   }
 
   const ext = path.extname(filePath).toLowerCase();
