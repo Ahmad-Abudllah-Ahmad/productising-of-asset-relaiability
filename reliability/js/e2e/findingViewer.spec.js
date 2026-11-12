@@ -105,7 +105,7 @@ test.describe('opening the viewer', () => {
   });
 
   test('a LiDAR finding has no photograph and no box, and says so', async ({ page }) => {
-    await open(page, '/reliability#finding=F-0024');
+    await open(page, '/reliability#finding=F-0029');
     await ready(page);
     await expect(t(page, 'box-label')).toBeHidden();
     await expect(viewer(page)).toContainText('LiDAR findings are positions, not pictures');

@@ -12,6 +12,7 @@
 // follows the class the AI proposed, not a class a reviewer later corrected. A box a reviewer has moved is kept.
 
 export const MANIFEST_URL = '/reliability/assets/inspection/manifest.json';
+export const HEALTHY_CLASS = 'healthy_example';
 export const PLACEHOLDER_TEXT = 'Placeholder – no real image yet';
 
 let manifest = null;
@@ -46,6 +47,7 @@ const same = (a, b) => ['x', 'y', 'w', 'h'].every((k) => Math.abs((a?.[k] ?? 0) 
 /** The credit line for an entry. */
 export function captionOf(entry) {
   if (!entry) return '';
+  if (entry.provenance === 'own-inspection') return entry.class === HEALTHY_CLASS ? 'Healthy example · Inspection image' : 'Inspection image';
   if (entry.provenance === 'placeholder') return `${PLACEHOLDER_TEXT} · not from this asset`;
   return `Reference photo · ${entry.author}, ${entry.source}, ${entry.licence} · not from this asset`;
 }
@@ -59,31 +61,43 @@ export const entriesFor = (cls) => byClass.get(cls) ?? [];
  * @returns {{image: string|null, bbox: object|null, kind: 'reference'|'placeholder'|'none'|'legacy', entry: object|null, caption: string, short: string}}
  */
 export function evidenceOf(f, cap = null) {
-  if (f.sensor === 'lidar') return { image: null, bbox: null, kind: 'none', entry: null, caption: '', short: '' };
   if (!manifest) return { image: cap?.image ?? null, bbox: f.bbox ?? null, kind: 'legacy', entry: null, caption: 'Demo image', short: 'Demo' };
   const cls = f.edit?.original?.defect_class ?? f.defect_class;
   const list = byClass.get(cls) ?? [];
+  // LiDAR findings have no picture unless the class has a photo (vegetation does: the photo shows it, the scan measures it)
+  if (f.sensor === 'lidar' && !list.length) return { image: null, bbox: null, kind: 'none', entry: null, caption: '', short: '' };
   const entry = list.length ? list[hash(f.finding_id) % list.length] : null;
   if (!entry) return { image: null, bbox: f.bbox ?? null, kind: 'placeholder', entry: null, caption: `${PLACEHOLDER_TEXT} · not from this asset`, short: 'Placeholder' };
   const moved = f.edit?.original?.bbox && f.bbox && !same(f.edit.original.bbox, f.bbox);
+  const own = entry.provenance === 'own-inspection';
+  const burned = entry.bboxSource === 'burned-in';
   return {
     image: entry.file ? `${manifest.base ?? '/reliability/assets/inspection/'}${entry.file}` : null,
-    bbox: moved ? f.bbox : (entry.provenance === 'placeholder' ? (f.bbox ?? null) : (entry.bbox ?? f.bbox ?? null)),
-    kind: entry.provenance === 'placeholder' ? 'placeholder' : 'reference',
-    entry, caption: captionOf(entry), short: entry.provenance === 'placeholder' ? 'Placeholder' : 'Ref',
+    // a burned-in box is part of the picture: no second box is drawn over it
+    bbox: burned ? null : moved ? f.bbox : (entry.provenance === 'placeholder' ? (f.bbox ?? null) : (entry.bbox ?? f.bbox ?? null)),
+    kind: own ? 'inspection' : entry.provenance === 'placeholder' ? 'placeholder' : 'reference',
+    entry, native: entry.native ? { w: entry.width, h: entry.height } : null,
+    caption: captionOf(entry), short: own ? 'Insp' : entry.provenance === 'placeholder' ? 'Placeholder' : 'Ref',
   };
+}
+
+/** A normal-condition tower picture to show next to a tower with no findings, or null. */
+export function healthyExample() {
+  const e = (byClass.get(HEALTHY_CLASS) ?? [])[0];
+  return e ? { entry: e, image: `${manifest.base ?? '/reliability/assets/inspection/'}${e.file}`, caption: captionOf(e), native: { w: e.width, h: e.height } } : null;
 }
 
 /** Everything the credits section lists: one row per real image, and the photographic classes that are still placeholders.
  *  Classes found only by LiDAR have no photograph at all and are not in the manifest. */
 export function creditsOf(allClasses) {
-  const entries = manifest?.entries ?? [];
-  const real = entries.filter((e) => e.provenance === 'reference');
+  const entries = (manifest?.entries ?? []).filter((e) => e.class !== HEALTHY_CLASS);
+  const own = entries.filter((e) => e.provenance === 'own-inspection');
+  const real = entries.filter((e) => e.provenance === 'reference' || e.provenance === 'own-inspection');
   const inManifest = new Set(entries.map((e) => e.class));
   const photographic = allClasses.filter((c) => inManifest.has(c.id));
   const covered = new Set(real.map((e) => e.class));
   return {
-    images: real,
+    images: real, own,
     coverage: photographic.map((c) => ({ ...c, real: real.filter((e) => e.class === c.id).length })),
     placeholders: photographic.filter((c) => !covered.has(c.id)),
   };

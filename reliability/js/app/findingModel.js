@@ -25,7 +25,7 @@ function view(snap, f, capturesById, { current = false } = {}) {
     condition: f.condition_score, severity: SEVERITY[f.condition_score].word, conditionLabel: SEVERITY[f.condition_score].condition,
     confidence: f.confidence, reviewStatus: f.review_status, unreviewed: f.review_status === 'pending', rejected: f.review_status === 'rejected',
     sensor: f.sensor, date: f.date, campaignId: f.campaign_id, campaignName: campaign?.name ?? f.campaign_id, bbox: ev.bbox,
-    captureId: f.capture_id, image: ev.image, evidence: { kind: ev.kind, caption: ev.caption, short: ev.short, entry: ev.entry }, captureType: cap?.type ?? f.sensor, location: f.location,
+    captureId: f.capture_id, image: ev.image, evidence: { kind: ev.kind, caption: ev.caption, short: ev.short, entry: ev.entry, native: ev.native }, captureType: cap?.type ?? f.sensor, location: f.location,
     assetId: f.asset_id, assetName: asset?.name ?? f.asset_id, assetClass: asset ? humanize(asset.class) : '', towerId: f.tower_id, componentHint: f.component_hint,
     edit: f.edit ?? null, current,
   };

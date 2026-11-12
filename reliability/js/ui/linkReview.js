@@ -206,7 +206,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null, 
     const r = end.record;
     const ev = end.kind === 'finding' ? evidenceOf(r, end.capture) : null;
     const img = ev && (ev.image || ev.kind === 'placeholder')
-      ? h('button', { class: 'lr-thumb', type: 'button', 'data-finding': r.finding_id, title: `Open the finding viewer (${ev.kind === 'reference' ? 'reference photo, not from this asset' : 'demo image'})`, 'aria-label': `Open finding ${r.finding_id}`, onClick: (ev) => window.NexusReliability?.openFinding?.(r.finding_id, { opener: ev.currentTarget }) },
+      ? h('button', { class: 'lr-thumb', type: 'button', style: ev.native ? { maxWidth: `${Math.min(340, ev.native.w)}px`, aspectRatio: `${ev.native.w} / ${ev.native.h}` } : {}, 'data-finding': r.finding_id, title: `Open the finding viewer (${ev.kind === 'reference' ? 'reference photo, not from this asset' : ev.kind === 'inspection' ? 'inspection image' : 'demo image'})`, 'aria-label': `Open finding ${r.finding_id}`, onClick: (ev) => window.NexusReliability?.openFinding?.(r.finding_id, { opener: ev.currentTarget }) },
         ev.image ? h('img', { src: ev.image, alt: `Capture ${end.capture.capture_id}, ${r.defect_class.replace(/_/g, ' ')}`, loading: 'lazy' }) : h('span', { class: 'lr-ph' }, 'Placeholder – no real image yet'),
         ev.bbox && ev.image ? h('span', { class: 'lr-box', style: { left: `${ev.bbox.x * 100}%`, top: `${ev.bbox.y * 100}%`, width: `${ev.bbox.w * 100}%`, height: `${ev.bbox.h * 100}%` }, title: `confidence ${r.confidence}` }) : null,
         h('span', { class: 'lr-demo' }, ev.short))

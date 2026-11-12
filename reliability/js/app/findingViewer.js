@@ -240,12 +240,15 @@ const svgEl = (name, attrs = {}) => { const n = document.createElementNS('http:/
 function stageLabel(f, kind) {
   if (kind === 'thermal') return DEMO_LABEL;
   if (f.evidence?.kind === 'reference') return 'Reference photo';
+  if (f.evidence?.kind === 'inspection') return 'Inspection image';
   if (f.evidence?.kind === 'placeholder') return PLACEHOLDER_TEXT;
   return DEMO_LABEL;
 }
 
 function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {}) {
-  const canvas = h('canvas', { class: 'fv-canvas', width: SIZE.w, height: SIZE.h, role: 'img', 'aria-label': `${kind === 'thermal' ? 'Generated thermal view' : f.evidence?.kind === 'reference' ? 'Reference photograph' : 'Photograph'} of ${f.label}` });
+  // our own small photos are shown at native size: the canvas is the image's own size and the stage never grows past it
+  const dim = f.evidence?.native ?? null;
+  const canvas = h('canvas', { class: 'fv-canvas', width: (dim ?? SIZE).w, height: (dim ?? SIZE).h, role: 'img', 'aria-label': `${kind === 'thermal' ? 'Generated thermal view' : f.evidence?.kind === 'reference' ? 'Reference photograph' : 'Photograph'} of ${f.label}` });
   const svg = svgEl('svg', { class: 'fv-overlay', viewBox: '0 0 1 1', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
   const rect = svgEl('rect', { class: 'fv-bbox', 'vector-effect': 'non-scaling-stroke' });
   svg.append(rect);
@@ -253,7 +256,7 @@ function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {})
   const hit = h('div', { class: 'fv-hit', tabindex: '0', role: 'group', 'aria-label': 'Box. Drag to move; arrow keys nudge it.', hidden: !editable });
   const handle = h('span', { class: 'fv-handle', hidden: !editable, 'aria-hidden': 'true' });
   const readout = { value: null };
-  const wrap = h('div', { class: `fv-stage fv-stage-${size}`, 'data-testid': `stage-${kind}`, 'data-demo': 'true' }, canvas, svg, label, hit, handle, h('span', { class: 'fv-demo', 'data-testid': 'demo-label' }, stageLabel(f, kind)));
+  const wrap = h('div', { class: `fv-stage fv-stage-${size}`, 'data-testid': `stage-${kind}`, 'data-demo': 'true', style: dim ? { maxWidth: `${dim.w}px`, aspectRatio: `${dim.w} / ${dim.h}` } : {} }, canvas, svg, label, hit, handle, h('span', { class: 'fv-demo', 'data-testid': 'demo-label' }, stageLabel(f, kind)));
 
   let box = f.bbox ? { ...f.bbox } : null;
   const place = () => {
@@ -289,8 +292,8 @@ function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {})
   }
 
   const ready = photo(f.image).then((img) => {
-    if (kind === 'thermal') readout.value = drawThermal(canvas, img, f);
-    else drawPhoto(canvas, img, f);
+    if (kind === 'thermal') readout.value = drawThermal(canvas, img, f, dim ?? SIZE);
+    else drawPhoto(canvas, img, f, dim ?? SIZE);
     wrap.dataset.ready = 'true';
     return readout.value;
   });
@@ -377,7 +380,7 @@ function singleView(d, mode) {
   }
   if (view.bbox && f.evidence?.kind !== 'placeholder') root.append(cropBox);
   if (f.evidence?.caption) root.append(h('p', { class: 'fv-muted fv-small fv-credit', 'data-testid': 'credit' }, f.evidence.caption, f.evidence.entry?.pageUrl ? h('span', {}, ' · ', h('a', { href: f.evidence.entry.pageUrl, target: '_blank', rel: 'noopener noreferrer' }, 'source page')) : null));
-  if (!f.bbox) root.append(h('p', { class: 'fv-muted fv-small' }, 'This finding has no box (LiDAR findings are positions, not pictures).'));
+  if (!f.bbox) root.append(h('p', { class: 'fv-muted fv-small' }, f.evidence?.kind === 'inspection' ? (f.sensor === 'lidar' ? 'The photo shows the vegetation; the clearance value comes from the LiDAR scan. The boxes in the picture are part of the image.' : 'The boxes in this picture are part of the image; no second box is drawn.') : 'This finding has no box (LiDAR findings are positions, not pictures).'));
   if (f.evidence && f.evidence.kind !== 'legacy') root.append(creditsSection());
   return root;
 }
@@ -385,12 +388,13 @@ function singleView(d, mode) {
 /** Every reference photo with its credit, and the defect classes that still have no real image. */
 function creditsSection() {
   const c = creditsOf(DEFECT_OPTIONS.map((o) => ({ id: o.id, label: o.label })));
-  const rows = c.images.map((e) => h('li', {}, h('b', {}, (DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class)), ` · ${e.author}, `,
+  const rows = c.images.filter((e) => e.provenance === 'reference').map((e) => h('li', {}, h('b', {}, (DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class)), ` · ${e.author}, `,
     h('a', { href: e.pageUrl, target: '_blank', rel: 'noopener noreferrer' }, e.source), `, `, h('a', { href: e.licenceUrl, target: '_blank', rel: 'noopener noreferrer' }, e.licence)));
   return h('details', { class: 'fv-credits', 'data-testid': 'credits' },
-    h('summary', {}, `Image credits: ${c.images.length} reference photos, ${c.placeholders.length} of ${c.coverage.length} defect classes still on placeholder`),
+    h('summary', {}, `Image credits: ${c.images.length - c.own.length} reference photos, ${c.own.length} own inspection images, ${c.placeholders.length} of ${c.coverage.length} defect classes still on placeholder`),
     h('p', { class: 'fv-muted fv-small' }, 'Reference photos are real photographs of the same kind of defect from other sources. None is from the asset named in the finding. Replace one by editing its entry in reliability/assets/inspection/manifest.json.'),
     h('ul', { class: 'fv-credit-list', 'data-testid': 'credit-list' }, rows),
+    h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-own' }, `Inspection image (own, no external credit): ${c.own.map((e) => DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class).join(', ') || 'none'}.`),
     h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-placeholders' }, `${PLACEHOLDER_TEXT}: `, c.placeholders.map((x) => x.label).join(', ') || 'none'));
 }
 

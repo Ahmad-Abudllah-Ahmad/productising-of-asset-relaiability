@@ -8,6 +8,7 @@
 import { h, replace } from '../ui/dom.js';
 import { BAND_TAG, SEV_TAG, RISK_TAG, COND_TAG } from './palette.js';
 import { loadAssetDetail } from './assetModel.js';
+import { healthyExample } from './evidence.js';
 import { parseHash, hashFor } from './hashState.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview } from './navigation.js';
@@ -354,7 +355,7 @@ export function thumb(row) {
   const f = { ...row, kind: row.kind ?? row.evidence?.kind, short: row.short ?? row.evidence?.short };
   const open = (e) => openFinding(f.id, { opener: e.currentTarget });
   if (f.image) {
-    return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (${f.kind === 'reference' ? 'reference photo, not from this asset' : 'demo image'})`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },
+    return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (${f.kind === 'reference' ? 'reference photo, not from this asset' : f.kind === 'inspection' ? 'inspection image' : 'demo image'})`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },
       h('img', { src: f.image, alt: '', loading: 'lazy' }),
       f.bbox ? h('span', { class: 'a360-box', style: { left: `${f.bbox.x * 100}%`, top: `${f.bbox.y * 100}%`, width: `${f.bbox.w * 100}%`, height: `${f.bbox.h * 100}%` } }) : null,
       h('span', { class: 'a360-demo' }, f.short ?? 'Demo'));
@@ -366,7 +367,8 @@ export function thumb(row) {
 function findingsView(d) {
   const f = d.findings;
   if (!f.total) {
-    return section('findings', 'Open findings', note(d.kind === 'component' ? 'No open findings on this component.' : 'No open findings.'), f.closed ? note(`${f.closed} earlier finding${f.closed === 1 ? '' : 's'} closed by repairs.`) : null);
+    const ex = d.kind === 'tower' && d.evidence?.assessed ? healthyExample() : null;
+    return section('findings', 'Open findings', note(d.kind === 'component' ? 'No open findings on this component.' : 'No open findings.'), ex ? h('figure', { class: 'a360-healthy', 'data-testid': 'healthy-example' }, h('img', { src: ex.image, alt: 'A tower in normal condition', width: ex.native.w, height: ex.native.h, style: { maxWidth: '100%', height: 'auto' } }), h('figcaption', { class: 'a360-muted a360-small' }, 'Healthy example: a tower in normal condition, for comparison, not a picture of this tower. ', 'Image: inspection image.')) : null, f.closed ? note(`${f.closed} earlier finding${f.closed === 1 ? '' : 's'} closed by repairs.`) : null);
   }
   return section('findings', `Open findings (${f.total})`,
     h('ul', { class: 'a360-findings', 'data-testid': 'findings' }, f.rows.map((r) => h('li', { class: 'a360-finding', 'data-finding-id': r.id },

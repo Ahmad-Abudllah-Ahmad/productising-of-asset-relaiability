@@ -83,13 +83,17 @@
    "provenance": "reference"
   },
   {
-   "id": "placeholder-broken_strand",
+   "id": "own-strands-02",
    "class": "broken_strand",
-   "file": null,
+   "file": "broken_strand/own-strands-02.jpg",
+   "width": 837,
+   "height": 563,
+   "native": true,
    "bbox": null,
-   "bboxSource": null,
-   "provenance": "placeholder",
-   "note": "Placeholder – no real image yet"
+   "bboxSource": "burned-in",
+   "source": "Own inspection",
+   "provenance": "own-inspection",
+   "note": "Own inspection image; boxes are burned into the picture. Bottom-right date/GPS/line-name overlay cropped off."
   },
   {
    "id": "placeholder-bushing_hotspot",
@@ -171,6 +175,19 @@
    "bboxSource": null,
    "provenance": "placeholder",
    "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "own-healthy-01",
+   "class": "healthy_example",
+   "file": "healthy_example/own-healthy-01.jpg",
+   "width": 328,
+   "height": 651,
+   "native": true,
+   "bbox": null,
+   "bboxSource": "burned-in",
+   "source": "Own inspection",
+   "provenance": "own-inspection",
+   "note": "Own inspection image; boxes are burned into the picture."
   },
   {
    "id": "placeholder-insulator_contaminated",
@@ -362,6 +379,19 @@
    "provenance": "reference"
   },
   {
+   "id": "own-steel-03",
+   "class": "steel_corrosion",
+   "file": "steel_corrosion/own-steel-03.jpg",
+   "width": 182,
+   "height": 635,
+   "native": true,
+   "bbox": null,
+   "bboxSource": "burned-in",
+   "source": "Own inspection",
+   "provenance": "own-inspection",
+   "note": "Own inspection image; boxes are burned into the picture."
+  },
+  {
    "id": "placeholder-tank_damage",
    "class": "tank_damage",
    "file": null,
@@ -369,6 +399,19 @@
    "bboxSource": null,
    "provenance": "placeholder",
    "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "own-vegetation-06",
+   "class": "vegetation_encroachment",
+   "file": "vegetation_encroachment/own-vegetation-06.jpg",
+   "width": 835,
+   "height": 656,
+   "native": true,
+   "bbox": null,
+   "bboxSource": "burned-in",
+   "source": "Own inspection",
+   "provenance": "own-inspection",
+   "note": "Own inspection image; boxes are burned into the picture."
   }
  ]
 }

@@ -240,7 +240,7 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
         const f = members[0];
         const m = L.circleMarker([f.lat, f.lng], { radius: 5, color: getComputedStyle(mapEl).getPropertyValue('--rel-shape-line').trim() || '#555', weight: 1.5, fillColor: getComputedStyle(mapEl).getPropertyValue(COND_VAR(worst)).trim(), fillOpacity: 1, bubblingMouseEvents: false, pane: 'markerPane', className: 'rm-finding' });
         const tipNode = tip([`${f.id} · ${humanize(f.defectClass)}`, `${f.severity}${f.unreviewed ? ' · unreviewed' : ''}`, f.ownerName]);
-        if (f.image) tipNode.append(h('div', { class: 'rm-tipimg' }, h('img', { src: f.image, alt: '' }), h('span', {}, f.evidence === 'Ref' ? 'Reference photo' : 'Demo image')));
+        if (f.image) tipNode.append(h('div', { class: 'rm-tipimg' }, h('img', { src: f.image, alt: '' }), h('span', {}, f.evidence === 'Ref' ? 'Reference photo' : f.evidence === 'Insp' ? 'Inspection image' : 'Demo image')));
         m.bindTooltip(tipNode);
         m.on('click', (e) => { L.DomEvent.stopPropagation(e); if (!lassoOn) openFinding(f.id); });
         g.findings.addLayer(m);
