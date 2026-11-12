@@ -65,19 +65,24 @@ function cover(ctx, img, w, h) {
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-/** Plain tile for findings with no photograph. */
+/** Plain tile for findings with no photograph: drawn at twice the size so the text stays sharp when the tile is stretched. */
 export function drawPlaceholder(canvas, finding, { w, h } = SIZE) {
-  canvas.width = w; canvas.height = h;
+  const k = 2;
+  canvas.width = w * k; canvas.height = h * k;
   const ctx = canvas.getContext('2d');
-  const g = ctx.createLinearGradient(0, 0, w, h);
-  g.addColorStop(0, '#2c3744'); g.addColorStop(1, '#53606f');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
-  for (let x = 0; x <= w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-  for (let y = 0; y <= h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '16px system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(finding.sensor === 'lidar' ? 'LiDAR scan: no photograph for this finding' : 'Placeholder – no real image yet', w / 2, h / 2);
-  if (finding.sensor !== 'lidar') { ctx.font = '12px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('No inspection photo of this defect type has been added to the manifest', w / 2, h / 2 + 24); }
+  ctx.scale(k, k);
+  ctx.fillStyle = '#323d4b'; ctx.fillRect(0, 0, w, h);
+  const lidar = finding.sensor === 'lidar';
+  const cx = w / 2; const cy = h / 2; const u = Math.min(w, h) / 480;
+  // a camera with a slash: "no picture"
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3 * u; ctx.lineJoin = 'round';
+  ctx.strokeRect(cx - 34 * u, cy - 44 * u, 68 * u, 44 * u);
+  ctx.beginPath(); ctx.arc(cx, cy - 22 * u, 12 * u, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 44 * u, cy + 6 * u); ctx.lineTo(cx + 44 * u, cy - 54 * u); ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = `600 ${Math.max(11, 17 * u)}px system-ui, sans-serif`;
+  ctx.fillText(lidar ? 'LiDAR scan: no photograph for this finding' : 'Placeholder – no real image yet', cx, cy + 40 * u);
+  if (!lidar) { ctx.font = `${Math.max(9, 12 * u)}px system-ui, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('No inspection photo of this defect type has been added yet', cx, cy + 62 * u); }
 }
 
 /** The photograph, scaled to cover the canvas. Falls back to the placeholder tile when there is none. */

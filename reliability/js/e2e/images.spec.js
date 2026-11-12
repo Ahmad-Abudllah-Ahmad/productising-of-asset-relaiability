@@ -47,13 +47,13 @@ test.describe('reference photos and placeholders', () => {
     });
   }
 
-  test('a class with no real image: "Placeholder – no real image yet", the AI box kept, honest caption, both themes', async ({ page }) => {
+  test('a class with no real image: "Placeholder – no real image yet", no box drawn, honest caption, both themes', async ({ page }) => {
     for (const th of ['light', 'dark']) {
       await visit(page, `/reliability#asset=${PLACEHOLDER[1]}&finding=${PLACEHOLDER[0]}`, th);
       await expect(t(page, 'stage-rgb')).toHaveAttribute('data-ready', 'true');
       await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Placeholder – no real image yet');
       await expect(t(page, 'credit')).toHaveText('Placeholder – no real image yet · not from this asset');
-      await expect(t(page, 'box-label')).toBeVisible(); // the AI's box is kept so it can still be reviewed
+      await expect(t(page, 'box-label')).toBeHidden(); // nothing to mark on a placeholder
       await page.waitForTimeout(700); await page.screenshot({ path: `${SHOTS}/placeholder-${th}.png` });
     }
   });

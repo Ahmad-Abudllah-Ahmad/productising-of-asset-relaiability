@@ -265,7 +265,9 @@ function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {})
 
   let box = f.bbox ? { ...f.bbox } : null;
   const place = () => {
-    if (!box) { rect.setAttribute('width', '0'); label.hidden = true; hit.hidden = true; handle.hidden = true; return; }
+    // a placeholder has no picture to mark: the box is shown only while a reviewer is editing it
+    const noPicture = f.evidence?.kind === 'placeholder' && kind === 'rgb' && !editable;
+    if (!box || noPicture) { rect.setAttribute('width', '0'); rect.setAttribute('height', '0'); label.hidden = true; hit.hidden = true; handle.hidden = true; return; }
     rect.setAttribute('x', box.x); rect.setAttribute('y', box.y); rect.setAttribute('width', box.w); rect.setAttribute('height', box.h);
     label.hidden = false;
     label.style.left = `${box.x * 100}%`; label.style.top = `${box.y * 100}%`;

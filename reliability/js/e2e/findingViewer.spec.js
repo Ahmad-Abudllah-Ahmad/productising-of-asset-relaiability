@@ -405,11 +405,12 @@ test.describe('reviewer actions', () => {
   });
 
   test('a correction changes the box on the image after saving', async ({ page }) => {
-    await open(page, '/reliability#finding=F-0090');
+    await open(page, '/reliability#finding=F-0067');
     await ready(page);
     const rect = () => t(page, 'stage-rgb').locator('.fv-bbox');
     const before = await rect().getAttribute('x');
     await t(page, 'correct').click();
+    await t(page, 'box-w').fill('30');
     await t(page, 'box-x').fill('55');
     await t(page, 'save-correction').click();
     await expect(t(page, 'corrected-banner')).toContainText('box adjusted');
