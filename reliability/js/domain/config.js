@@ -74,6 +74,15 @@
 //  A24. GLOBAL FILTERS. A label, a voltage, a category and an "as of" date apply to every screen
 //      (app/scope.js). An asset is in scope when it passes every filter that is set. The score of a
 //      container (a line) is its own and is not recomputed from the part of it that is in scope.
+//  A25. SIMULATED LIDAR. There is no scan data; each span's point cloud is generated from the seed
+//      (domain/lidar/simulate.js: seeded random, same output every run). The span's clearance
+//      (ext.min_clearance_m in the seed, the number the registry, Line Health and the map show) is the
+//      smallest distance from any ground or vegetation point to the nearest conductor point; the
+//      generator builds the cloud so that this measured value equals the seed value. The MINIMUM
+//      CLEARANCE below is the limit: a span whose clearance is under it has a violation and its points
+//      closer than the limit are drawn red. The limits (7.0 m at 132 and 220 kV, 9.5 m at 500 kV) are
+//      placeholders for the client's own standard. Conductors are catenaries between flat-configured
+//      attachments (earthwire above); tower height is the seed's height_m. Point counts are capped.
 //
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 
@@ -265,6 +274,16 @@ export const CONFIG = deepFreeze({
       line_network: 180, structure: 180, line_component: 180, right_of_way: 180,
       substation: 365, transformer: 365,
     },
+  },
+
+  // A25: simulated LiDAR. Limits are per nominal voltage; clearance is a straight-line distance in metres.
+  lidar: {
+    minClearanceM: { 132: 7.0, 220: 7.0, 500: 9.5 },
+    defaultMinClearanceM: 7.0,
+    maxPoints: 14000,
+    corridorHalfWidthM: { 132: 28, 220: 38, 500: 55 },
+    crossarmHalfWidthM: { 132: 4.2, 220: 6, 500: 10 },
+    attachDropM: 3,
   },
 
   // Seed generator parameters (plan, Technical approach: Seed data).

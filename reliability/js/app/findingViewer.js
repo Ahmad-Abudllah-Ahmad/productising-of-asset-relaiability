@@ -14,6 +14,8 @@
 import { h, replace } from '../ui/dom.js';
 import { SEV_TAG, COND_TAG } from './palette.js';
 import { loadFindingDetail, DEFECT_OPTIONS } from './findingModel.js';
+import { hasLidar } from './lidarModel.js';
+import { mountLidar } from './lidarView.js';
 import { parseHash, hashFor } from './hashState.js';
 import { PLACEHOLDER_TEXT, creditsOf } from './evidence.js';
 import { loadImage, drawPhoto, drawThermal, drawCrop, SCALE_GRADIENT, DEMO_LABEL, SIZE } from './demoImage.js';
@@ -22,7 +24,9 @@ import { openAsset } from './assetPanel.js';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SEV_TONE = SEV_TAG;
 const STATUS_TONE = { confirmed: 'g', pending: 'a', rejected: 'r' };
-const MODES = [['rgb', 'RGB', '1'], ['thermal', 'Thermal', '2'], ['compare', 'Compare', '3']];
+const MODES = [['rgb', 'RGB', '1'], ['thermal', 'Thermal', '2'], ['compare', 'Compare', '3'], ['lidar', 'LiDAR', '4']];
+const modesFor = (d) => (d && lidarOwner(d) ? MODES : MODES.filter(([id]) => id !== 'lidar'));
+const lidarOwner = (d) => d.owner && hasLidar(ctl.deps.getSnapshot(), d.owner.id);
 const SEVERITIES = [[1, 'critical', 'very poor'], [2, 'serious', 'poor'], [3, 'moderate', 'fair'], [4, 'minor', 'good']];
 const REJECT_REASONS = ['Not a defect', 'Wrong location', 'Same defect already recorded', 'Image unusable', 'Other'];
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -116,6 +120,7 @@ function show(id, mode = 'rgb') {
 
 function hide() {
   const s = ctl.state;
+  ctl.lidarOff?.(); ctl.lidarOff = null;
   s.open = false; s.id = null; s.token += 1; s.editing = null; s.rejecting = false; s.linking = false; s.cmp = null; s.impact = null;
   if (ctl.root) { ctl.root.hidden = true; ctl.dialog.classList.remove('is-in'); }
   document.body.classList.remove('fv-open');
@@ -158,7 +163,7 @@ function onKey(e) {
   // A handled key must not also reach the control that gets focus next (the "e" would pick a class in the dropdown).
   const handled = () => { e.preventDefault(); e.stopPropagation(); };
   if (k === 'ArrowRight' || k === 'ArrowLeft') { if (!s.editing) { handled(); step(k === 'ArrowRight' ? 1 : -1); } }
-  else if (k === '1' || k === '2' || k === '3') { handled(); setMode(MODES[Number(k) - 1][0]); }
+  else if (k === '1' || k === '2' || k === '3' || (k === '4' && ctl.state.detail && lidarOwner(ctl.state.detail))) { handled(); setMode(MODES[Number(k) - 1][0]); }
   else if (k === 'c' && !s.editing && s.detail.finding.reviewStatus !== 'confirmed') { handled(); act('confirm'); }
   else if (k === 'e' && !s.editing && !s.detail.finding.rejected) { handled(); startEdit(); }
   else if (k === 'r' && !s.editing && !s.detail.finding.rejected) { handled(); s.rejecting = true; draw(); ctl.dialog.querySelector('[data-testid="reject-reason"]')?.focus(); }
@@ -336,14 +341,23 @@ function drawReady(d) {
     tag(f.rejected ? 'rejected' : f.unreviewed ? 'unreviewed' : 'confirmed', STATUS_TONE[f.reviewStatus], { 'data-testid': 'review-status' }),
     f.edit?.corrected ? tag('corrected', 'b') : null, f.edit?.relinked ? tag('relinked', 'b') : null);
 
-  const tabs = h('div', { class: 'fv-tabs', role: 'tablist', 'aria-label': 'View' }, MODES.map(([id, label, key]) =>
+  const tabs = h('div', { class: 'fv-tabs', role: 'tablist', 'aria-label': 'View' }, modesFor(d).map(([id, label, key]) =>
     h('button', { class: 'fv-tab', role: 'tab', type: 'button', 'aria-selected': String(s.mode === id), 'data-mode': id, title: `${label} (${key})`, onClick: () => setMode(id) }, label, ' ', h('kbd', {}, key))));
 
-  const left = h('div', { class: 'fv-left' }, tabs, s.mode === 'compare' ? compareView(d) : singleView(d, s.mode));
+  ctl.lidarOff?.(); ctl.lidarOff = null;
+  const lidarMode = s.mode === 'lidar' && lidarOwner(d);
+  const left = h('div', { class: 'fv-left' }, tabs, lidarMode ? lidarPane(d) : s.mode === 'compare' ? compareView(d) : singleView(d, s.mode === 'lidar' ? 'rgb' : s.mode));
   const right = h('div', { class: 'fv-side' }, ...sideView(d));
   replace(ctl.body, bar(d.id, d), h('div', { class: 'fv-pad' }, title, h('div', { class: 'fv-main' }, left, right)));
   if (s.editing) updateSave();
   if (s.impactText) { toast(s.impactText); s.impactText = null; }
+}
+
+/** LiDAR for the span (or the spans of the tower) this finding is on. The clearance value comes from the scan; a photo, if any, is on the RGB tab. */
+function lidarPane(d) {
+  const host = h('div', { class: 'fv-lidar', 'data-testid': 'finding-lidar' });
+  ctl.lidarOff = mountLidar(host, { snap: ctl.deps.getSnapshot(), assetId: d.owner.id });
+  return host;
 }
 
 // ---- RGB and thermal
@@ -513,7 +527,7 @@ function startEdit() {
   const s = ctl.state;
   const f = s.detail.finding;
   s.editing = { defect_class: f.defectClass, condition_score: f.condition, bbox: f.bbox ? { ...f.bbox } : null };
-  s.mode = s.mode === 'compare' ? 'rgb' : s.mode;
+  s.mode = s.mode === 'compare' || s.mode === 'lidar' ? 'rgb' : s.mode;
   draw();
   ctl.dialog.querySelector('[data-testid="edit-class"]')?.focus();
 }

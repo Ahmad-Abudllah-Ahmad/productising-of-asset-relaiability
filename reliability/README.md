@@ -31,6 +31,8 @@ score of a line stays the line's own.
 **Freshness**: each score shows how old its newest evidence is. A score older than the inspection interval (180 days for line
 assets, 365 for transformers and substations) is greyed out and marked "stale". Move "as of" to 2026-09-30 to see some.
 
+**Simulated LiDAR**: Asset 360 of a tower or span has a LiDAR tab (`atab=lidar` in the URL), and a finding on a tower or span has a LiDAR tab in the viewer (`mode=lidar`). It draws a 3D point cloud (three.js 0.160.1, vendored, loaded only when a LiDAR view opens) coloured by class or by clearance, with orbit, zoom, reset and a point-size control, and a 2D profile (ground, vegetation tops, conductor sag, the minimum-clearance line, the lowest clearance marked). Every view says "Simulated LiDAR". The clouds are generated from the seed (`domain/lidar/simulate.js`, seeded, same every run) so that the clearance measured from the points equals the seed's span clearance shown in the registry, Line Health and the map; the limit is in `config.js` (A25). Without WebGL (or with `?webgl=off`) a table of clearance values is shown instead. To use a real scan, register a cloud provider in `app/lidarSource.js` (see its header: same shape, `cls` 1 ground, 2 vegetation, 3 structure, 4 conductor; `decimate()` thins big scans).
+
 **Dark theme**: the toggle in the top bar; light is the default; the choice is remembered per browser.
 
 ## Run it
@@ -74,7 +76,7 @@ reliability/js/
   ui/                             reliability.css (tokens, both themes, every screen), reliability-dark.css (generated), linkReview.js, dom.js
   legacy/nexus-reliability.js     the page shell, the rail, tooltips, KPI-card and tag helpers, and the Drawing screen
   ../assets/inspection/           reference photos and manifest.json (the only place the viewer gets pictures from)
-  vendor/                         echarts 5.6.0 and leaflet 1.9.4, copied unchanged with their licences (no CDN)
+  vendor/                         echarts 5.6.0, leaflet 1.9.4 and three 0.160.1, copied unchanged with their licences (no CDN)
   test/                           unit tests (node --test)          e2e/   browser tests (Playwright)
 scripts/build-reliability-dark.py regenerates ui/reliability-dark.css from assets/custom/nexus-apps.css
 ```
@@ -98,6 +100,7 @@ the theme is under `nexus.reliability.theme`.
 | **Health-index weights and bands** (`config.js`: equal weights, 70 / 40 cut-offs) | The client's engineering weights (AHP or their own) and cut-offs. Open question in the plan |
 | **Criticality and consequence** (invented from voltage, customers and redundancy rules) | The client's criticality and consequence model |
 | **Inspection intervals** (180 / 365 days, A9) | The client's inspection policy |
+| **LiDAR** (`domain/lidar/simulate.js`): simulated point clouds, catenary conductors, generated vegetation | Real scans per span (LAS/LAZ converted by a provider), the client's clearance standard (limits in `config.js`), real tower geometry |
 | **Resemblance model** (`domain/linking/resemblance.js`): identifier, attribute and spatial signals, plus a visual stub on seeded feature vectors | Musharraf's model: `scorePair(a, b) -> { score, reasons[] }` is the interface; image embeddings replace `visualStub.js`. Thresholds (auto-link 0.90, review 0.60) are in `config.js` |
 | **Map tiles** (OpenStreetMap, the only request that leaves the site; each tile request reveals the viewed area) | A tile source the client approves, in `CONFIG.map` |
 

@@ -9,7 +9,9 @@ import { h, replace } from '../ui/dom.js';
 import { BAND_TAG, SEV_TAG, RISK_TAG, COND_TAG } from './palette.js';
 import { loadAssetDetail } from './assetModel.js';
 import { healthyExample } from './evidence.js';
-import { parseHash, hashFor } from './hashState.js';
+import { parseHash, panelTab, hashFor } from './hashState.js';
+import { hasLidar } from './lidarModel.js';
+import { mountLidar } from './lidarView.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview } from './navigation.js';
 import { openFinding } from './findingViewer.js';
@@ -87,7 +89,7 @@ function show(id) {
 
 function hide() {
   const s = ctl.state;
-  disposeCharts();
+  disposeCharts(); ctl.lidarOff?.(); ctl.lidarOff = null;
   s.open = false; s.id = null; s.token += 1;
   if (ctl.root) { ctl.root.hidden = true; ctl.panel.classList.remove('is-in'); }
   document.body.classList.remove('a360-open');
@@ -180,9 +182,31 @@ const section = (id, title, ...children) => h('section', { class: 'a360-sec', 'a
 const note = (text) => h('p', { class: 'a360-muted a360-note' }, text);
 const th = (...cols) => h('thead', {}, h('tr', {}, cols.map((c) => h('th', {}, c))));
 
+function setTab(d, tab) {
+  history.replaceState(history.state, '', location.pathname + location.search + hashFor({ asset: d.id, atab: tab }));
+  disposeCharts(); ctl.lidarOff?.(); ctl.lidarOff = null;
+  draw(); if (ctl.state.view === 'ready' && !tab) drawCharts();
+}
+
+function tabsView(d) {
+  const on = panelTab(location.hash) === 'lidar' ? 'lidar' : 'overview';
+  const t = (id, label, key) => h('button', { class: 'a360-tab', role: 'tab', type: 'button', 'aria-selected': String(on === id), 'data-tab': id, 'data-testid': `a360-tab-${id}`, onClick: () => { if (on !== id) setTab(d, id === 'lidar' ? 'lidar' : null); } }, label);
+  return h('div', { class: 'a360-tabs', role: 'tablist', 'aria-label': 'Asset views' }, t('overview', 'Overview'), t('lidar', 'LiDAR'));
+}
+
 function renderDetail(d) {
   const parts = [closeBar(d.id), headerView(d)];
   const body = h('div', { class: 'a360-pad' });
+  ctl.lidarOff?.(); ctl.lidarOff = null;
+  if ((d.kind === 'tower' || d.kind === 'span') && hasLidar(ctl.deps.getSnapshot(), d.id)) {
+    body.append(tabsView(d));
+    if (panelTab(location.hash) === 'lidar') {
+      const host = h('div', { class: 'a360-lidar', 'data-testid': 'asset-lidar' });
+      ctl.lidarOff = mountLidar(host, { snap: ctl.deps.getSnapshot(), assetId: d.id });
+      body.append(host);
+      return h('div', {}, ...parts, body);
+    }
+  }
   const add = (...x) => body.append(...x.filter(Boolean));
   add(breakdownView(d));
   if (d.transformer) add(...transformerViews(d));
