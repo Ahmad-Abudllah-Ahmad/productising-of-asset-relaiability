@@ -64,5 +64,6 @@ export async function loadSnapshot(repo, asOf = AS_OF) {
   const labelValue = new Map(managedLabels().map((l) => [l.label_id, l.value]));
   const dates = [...new Set([...campaigns.map((c) => c.end), asOf])].filter((d) => d <= asOf).sort();
 
-  return { asOf, dates, ctx, assets, byId, scores, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
+  const findingsById = new Map(data.findings.map((f) => [f.finding_id, f]));
+  return { asOf, dates, ctx, assets, byId, scores, findingsById, workOrders: data.workOrders, repairs: data.repairs, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
 }

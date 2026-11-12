@@ -111,6 +111,25 @@ export function profileOption(view, p) {
 }
 
 /**
+ * Health index of one asset (before and after each repair) or one line (at each campaign), on a time axis.
+ * Hollow points are the day before a repair, filled points the day of it; dashed vertical lines are repairs.
+ */
+export function historyTrendOption(trend, model, p) {
+  const bandColour = (hi) => (hi === null ? p.band.none : hi >= 70 ? p.band.normal : hi >= 40 ? p.band.moderate : p.band.poor);
+  const pts = trend.points.filter((x) => x.hi !== null);
+  const data = pts.map((x) => ({ value: [x.date, x.hi], kind: x.kind, repairId: x.repairId ?? null, itemStyle: { color: x.kind === 'before' ? p.card : bandColour(x.hi), borderColor: p.stroke, borderWidth: x.kind === 'before' ? 2 : 1 } }));
+  const repairLines = trend.perRepair ? model.repairs.map((r) => ({ xAxis: r.date, label: { formatter: r.id, color: p.muted, fontSize: 9, position: 'insideEndTop', rotate: 90 }, lineStyle: { color: r.effective ? p.muted : p.band.poor, type: 'dashed' } })) : [];
+  return {
+    ...base(p), grid: { left: 40, right: 16, top: 34, bottom: 28 },
+    tooltip: { trigger: 'item', formatter: (x) => `${x.data.value[0]}<br/>health index ${x.data.value[1]}${x.data.kind === 'before' ? ` (before ${x.data.repairId})` : x.data.kind === 'after' ? ` (after ${x.data.repairId})` : ''}` },
+    xAxis: { type: 'time', min: model.range.from, max: model.range.to, axisLine: { lineStyle: { color: p.line } }, splitLine: { show: false }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', min: 0, max: 100, name: 'Health index', nameTextStyle: { color: p.muted, align: 'left' }, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series: [{ type: 'line', step: 'end', symbol: 'circle', symbolSize: 9, lineStyle: { width: 1.5, color: p.muted }, data,
+      markLine: { silent: true, symbol: 'none', data: [{ yAxis: 70, label: { formatter: 'normal from 70', color: p.muted, fontSize: 10, position: 'insideStartTop' }, lineStyle: { color: p.muted, type: 'dotted' } }, { yAxis: 40, label: { formatter: 'poor below 40', color: p.muted, fontSize: 10, position: 'insideStartTop' }, lineStyle: { color: p.muted, type: 'dotted' } }, ...repairLines] } }],
+  };
+}
+
+/**
  * Draw a chart into el. Returns { dispose } or throws if ECharts is unavailable.
  * The chart resizes with its container and is disposed with it.
  */

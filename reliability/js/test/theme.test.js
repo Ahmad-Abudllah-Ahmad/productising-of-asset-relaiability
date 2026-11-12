@@ -35,7 +35,7 @@ const PAIRS = [
 ];
 
 // the condition and band fills carry dark text (a number or word), and each shape has an outline that stands out from the card
-const FILLS = ['--rel-cond-1', '--rel-cond-2', '--rel-cond-3', '--rel-cond-4', '--rel-cond-5', '--rel-cond-n'];
+const FILLS = ['--rel-cond-1', '--rel-cond-2', '--rel-cond-3', '--rel-cond-4', '--rel-cond-5', '--rel-cond-n', '--rel-wo-progress'];
 const ratio3 = (a, b) => ratio(a, b);
 
 for (const [name, T] of [['light', light], ['dark', dark]]) {
@@ -61,7 +61,7 @@ for (const [name, T] of [['light', light], ['dark', dark]]) {
 }
 
 test('the dark theme redefines every token the light theme adds', () => {
-  const shared = (k) => ['--muted', '--rel-on-fill'].includes(k) || /^--rel-(cond|band)-/.test(k); // the condition palette is one set for both themes
+  const shared = (k) => ['--muted', '--rel-on-fill', '--rel-wo-progress'].includes(k) || /^--rel-(cond|band)-/.test(k); // the condition palette is one set for both themes
   const l = Object.keys(tokens(mine, ':root')).filter((k) => !shared(k));
   const d = Object.keys(tokens(mine, ':root[data-rel-theme="dark"]'));
   for (const k of l) assert.ok(d.includes(k), `${k} has no dark value`);

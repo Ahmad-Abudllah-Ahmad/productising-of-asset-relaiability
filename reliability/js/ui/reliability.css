@@ -5,9 +5,10 @@
   --rel-surface-2: #f8fafc; --rel-sunken: #f2f4f7; --rel-sunken-2: #e1e6ec;
   --rel-warn-bg: #fff6e5; --rel-warn-line: #f1d9a8; --rel-info-line: #b9d3f8; --rel-bad-bg: #fdecec; --rel-bad-line: #f3bcbc;
   --rel-overlay: rgba(16, 24, 40, 0.55);
+  --rel-map-bg: #e6ebf1; --rel-map-grid: #d3dae3;
   /* The condition palette, shared by both themes (mid tones read on light and dark cards). Dark text sits on every fill (theme.test.js);
      each shape also has a 1.5px outline, and a number or word, so colour is never the only signal. */
-  --rel-cond-1: #ef6a6a; --rel-cond-2: #f08a4b; --rel-cond-3: #efc24a; --rel-cond-4: #a5d66b; --rel-cond-5: #55c38a; --rel-cond-n: #aab4c3;
+  --rel-cond-1: #ef6a6a; --rel-cond-2: #f08a4b; --rel-cond-3: #efc24a; --rel-cond-4: #a5d66b; --rel-cond-5: #55c38a; --rel-cond-n: #aab4c3; --rel-wo-progress: #7fb0ff;
   --rel-band-poor: var(--rel-cond-1); --rel-band-moderate: var(--rel-cond-3); --rel-band-normal: var(--rel-cond-5); --rel-band-none: var(--rel-cond-n);
   --rel-on-fill: #12161d; --rel-shape-line: #5f6a7b;
   /* Reliability-only text colours for the condition chips: the legacy accents are 3.4-4.1:1 on their tinted chips, these are 4.8+ */
@@ -22,6 +23,7 @@
   --rel-warn-bg: #2d2411; --rel-warn-line: #5c4a1f; --rel-info-line: #2f4d7d; --rel-bad-bg: #351b1b; --rel-bad-line: #703333;
   --rel-overlay: rgba(0, 0, 0, 0.62);
   --rel-shape-line: #9aa6b6;
+  --rel-map-bg: #101722; --rel-map-grid: #1c2635;
   --rel-text-green: var(--green); --rel-text-red: var(--red); --rel-text-amber: var(--amber); --rel-text-blue: var(--blue);
 }
 /* the legacy page chrome has hard-coded light colours in nexus-apps.css; the dark theme overrides them here */
@@ -387,6 +389,8 @@
 .hl-zone { fill: var(--fill); stroke: var(--rel-shape-line); stroke-width: 1.5; stroke-linejoin: round; }
 .hl-zone.hl-cn { stroke-dasharray: 5 3; }
 .hl-zone:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.hl-zone .hl-ol * { fill: var(--rel-shape-line); stroke: var(--rel-shape-line); stroke-width: 4; }
+.hl-zone .hl-fl * { fill: var(--fill); stroke: none; }
 .hl-zone .hl-wirel { stroke: var(--rel-shape-line); stroke-width: 3; }
 .hl-brace line { stroke: var(--rel-shape-line); stroke-width: 1.2; opacity: 0.55; }
 .hl-ground { stroke: var(--muted); stroke-width: 2; }
@@ -399,3 +403,70 @@
 .hl-compare td { white-space: nowrap; }
 .hl-na-banner { margin: 0; }
 @media (max-width: 900px) { .hl-grid, .hl-two, .hl-two-wide { grid-template-columns: 1fr; } }
+
+/* KPI subtitles say what they mean: a bad count is never green */
+.kpi .sub.sub-ok { color: var(--rel-text-green); } .kpi .sub.sub-warn { color: var(--rel-text-amber); } .kpi .sub.sub-bad { color: var(--rel-text-red); } .kpi .sub.sub-neutral { color: var(--muted); }
+/* where the strip wraps */
+.hl-strip { position: relative; }
+.hl-cont { position: absolute; font-size: 10px; line-height: 14px; color: var(--muted); white-space: nowrap; pointer-events: none; padding: 0 5px; border: 1px dashed var(--line); border-radius: 8px; background: var(--card); }
+.hl-cont-start { border-style: none; background: none; padding: 0; }
+
+/* ==== Maintenance History. Namespaced mh-. */
+.hl-scroll { max-height: 520px; overflow: auto; }
+.hl-chart-s { height: 260px; }
+.mh-axis { position: relative; height: 40px; margin-left: 76px; border-bottom: 1px solid var(--line); }
+.mh-camp { position: absolute; top: 0; height: 22px; background: var(--rel-sunken); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; font-size: 10px; color: var(--ink); white-space: nowrap; }
+.mh-camp b { padding: 0 4px; font-weight: 600; }
+.mh-tick { position: absolute; bottom: 2px; font-size: 10px; color: var(--muted); transform: translateX(-50%); }
+.mh-tick::before { content: ''; position: absolute; left: 50%; bottom: 14px; height: 4px; border-left: 1px solid var(--line); }
+.mh-lane { margin-top: 8px; } .mh-lane h4 { margin: 0 0 2px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.mh-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; }
+.mh-rlabel { font-size: 11px; color: var(--muted); }
+.mh-track { position: relative; height: 20px; border-bottom: 1px dotted var(--line); }
+.mh-dot { position: absolute; top: 4px; width: 11px; height: 11px; margin-left: -5px; padding: 0; border: 1.5px solid var(--rel-shape-line); border-radius: 50%; background: var(--fill); cursor: pointer; }
+.mh-dot:hover, .mh-bar:hover, .mh-diamond:hover { outline: 2px solid var(--blue); outline-offset: 1px; z-index: 2; }
+.mh-dot.is-closed { opacity: 0.4; } .mh-dot.is-rejected { background: transparent; border-style: dashed; }
+.mh-wowrap { margin-left: 76px; max-height: 230px; overflow: auto; }
+.mh-wo { position: relative; }
+.mh-bar { position: absolute; height: 9px; padding: 0; border: 1.5px solid var(--rel-shape-line); border-radius: 3px; cursor: pointer; }
+.mh-open { background: var(--rel-cond-3); } .mh-in_progress { background: var(--rel-wo-progress); } .mh-completed { background: var(--rel-cond-5); } .mh-cancelled { background: var(--rel-cond-n); }
+.mh-bar.is-overdue { border: 2px dashed var(--rel-text-red); }
+.mh-diamond { position: absolute; top: 4px; width: 11px; height: 11px; margin-left: -5px; padding: 0; transform: rotate(45deg); border: 1.5px solid var(--rel-shape-line); background: var(--rel-cond-5); cursor: pointer; }
+.mh-diamond.is-bad { background: var(--rel-cond-1); border-width: 2.5px; }
+.mh-key { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border: 1.5px solid var(--rel-shape-line); border-radius: 3px; vertical-align: middle; }
+.mh-key-closed { background: var(--rel-cond-3); opacity: 0.4; border-radius: 50%; } .mh-key-rej { border-style: dashed; border-radius: 50%; }
+.mh-key-od { border: 2px dashed var(--rel-text-red); background: transparent; }
+.mh-key-d { transform: rotate(45deg) scale(0.85); border-radius: 0; } .mh-key-d.ok { background: var(--rel-cond-5); } .mh-key-d.bad { background: var(--rel-cond-1); border-width: 2.5px; }
+.mh-stack { display: flex; height: 30px; margin: 4px 0 8px; border: 1.5px solid var(--rel-shape-line); border-radius: 6px; overflow: hidden; }
+.mh-seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--rel-on-fill); white-space: nowrap; overflow: hidden; }
+.mh-table { font-size: 12px; } .mh-table thead th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+.mh-table tr.is-bad td { background: var(--rel-bad-bg); }
+.mh-fid { margin-right: 6px; }
+
+/* ==== Risk Map. Namespaced rm-; Leaflet's own stylesheet is reliability/js/vendor/leaflet/leaflet.css. */
+.rm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 10px; align-items: start; }
+.rm-card { padding: 10px; }
+.rm-mapwrap { position: relative; }
+.rm-map, .rm-map.leaflet-container { height: 580px; border: 1px solid var(--line); border-radius: 8px; background: var(--rel-map-bg); overflow: hidden; z-index: 0; font: inherit; }
+.rm-map[data-basemap="fallback"].leaflet-container, .rm-map[data-basemap="off"].leaflet-container, .rm-map[data-basemap="loading"].leaflet-container { background-image: linear-gradient(var(--rel-map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--rel-map-grid) 1px, transparent 1px); background-size: 48px 48px; }
+.rm-map.is-lasso { cursor: crosshair; }
+.rm-banner { position: absolute; left: 50px; top: 12px; z-index: 500; max-width: 340px; padding: 6px 10px; border: 1px solid var(--rel-warn-line); border-radius: 6px; background: var(--rel-warn-bg); color: var(--ink); font-size: 12px; }
+.rm-banner[hidden] { display: none; }
+.rm-tools { position: absolute; right: 10px; top: 10px; z-index: 500; display: flex; gap: 6px; }
+.rm-side { min-height: 120px; } .rm-side h3 { margin: 0 0 6px; }
+.rm-total { margin: 4px 0; font-size: 14px; } .rm-list { max-height: 400px; } .rm-num { text-align: right; font-variant-numeric: tabular-nums; }
+.rm-check { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--ink) !important; font-size: 13px !important; margin-bottom: 6px !important; }
+.rm-icon { background: none; border: 0; }
+.rm-station { display: block; width: 18px; height: 18px; margin: 1px; border: 2px solid var(--rel-shape-line); border-radius: 3px; background: var(--fill); }
+.rm-station.is-dim { opacity: 0.35; }
+.rm-cluster { display: block; border: 2px solid var(--rel-shape-line); border-radius: 50%; background: var(--fill); color: var(--rel-on-fill); font-size: 12px; font-weight: 700; text-align: center; box-sizing: border-box; opacity: 0.9; }
+.rm-tip div { font-size: 12px; }
+/* Leaflet follows the theme */
+.rm-map .leaflet-bar a, .rm-map .leaflet-bar a:hover { background: var(--card); color: var(--ink); border-bottom-color: var(--line); }
+.rm-map .leaflet-bar { border: 1px solid var(--line); box-shadow: none; }
+.rm-map.leaflet-container .leaflet-control-attribution { background: var(--card); color: var(--muted); opacity: 0.92; } .rm-map.leaflet-container .leaflet-control-attribution a { color: var(--blue); }
+.rm-map .leaflet-tooltip { background: var(--card); color: var(--ink); border-color: var(--line); box-shadow: var(--shadow); }
+.rm-map .leaflet-tooltip-top:before { border-top-color: var(--card); } .rm-map .leaflet-tooltip-bottom:before { border-bottom-color: var(--card); }
+.rm-map .leaflet-tooltip-left:before { border-left-color: var(--card); } .rm-map .leaflet-tooltip-right:before { border-right-color: var(--card); }
+:root[data-rel-theme="dark"] .rm-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+@media (max-width: 1100px) { .rm-grid { grid-template-columns: 1fr; } }

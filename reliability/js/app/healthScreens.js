@@ -10,22 +10,14 @@
 // shared. Every tower, span and finding opens Asset 360 or the finding viewer. Loading, empty and error states are
 // real: ?healthdelay=1200 slows the load, ?healthfail=1 makes the first load fail (see boot.js).
 
-import { h, replace } from '../ui/dom.js';
+import { h } from '../ui/dom.js';
+import { BAND_TONE, BAND_SUB, RISK_SUB, SEV_TONE, COND_CLASS, condWord, spark, tag, pct, plural, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { CONFIG } from '../domain/config.js';
 import { loadLineHealth, loadTowerHealth, listLines, listTowers, BAND_LABEL, TOWER_GROUPS } from './healthModel.js';
 import { SEVERITY } from './assetModel.js';
 import { drawChart, profileOption } from './charts.js';
 import { openAsset, thumb } from './assetPanel.js';
-import { parseHash, parseView, hashFor } from './hashState.js';
-
-const BAND_TONE = { normal: 'g', moderate: 'a', poor: 'r', none: 'x' };
-const SEV_TONE = { critical: 'r', serious: 'r', moderate: 'a', minor: 'b', none: 'g' };
-const COND_CLASS = (n) => (n === null || n === undefined ? 'hl-cn' : `hl-c${n}`);
-const spark = (values) => { const v = values.filter((x) => x !== null && x !== undefined); return v.length > 1 ? v : v.length ? [v[0], v[0]] : [0, 0]; };
-const tag = (text, tone, extra = {}) => h('span', { class: `tag ${tone ?? 'x'}`, ...extra }, text);
-const pct = (x) => `${Math.round(x * 1000) / 10}%`;
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const condWord = (n) => (n === null || n === undefined ? 'not assessed' : SEVERITY[n].condition);
+import { parseView } from './hashState.js';
 
 const BAND_FILTERS = [['', 'All'], ['poor', 'Poor'], ['moderate', 'Moderate'], ['normal', 'Normal'], ['none', 'Not assessed']];
 
@@ -41,92 +33,13 @@ export function createHealthScreens(deps) {
   };
 }
 
-// ------------------------------------------------------------------------------------------------- shared
-
-/** Write the screen's keys into the hash without adding a history entry, keeping the overlay keys. */
-function writeView(view) {
-  const target = hashFor({ ...parseHash(location.hash), ...view });
-  if (target !== location.hash) history.replaceState(null, '', location.pathname + location.search + target);
-}
-
-const skeleton = () => h('div', { class: 'hl-main', 'data-testid': 'hl-loading', 'aria-busy': 'true' },
-  h('div', { class: 'a360-skel hl-skel-kpi' }), h('div', { class: 'a360-skel hl-skel-block' }), h('div', { class: 'a360-skel hl-skel-block' }));
-
-const asOfNote = (snap) => h('div', { class: 'asof', 'data-testid': 'as-of', title: 'The demo\'s fixed reference date. Scores use only evidence and repairs up to this date.' }, `Scores as of ${snap.asOf}`);
-
-function field(label, control) { return h('label', {}, label, control); }
-function select(testid, label, options, value, onChange) {
-  return h('select', { 'data-testid': testid, 'aria-label': label, onChange: (e) => onChange(e.target.value) },
-    options.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
-}
-
-/**
- * The common shell: filter column on the left, content on the right, with the loading, error and empty states.
- * `spec.controls(state, snap)` returns the filter column's controls; `spec.load(snap, state)` returns the model;
- * `spec.draw(model, ctx)` returns the content nodes (and may register cleanups).
- */
-function mountScreen(stage, deps, spec) {
-  const root = stage.querySelector('[data-hl-root]');
-  const flags = deps.flags ?? {};
-  const grid = h('div', { class: 'hl-grid' });
-  const filter = h('aside', { class: 'filter-col hl-filter' });
-  const main = h('div', { class: 'hl-main-wrap' });
-  grid.append(filter, main);
-  root.append(grid);
-  const cleanups = [];
-  let seq = 0;
-  let failedOnce = false;
-  let disposed = false;
-  let phase = 'loading'; // loading | ready | error: theme and data changes only redraw a screen that is showing content
-  const runCleanups = () => { for (const c of cleanups.splice(0)) { try { c(); } catch { /* a chart that is already gone */ } } };
-
-  async function show({ quiet = false } = {}) {
-    const mine = ++seq;
-    const snap = deps.getSnapshot();
-    const state = spec.state(snap);
-    replace(filter, h('div', { class: 'filter-head' }, h('b', {}, 'Filter')), ...spec.controls(state, snap, show), snap ? asOfNote(snap) : null);
-    if (!quiet) { phase = 'loading'; runCleanups(); replace(main, skeleton()); }
-    try {
-      if (!snap) throw new Error('The registry data is not loaded.');
-      if (flags.healthDelay && !quiet) await new Promise((r) => setTimeout(r, flags.healthDelay));
-      if (flags.healthFail && !failedOnce) { failedOnce = true; throw new Error('The health service did not respond (simulated failure).'); }
-      const model = await spec.load(snap, state);
-      if (disposed || mine !== seq) return;
-      runCleanups();
-      phase = 'ready';
-      replace(main, ...spec.draw(model, { snap, state, onChange: show, track: (fn) => cleanups.push(fn), deps }));
-    } catch (error) {
-      if (disposed || mine !== seq) return;
-      phase = 'error';
-      runCleanups();
-      replace(main, h('div', { class: 'card hl-state', role: 'alert', 'data-testid': 'hl-error' }, h('h3', {}, `Could not load ${spec.noun}`), h('p', { class: 'a360-muted' }, error.message),
-        h('button', { class: 'lr-btn lr-primary', type: 'button', 'data-testid': 'hl-retry', onClick: () => show() }, 'Retry')));
-    }
-  }
-
-  const off = deps.subscribeSnapshot(() => { if (!disposed && phase === 'ready') show({ quiet: true }); }); // a review elsewhere changes scores
-  const onHash = () => { if (!disposed && phase !== 'loading' && spec.urlChanged?.()) show({ quiet: phase === 'ready' }); };
-  window.addEventListener('hashchange', onHash);
-  const onTheme = () => { if (!disposed && phase === 'ready') show({ quiet: true }); }; // the chart reads its colours when it is drawn
-  window.addEventListener('reliability-theme', onTheme);
-  show();
-  return () => {
-    disposed = true; off(); window.removeEventListener('hashchange', onHash); window.removeEventListener('reliability-theme', onTheme); runCleanups();
-    // leaving the screen: the screen's keys leave the URL; an open panel stays
-    writeView({ view: null, line: null, tower: null, band: null });
-  };
-}
-
-function emptyState(testid, title, text) {
-  return h('div', { class: 'card hl-state', 'data-testid': testid }, h('h3', {}, title), h('p', { class: 'a360-muted' }, text));
-}
-
 const openAssetFrom = (id, el) => openAsset(id, { opener: el });
 
 // ------------------------------------------------------------------------------------------------- Line Health
 
 function mountLines(stage, deps, kit) {
   return mountScreen(stage, deps, {
+    view: 'lines',
     noun: 'this line',
     state(snap) {
       const lines = snap ? listLines(snap) : [];
@@ -156,10 +69,10 @@ function lineKpis(m, kit) {
   const t = m.trend;
   const spanTower = `${m.counts?.assessedTowers ?? m.towers.filter((u) => u.assessed).length} of ${m.towers.length} towers`;
   return kit.kpis([
-    { l: 'Line health index', v: m.assessed ? String(m.hi) : '-', s: m.assessed ? `${BAND_LABEL[m.band]} · length-weighted` : 'not assessed', tip: 'Length-weighted mean of the assessed towers and spans. No condition cap at line level.', spark: spark(t.values) },
-    { l: 'Assessed by length', v: m.coverageByLength === null ? '-' : pct(m.coverageByLength), s: `${spanTower} · ${plural(m.notAssessed.length, 'unit')} not assessed`, tip: 'Share of the line length covered by an assessed tower or span. Newly built or never-inspected units are left out of the score, not scored as good.', spark: spark(t.coverage) },
-    { l: 'Needs attention', v: String(m.attention.poor + m.attention.moderate), s: `${m.attention.poor} poor · ${m.attention.moderate} moderate`, tip: 'Towers and spans with a health index below 70.', spark: spark(t.attention) },
-    { l: 'Open findings', v: String(m.openTotal), s: `${m.unreviewedTotal} unreviewed`, tip: 'Findings on the towers and spans of this line that no repair has closed. Rejected ones are left out.', spark: spark(t.open) },
+    { l: 'Line health index', v: m.assessed ? String(m.hi) : '-', s: m.assessed ? `${BAND_LABEL[m.band]} · length-weighted` : 'not assessed', tone: BAND_SUB[m.band], tip: 'Length-weighted mean of the assessed towers and spans. No condition cap at line level.', spark: spark(t.values) },
+    { l: 'Assessed by length', v: m.coverageByLength === null ? '-' : pct(m.coverageByLength), s: `${spanTower} · ${plural(m.notAssessed.length, 'unit')} not assessed`, tone: m.notAssessed.length ? 'warn' : 'ok', tip: 'Share of the line length covered by an assessed tower or span. Newly built or never-inspected units are left out of the score, not scored as good.', spark: spark(t.coverage) },
+    { l: 'Needs attention', v: String(m.attention.poor + m.attention.moderate), s: `${m.attention.poor} poor · ${m.attention.moderate} moderate`, tone: m.attention.poor ? 'bad' : m.attention.moderate ? 'warn' : 'ok', tip: 'Towers and spans with a health index below 70.', spark: spark(t.attention) },
+    { l: 'Open findings', v: String(m.openTotal), s: `${m.unreviewedTotal} unreviewed`, tone: m.unreviewedTotal ? 'warn' : 'neutral', tip: 'Findings on the towers and spans of this line that no repair has closed. Rejected ones are left out.', spark: spark(t.open) },
   ]);
 }
 
@@ -197,6 +110,8 @@ function drawLine(m, ctx, kit) {
     strip.append(h('div', { class: 'hl-seg', 'data-seg': t.id }, h('div', { class: 'hl-segrow' }, stripUnit(t), s ? stripUnit(s) : null), h('span', { class: 'hl-name' }, t.name)));
   }
 
+  const stopWrap = markWraps(strip);
+  ctx.track(stopWrap);
   const chartEl = h('div', { class: 'hl-chart', 'data-chart': 'profile', 'data-testid': 'profile-chart', role: 'img', 'aria-label': `Health index along ${line.name}, tower by tower` });
   const chartCard = h('section', { class: 'card hl-card' }, h('h3', {}, 'Health index along the line'), chartEl,
     h('p', { class: 'a360-muted a360-small' }, 'Circles are towers, diamonds are spans, grey rings are units with no score. Click a point to open it.'));
@@ -207,6 +122,29 @@ function drawLine(m, ctx, kit) {
   return [h('div', { class: 'hl-main' }, head, kpiHost,
     h('section', { class: 'card hl-card', 'data-testid': 'strip-card' }, h('h3', {}, 'Towers and spans in order'), legend, strip),
     chartCard, breakdownCard(m))];
+}
+
+/**
+ * Where the strip wraps onto a new row, put a small "continues" marker at the end of the row and "continued" over the
+ * start of the next. They are positioned over the strip, so they never change where it wraps. The wrap depends on the
+ * width, so the markers are redrawn when the strip is resized.
+ */
+function markWraps(strip) {
+  const place = () => {
+    strip.querySelectorAll('.hl-cont').forEach((n) => n.remove());
+    const segs = [...strip.querySelectorAll('.hl-seg')];
+    segs.forEach((seg, i) => {
+      const next = segs[i + 1];
+      if (!next || next.offsetTop <= seg.offsetTop) return;
+      const end = h('span', { class: 'hl-cont hl-cont-end', 'aria-hidden': 'true', 'data-testid': 'continues', style: { right: '0px', top: `${seg.offsetTop + 8}px` } }, 'continues ↴');
+      const start = h('span', { class: 'hl-cont hl-cont-start', 'aria-hidden': 'true', 'data-testid': 'continued', style: { left: `${next.offsetLeft}px`, top: `${next.offsetTop - 14}px` } }, '↳ continued');
+      strip.append(end, start);
+    });
+  };
+  const frame = requestAnimationFrame(place);
+  const ro = new ResizeObserver(place);
+  ro.observe(strip);
+  return () => { cancelAnimationFrame(frame); ro.disconnect(); };
 }
 
 function breakdownCard(m) {
@@ -235,6 +173,7 @@ function breakdownCard(m) {
 
 function mountTowers(stage, deps, kit) {
   return mountScreen(stage, deps, {
+    view: 'towers',
     noun: 'this tower',
     state(snap) {
       if (!snap) return { lines: [], line: '', band: '', list: [], tower: null };
@@ -273,10 +212,10 @@ function towerKpis(m, kit) {
   const cols = m.compare.columns;
   const f = m.findings;
   return kit.kpis([
-    { l: 'Health index', v: m.assessed ? String(m.hi) : '-', s: m.assessed ? `${BAND_LABEL[m.band]}${m.cap?.applied ? ' · condition cap applies' : ''}` : 'not assessed', tip: m.assessed ? 'Weighted roll-up of the six groups, limited by the worst group (the condition cap). See the Asset 360 panel for the full breakdown.' : (m.reason ?? 'No evidence yet.'), spark: spark(cols.map((c) => c.hi)) },
-    { l: 'Open findings', v: String(f.total), s: m.worstWord ? `worst: ${m.worstWord} · ${f.unreviewed} unreviewed` : (m.assessed ? 'none open' : 'not inspected'), tip: 'Findings on this tower and its components that no repair has closed. Rejected ones are left out.', spark: spark(m.history.open) },
-    { l: 'Risk', v: m.risk ? String(Math.round(m.risk.score)) : '-', s: m.risk ? `${m.risk.band} · criticality ${m.risk.criticality} × consequence ${m.risk.consequence.value}` : 'not assessed', tip: '(100 - health index) x criticality x consequence, with the linked-asset uplift.', spark: spark([m.risk?.score ?? null]) },
-    { l: 'Newest evidence', v: m.newest ?? '-', s: m.newest ? `${m.ageDays} days ago${m.stale ? ' · overdue' : ''}` : 'never inspected', tip: 'Date of the newest finding or inspection that counts toward the score, and whether it is older than the inspection interval.', spark: spark([m.ageDays ?? null]) },
+    { l: 'Health index', v: m.assessed ? String(m.hi) : '-', s: m.assessed ? `${BAND_LABEL[m.band]}${m.cap?.applied ? ' · condition cap applies' : ''}` : 'not assessed', tone: BAND_SUB[m.band], tip: m.assessed ? 'Weighted roll-up of the six groups, limited by the worst group (the condition cap). See the Asset 360 panel for the full breakdown.' : (m.reason ?? 'No evidence yet.'), spark: spark(cols.map((c) => c.hi)) },
+    { l: 'Open findings', v: String(f.total), s: m.worstWord ? `worst: ${m.worstWord} · ${f.unreviewed} unreviewed` : (m.assessed ? 'none open' : 'not inspected'), tone: m.worstFinding && m.worstFinding <= 2 ? 'bad' : m.worstFinding === 3 ? 'warn' : 'neutral', tip: 'Findings on this tower and its components that no repair has closed. Rejected ones are left out.', spark: spark(m.history.open) },
+    { l: 'Risk', v: m.risk ? String(Math.round(m.risk.score)) : '-', s: m.risk ? `${m.risk.band} · criticality ${m.risk.criticality} × consequence ${m.risk.consequence.value}` : 'not assessed', tone: m.risk ? RISK_SUB[m.risk.band] : 'neutral', tip: '(100 - health index) x criticality x consequence, with the linked-asset uplift.', spark: spark([m.risk?.score ?? null]) },
+    { l: 'Newest evidence', v: m.newest ?? '-', s: m.newest ? `${m.ageDays} days ago${m.stale ? ' · overdue' : ''}` : 'never inspected', tone: m.stale ? 'warn' : 'neutral', tip: 'Date of the newest finding or inspection that counts toward the score, and whether it is older than the inspection interval.', spark: spark([m.ageDays ?? null]) },
   ]);
 }
 
@@ -300,7 +239,7 @@ function drawTower(m, ctx, kit) {
   const cap = m.cap?.applied ? h('p', { class: 'a360-small', 'data-testid': 'cap-note' }, h('b', {}, 'A condition cap applies. '), `${m.cap.causedBy.map((g) => m.groupLabel[g] ?? g).join(', ')} at condition ${m.cap.condition} limits the score to the ${m.cap.band} band: ${m.cap.uncappedScore} before the cap, ${m.cap.scaledScore} after.`) : null;
 
   const schematic = h('section', { class: 'card hl-card hl-schematic', 'data-testid': 'schematic-card' }, h('h3', {}, 'Tower schematic'), schematicSvg(m), conditionLegend(),
-    h('p', { class: 'a360-muted a360-small' }, 'Each zone takes the colour of its scoring group (the worst component in the group). Crossarms, body and legs are all the steel structure group.'));
+    h('p', { class: 'a360-muted a360-small' }, 'Each zone takes the colour of its scoring group (the worst component in the group). Findings do not say where on the tower they were seen, so zones are coloured by group, not by position. Crossarms, body and legs are one group, the steel structure, and are drawn as one shape with one outline.'));
   const groupsCard = h('section', { class: 'card hl-card', 'data-testid': 'groups-card' }, h('h3', {}, 'Group conditions'), groupTable(m), cap);
 
   return [h('div', { class: 'hl-main' }, head, banner, kpiHost, h('div', { class: 'hl-two hl-two-wide' }, schematic, groupsCard), findingsCard(m), compareCard(m))];
@@ -308,21 +247,22 @@ function drawTower(m, ctx, kit) {
 
 // ---- schematic
 
-/** The tower drawing: eight zones, each tied to one scoring group, coloured by that group's condition. */
+// crossarms, body and legs: one scoring group, so one shape with one outline
+const STEEL = '<rect x="40" y="70" width="220" height="10"/><rect x="55" y="120" width="190" height="10"/><rect x="70" y="170" width="160" height="10"/><polygon points="125,60 175,60 200,300 100,300"/><polygon points="100,300 118,300 92,372 70,372"/><polygon points="182,300 200,300 230,372 208,372"/>';
+/** The tower drawing: six zones, each tied to one scoring group, coloured by that group's condition. */
 function schematicSvg(m) {
   const score = Object.fromEntries(m.groups.map((g) => [g.id, g.score]));
   const gl = Object.fromEntries(m.groups.map((g) => [g.id, g.label]));
   const zones = [
     { id: 'earthwire peak', group: 'lightning_protection', side: 'L', ly: 34, px: 268, shape: '<polygon points="150,12 137,60 163,60"/><line x1="112" y1="38" x2="188" y2="38" class="hl-wirel"/>' },
-    { id: 'crossarms', group: 'steel_structure', side: 'L', ly: 76, px: 172, shape: '<rect x="40" y="70" width="220" height="10"/><rect x="55" y="120" width="190" height="10"/><rect x="70" y="170" width="160" height="10"/>' },
     { id: 'insulator strings', group: 'insulators', side: 'L', ly: 126, px: 180, shape: '<rect x="45" y="82" width="8" height="36"/><rect x="247" y="82" width="8" height="36"/><rect x="60" y="132" width="8" height="36"/><rect x="232" y="132" width="8" height="36"/><rect x="75" y="182" width="8" height="36"/><rect x="217" y="182" width="8" height="36"/>' },
     { id: 'conductor hardware', group: 'conductor_accessories', side: 'L', ly: 176, px: 188, shape: '<circle cx="49" cy="124" r="6"/><circle cx="251" cy="124" r="6"/><circle cx="64" cy="174" r="6"/><circle cx="236" cy="174" r="6"/><circle cx="79" cy="224" r="6"/><circle cx="221" cy="224" r="6"/>' },
-    { id: 'body', group: 'steel_structure', side: 'R', ly: 292, px: 330, shape: '<polygon points="125,60 175,60 200,300 100,300"/>' },
+    { id: 'steel structure', group: 'steel_structure', side: 'R', ly: 292, px: 330, outline: true, shape: STEEL },
     { id: 'fittings', group: 'tower_accessories', side: 'R', ly: 240, px: 292, shape: '<rect x="138" y="230" width="24" height="18"/>' },
-    { id: 'legs', group: 'steel_structure', side: 'R', ly: 338, px: 352, shape: '<polygon points="100,300 118,300 92,372 70,372"/><polygon points="182,300 200,300 230,372 208,372"/>' },
     { id: 'foundation', group: 'foundation', side: 'R', ly: 384, px: 372, shape: '<rect x="58" y="372" width="44" height="16"/><rect x="198" y="372" width="44" height="16"/>' },
   ];
   const bracing = '<g class="hl-brace"><line x1="125" y1="60" x2="200" y2="300"/><line x1="175" y1="60" x2="100" y2="300"/><line x1="115" y1="130" x2="185" y2="130"/><line x1="108" y1="200" x2="192" y2="200"/></g>';
+  zones.sort((a, b) => (b.outline ? 1 : 0) - (a.outline ? 1 : 0));
   const parts = zones.map((z) => {
     const s = score[z.group] ?? null;
     const label = `${z.id}: ${gl[z.group]}, ${s === null ? 'not assessed' : `condition ${s} (${condWord(s)})`}`;
@@ -330,9 +270,9 @@ function schematicSvg(m) {
     const x = z.side === 'L' ? 150 : 410;
     const anchor = z.side === 'L' ? 'end' : 'start';
     const leaderX = z.side === 'L' ? 156 : 404;
-    return `<g class="hl-zone ${COND_CLASS(s)}" data-zone="${z.id}" data-group="${z.group}" data-condition="${s ?? ''}" role="img" aria-label="${label}" tabindex="0"><title>${label}</title><g transform="translate(130,0)">${z.shape}</g></g>` +
+    return `<g class="hl-zone ${COND_CLASS(s)}" data-zone="${z.id}" data-group="${z.group}" data-condition="${s ?? ''}" role="img" aria-label="${label}" tabindex="0"><title>${label}</title><g transform="translate(130,0)">${z.outline ? `<g class="hl-ol">${z.shape}</g><g class="hl-fl">${z.shape}</g>` : z.shape}</g></g>` +
       `<line class="hl-leader" x1="${leaderX}" y1="${z.ly}" x2="${z.px}" y2="${z.ly}"/>` +
-      `<text class="hl-zlabel" x="${x}" y="${z.ly + 4}" text-anchor="${anchor}">${z.id} <tspan class="hl-zval">${text}</tspan></text>`;
+      `<text class="hl-zlabel" x="${x}" y="${z.ly + 4}" text-anchor="${anchor}">${z.outline ? 'Steel structure' : z.id} <tspan class="hl-zval">${text}</tspan></text>`;
   });
   const svg = `<svg class="hl-svg" viewBox="0 0 560 410" role="group" aria-label="Schematic of ${m.tower.name}: each zone coloured by the condition of its group" data-testid="schematic"><line class="hl-ground" x1="40" y1="390" x2="520" y2="390"/>${parts.join('')}<g transform="translate(130,0)">${bracing}</g></svg>`;
   const wrap = h('div', { class: 'hl-svgwrap' });

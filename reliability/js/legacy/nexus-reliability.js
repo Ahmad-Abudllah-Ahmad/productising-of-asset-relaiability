@@ -11,7 +11,6 @@
  */
 (function () {
   var BLUE = "#1f6feb";
-  var TEAL = "#0f766e";
   var AMBER = "#d97706";
   var RED = "#d14343";
   var PURPLE = "#7c3aed";
@@ -27,10 +26,6 @@
 
   function tip(text) {
     return ' data-tip="' + esc(text) + '"';
-  }
-
-  function prov(title, body) {
-    return ' data-prov-title="' + esc(title) + '" data-prov-body="' + esc(body) + '"';
   }
 
   function tag(text, tone) {
@@ -93,9 +88,16 @@
     return '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b7bdd8"/><stop offset="1" stop-color="#e7eaf6"/></linearGradient></defs><path d="' + area + '" fill="url(#' + id + ')"/><path d="' + line + '" fill="none" stroke="#9aa3c7" stroke-width="1.5"/></svg>';
   }
 
+  // A card's subtitle is green by default (the original look). A card can say what its subtitle means: tone is
+  // "ok", "warn", "bad" or "neutral", and the old colour option maps to warn (amber) and bad (red), so a bad count is never green.
+  function subTone(item) {
+    var tone = item.tone || (item.color === RED ? "bad" : item.color === AMBER ? "warn" : "");
+    return tone ? " sub-" + tone : "";
+  }
+
   function kpis(items) {
     return '<div class="kpi4">' + items.map(function (item, index) {
-      return '<div class="kpi card"' + tip(item.tip) + '><div class="k">' + esc(item.l) + '</div><div class="n">' + esc(item.v) + '</div><div class="sub">' + esc(item.s) + "</div>" + areaSpark(item.spark, "sp" + index + "-" + String(item.l).replace(/\W/g, "").slice(0, 8)) + "</div>";
+      return '<div class="kpi card"' + tip(item.tip) + '><div class="k">' + esc(item.l) + '</div><div class="n">' + esc(item.v) + '</div><div class="sub' + subTone(item) + '">' + esc(item.s) + "</div>" + areaSpark(item.spark, "sp" + index + "-" + String(item.l).replace(/\W/g, "").slice(0, 8)) + "</div>";
     }).join("") + "</div>";
   }
 
@@ -171,12 +173,6 @@
       svg += '<text x="' + (L + index * group + group / 2).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + esc(label) + "</text>";
     });
     return svg + "</svg>";
-  }
-
-  function hbars(items) {
-    return items.map(function (item) {
-      return '<div class="hbar"' + tip(item.tip) + "><span>" + esc(item.label) + '</span><div class="track"><div class="fill" style="width:' + item.pct + "%;background:" + (item.color || TEAL) + '"></div></div><b>' + esc(item.value) + "</b></div>";
-    }).join("");
   }
 
   function chartBody(chart) {
@@ -295,94 +291,6 @@
       "</div></div>";
   }
 
-  function atlas(spec) {
-    var list = spec.towers.map(function (tower) {
-      return '<button type="button" class="chip"' + tip(tower.tip) + prov(tower.name, tower.body) + "><b>" + esc(tower.name) + '</b><div class="k">' + esc(tower.meta) + "</div></button>";
-    }).join("");
-    return '<div class="screen"><div class="atlas card"><div class="baku-map" data-baku-map data-set="' + esc(spec.mapSet || "condition") + '"></div>' +
-      '<div class="float left card"><h3>' + esc(spec.title) + "</h3>" + list + "</div>" +
-      '<div class="float right card" id="prov"><h3>' + esc(spec.focusTitle) + "</h3><p>" + esc(spec.focus) + '</p><p class="k">Planning positions north of Baku. Not a surveyed tower file.</p></div></div></div>';
-  }
-
-  function gantt(spec) {
-    var ticks = spec.ticks.map(function (tick) { return "<span>" + esc(tick) + "</span>"; }).join("");
-    var lanes = spec.lanes.map(function (lane) {
-      var bars = lane.bars.map(function (bar) {
-        return '<div class="bar" style="left:' + bar.left + "%;width:" + bar.width + "%;background:" + bar.color + '"' + tip(bar.tip) + ">" + esc(bar.label) + "</div>";
-      }).join("");
-      return '<div class="lane-name">' + esc(lane.name) + '</div><div class="lane">' + bars + "</div>";
-    }).join("");
-    return '<div class="screen">' + kpis(spec.kpis) + '<div class="card plan" style="padding:14px"><div class="k">' + esc(spec.title) + '</div><div class="gantt"><div></div><div class="hours">' + ticks + "</div>" + lanes + "</div></div>" +
-      '<div class="card" style="padding:12px 14px"><div class="k">' + esc(spec.sideTitle) + "</div>" + hbars(spec.bars) + "</div></div>";
-  }
-
-  var BAKU_POINTS = [
-    { id: "ss", lat: 40.512, lon: 49.955, name: "SS-North", kind: "sub", note: "Planning substation, north Absheron." },
-    { id: "t101", lat: 40.492, lon: 49.948, name: "T-101", kind: "stable", note: "Index 88. Stable." },
-    { id: "t103", lat: 40.472, lon: 49.94, name: "T-103", kind: "watch", note: "Index 74. Foundation watch, not a verified defect." },
-    { id: "t104", lat: 40.455, lon: 49.93, name: "T-104", kind: "review", note: "Index 61. Two verified structural findings." },
-    { id: "n18", lat: 40.438, lon: 49.918, name: "Span N-18", kind: "watch", note: "Damper is visual. Location is not confirmed." },
-    { id: "n19", lat: 40.428, lon: 49.905, name: "Span N-19", kind: "work", note: "ROW vegetation. Released to VEG-02." },
-    { id: "t110", lat: 40.418, lon: 49.89, name: "T-110", kind: "stable", note: "Index 91. Stable and outside the package." }
-  ];
-  var BAKU_SETS = {
-    condition: ["ss", "t101", "t103", "t104", "n18", "n19", "t110"],
-    visit: ["t104", "t103", "n18", "n19"],
-    line: ["ss", "t101", "t103", "t104", "t110"],
-    crew: ["t104", "n19"]
-  };
-  function bakuPoints(setName) {
-    var ids = BAKU_SETS[setName] || BAKU_SETS.condition;
-    return ids.map(function (id) {
-      var found = null;
-      BAKU_POINTS.forEach(function (point) { if (point.id === id) found = point; });
-      return found;
-    }).filter(Boolean);
-  }
-
-  function ensureLeaflet(done) {
-    if (window.L) { done(); return; }
-    if (ensureLeaflet.waiting) { ensureLeaflet.waiting.push(done); return; }
-    ensureLeaflet.waiting = [done];
-    var css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(css);
-    var script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = function () {
-      var queue = ensureLeaflet.waiting || [];
-      ensureLeaflet.waiting = null;
-      queue.forEach(function (fn) { fn(); });
-    };
-    document.head.appendChild(script);
-  }
-
-  function drawBaku(el) {
-    if (!window.L || el.getAttribute("data-ready")) return;
-    el.setAttribute("data-ready", "1");
-    var points = bakuPoints(el.getAttribute("data-set"));
-    var map = L.map(el, { scrollWheelZoom: false, zoomControl: false }).setView([40.47, 49.93], 12);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap", maxZoom: 18 }).addTo(map);
-    var latlngs = points.map(function (point) { return [point.lat, point.lon]; });
-    L.polyline(latlngs, { color: "#1f6feb", weight: 3 }).addTo(map);
-    points.forEach(function (point) {
-      var color = point.kind === "review" ? "#9f1239" : point.kind === "watch" ? "#d97706" : point.kind === "work" ? "#1f6feb" : point.kind === "sub" ? "#0f766e" : "#178a4c";
-      L.circleMarker([point.lat, point.lon], { radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 }).bindTooltip(point.name + " · " + point.lat.toFixed(3) + ", " + point.lon.toFixed(3) + " · " + point.note, { direction: "top" }).addTo(map);
-    });
-    if (latlngs.length) map.fitBounds(latlngs, { padding: [28, 28] });
-    el._baku = map;
-    el._bakuLine = latlngs;
-    setTimeout(function () { map.invalidateSize(); }, 80);
-  }
-
-  function paintBakuMaps(root) {
-    var nodes = (root || document).querySelectorAll("[data-baku-map]");
-    if (!nodes.length) return;
-    ensureLeaflet(function () { nodes.forEach(drawBaku); });
-  }
-
   function formula(spec) {
     var cards = spec.factors.map(function (factor) {
       return '<div class="card"' + tip(factor.tip) + '><div class="k">' + esc(factor.label) + "</div><b>" + esc(factor.value) + '</b><div class="sub">' + esc(factor.note) + "</div></div>";
@@ -427,104 +335,16 @@
           return '<div class="screen"><div class="card" data-testid="line-health-unavailable" style="padding:16px"><b>Line Health could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
+      // Risk Map and Maintenance History come from reliability/js/app (mapScreen.js, historyScreens.js). These single tabs
+      // only show if that code could not load.
       screen("map", "Risk Map", "map", [
-        tab("Corridor", function () {
-          return atlas({
-            title: "Corridor North",
-            highlight: "T-104",
-            focusTitle: "T-104",
-            focus: "Tower T-104 has two verified structural findings and requires engineering review.",
-            towers: [
-              { name: "T-104", meta: "Review · 0.69", tip: "Two verified structural findings", body: "Engineering review before the grouped visit." },
-              { name: "N-18", meta: "Damper · confirm", tip: "Score 0.93 · four frames", body: "Potential displaced vibration damper. Confirm the asset location." },
-              { name: "T-103", meta: "Foundation watch", tip: "Not a verified defect", body: "Stays on the visit as a check, not as a confirmed repair." },
-              { name: "N-19", meta: "ROW watch", tip: "Vegetation on the span", body: "Right-of-way clearance is tracked beside the steel findings." },
-              { name: "T-101", meta: "Stable · 88", tip: "In band", body: "No open finding." }
-            ]
-          });
-        }),
-        tab("Priority", function () {
-          return formula({
-            factors: [
-              { label: "Condition severity", value: "0.86", note: "Higher is worse", tip: "Driven by two verified structural findings on T-104." },
-              { label: "Criticality", value: "0.91", note: "220 kV circuit", tip: "Line criticality from the asset master." },
-              { label: "Consequence", value: "0.88", note: "Corridor span", tip: "Loss of this span affects the SS-North corridor." },
-              { label: "Priority", value: "0.69", note: "Review ≥ 0.60", tip: "0.86 × 0.91 × 0.88 = 0.69." }
-            ],
-            chart: { title: "Running product · T-104", labels: ["Severity", "× criticality", "× consequence"], series: [{ name: "Score", color: RED, values: [0.86, 0.78, 0.69], tips: ["0.86", "0.86 × 0.91 = 0.78", "0.78 × 0.88 = 0.69"] }] },
-            columns: ["Asset", "Score", "Threshold", "State"],
-            rows: [
-              row(["T-104", "0.69", "0.60", tag("Review", "r")], "Overdue for engineering review", kv),
-              row(["T-103", "0.41", "0.60", tag("Watch", "a")], "Below the review line", kv),
-              row(["T-101", "0.22", "0.60", tag("Stable", "g")], "Hold the calendar", kv)
-            ]
-          });
-        }),
-        tab("Overdue", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "bar", title: "Days past review threshold", labels: ["T-104", "T-103", "N-18", "T-101", "T-110"], series: [{ name: "Days", color: RED, values: [18, 0, 0, 0, 0], tips: ["18 days past the 0.60 line", "Below the line", "Waiting location confirm, not a priority breach", "Stable", "Stable"] }] },
-            side: { kicker: "OVERDUE", text: "Only T-104 is overdue for engineering review. The damper stays in the confirm queue until the location is accepted.", gauge: { value: 18, label: "Days", tip: "18 days since T-104 crossed 0.60." } },
-            columns: ["Asset", "Crossed", "Owner", "State"],
-            rows: [
-              row(["T-104", "18 days", "Reliability", tag("Review", "r")], "Two verified structural findings", kv),
-              row(["N-18", "—", "Inspection", tag("Confirm", "a")], "Location not confirmed", kv)
-            ]
-          });
+        tab("Map", function () {
+          return '<div class="screen"><div class="card" data-testid="risk-map-unavailable" style="padding:16px"><b>The Risk Map could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
       screen("history", "Maintenance History", "calendar", [
         tab("Timeline", function () {
-          return gantt({
-            title: "Repeated inspections and the open review",
-            ticks: ["Insp 1", "Insp 2", "Insp 3", "Insp 4", "Insp 5", "Insp 6", "Review", "Visit"],
-            kpis: k,
-            lanes: [
-              { name: "T-104 index", bars: [{ left: 4, width: 70, color: RED, label: "78 → 61", tip: "Condition index declined across six inspections" }] },
-              { name: "Steel finding", bars: [{ left: 58, width: 28, color: PURPLE, label: "Verified", tip: "Verified in inspection 5 and still open" }] },
-              { name: "Cotter pin", bars: [{ left: 68, width: 20, color: "#db2777", label: "Verified", tip: "Second structural finding, inspection 6" }] },
-              { name: "Damper", bars: [{ left: 62, width: 24, color: AMBER, label: "Visual", tip: "Grouped frames. Location not confirmed." }] }
-            ],
-            sideTitle: "Outcome still open",
-            bars: [
-              { label: "Findings closed", pct: 0, value: "0", color: TEAL, tip: "No closure evidence yet" },
-              { label: "Still open", pct: 100, value: "3", color: AMBER, tip: "Two verified plus one visual" }
-            ]
-          });
-        }),
-        tab("Outcomes", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "grouped", title: "Inspection versus closure", labels: ["Insp 3", "Insp 4", "Insp 5", "Insp 6"], series: [
-              { name: "Opened", color: AMBER, values: [1, 1, 2, 3] },
-              { name: "Closed", color: TEAL, values: [1, 1, 0, 0] }
-            ] },
-            side: { kicker: "COMPARE", text: "Earlier hardware notes on this corridor were closed. The current T-104 pair has no closure record.", gauge: { value: 0, label: "Closed", tip: "Current verified findings are not closed." } },
-            columns: ["Record", "Opened", "Closed", "State"],
-            rows: [
-              row(["T-104 steel", "Insp 5", "—", tag("Open", "r")], "Waiting engineering review", kv),
-              row(["T-104 cotter", "Insp 6", "—", tag("Open", "r")], "Waiting engineering review", kv),
-              row(["Prior hardware", "Insp 3", "Insp 4", tag("Closed", "g")], "Historical closure on a different fitting", kv)
-            ]
-          });
-        }),
-        tab("Compare", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "area", title: "T-104 against the corridor median", labels: ["Insp 1", "Insp 2", "Insp 3", "Insp 4", "Insp 5", "Insp 6"], series: [
-              { name: "T-104", color: RED, values: [78, 76, 74, 71, 66, 61] },
-              { name: "Median", color: TEAL, values: [86, 86, 87, 86, 87, 87] }
-            ] },
-            side: { type: "bars", title: "Gap to median", items: [
-              { label: "Insp 6", pct: 26, value: "26", color: RED, tip: "Median 87 minus T-104 61" },
-              { label: "Insp 1", pct: 8, value: "8", color: AMBER, tip: "Median 86 minus T-104 78" }
-            ] },
-            columns: ["Cycle", "T-104", "Median", "Gap"],
-            rows: [
-              row(["Insp 6", "61", "87", tag("26", "r")], "Widest gap of the six cycles", kv),
-              row(["Insp 1", "78", "86", tag("8", "a")], "Already trailing, not yet in review", kv)
-            ]
-          });
+          return '<div class="screen"><div class="card" data-testid="maintenance-history-unavailable" style="padding:16px"><b>Maintenance History could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
       screen("home", "Reliability Dashboard", "pulse", [
@@ -1013,7 +833,6 @@
       stage.innerHTML = screenSpec.tabs[tabIndex].render();
       var dwgCard = document.getElementById("dwg-card");
       if (dwgCard) dwgCard.hidden = true;
-      paintBakuMaps(stage);
       paintDrawings(stage);
       var tabSpec = screenSpec.tabs[tabIndex];
       if (tabSpec.mount) leaveTab = tabSpec.mount(stage) || null;
@@ -1104,10 +923,6 @@
       }
       tipEl.textContent = el.getAttribute("data-tip");
       tipEl.style.display = "block";
-      var box = document.getElementById("prov");
-      if (box && el.hasAttribute("data-prov-title")) {
-        box.innerHTML = "<h3>" + esc(el.getAttribute("data-prov-title")) + "</h3><p>" + esc(el.getAttribute("data-prov-body")) + "</p>";
-      }
     });
 
     document.addEventListener("mousemove", function (event) {

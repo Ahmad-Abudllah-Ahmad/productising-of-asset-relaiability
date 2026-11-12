@@ -210,6 +210,10 @@ export const CONFIG = deepFreeze({
     bands: { mediumAtOrAbove: 200, highAtOrAbove: 500, criticalAtOrAbove: 1000 },
   },
 
+  // The Risk Map. Tiles are the one thing fetched from outside the site; if they fail to load (offline, blocked) the map
+  // shows lines and towers on a plain background. clusterPx: findings closer than this on screen share a marker.
+  map: { tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', tileErrorLimit: 3, clusterPx: 36 },
+
   // A5, A6, A21, A22.
   linking: {
     autoLinkAtOrAbove: 0.9,       // score >= this: linked automatically and logged

@@ -5,7 +5,8 @@
 // A link with that hash opens the same thing. Pure functions; assetPanel.js and findingViewer.js do the listening.
 //
 // The Line Health and Tower Health screens keep their selection in the same hash, next to the overlays:
-//   view=lines|towers  line=<line id>  tower=<tower id>  band=normal|moderate|poor|none
+//   view=lines|towers|history|map   line=<line id>  tower=<tower id>  band=normal|moderate|poor|none
+//   unit=<asset id> (history)  show=ineffective  status=<work order status>  layers=lines,towers,...  label=<label id> (map)
 // Opening or closing a panel keeps those keys, and changing them keeps the panel keys.
 
 const MODES = new Set(['rgb', 'thermal', 'compare']);
@@ -17,14 +18,15 @@ export function parseHash(hash = '') {
   return { asset: params.get('asset') || null, finding: params.get('finding') || null, mode: MODES.has(mode) ? mode : 'rgb' };
 }
 
-const VIEW_KEYS = ['view', 'line', 'tower', 'band'];
-const VIEWS = new Set(['lines', 'towers']);
+/** The screens that keep a selection in the hash, and the keys they use (each screen uses some of them). */
+export const VIEW_KEYS = ['view', 'line', 'tower', 'band', 'unit', 'show', 'status', 'layers', 'label'];
+const VIEWS = new Set(['lines', 'towers', 'history', 'map']);
 
-/** @returns {{view: 'lines'|'towers'|null, line: string|null, tower: string|null, band: string|null}} */
+/** @returns {Record<string, string|null>} view is one of lines, towers, history, map or null; the other keys are strings or null */
 export function parseView(hash = '') {
   const params = new URLSearchParams(String(hash).replace(/^#/, ''));
   const view = params.get('view');
-  return { view: VIEWS.has(view) ? view : null, line: params.get('line') || null, tower: params.get('tower') || null, band: params.get('band') || null };
+  return Object.fromEntries(VIEW_KEYS.map((k) => [k, k === 'view' ? (VIEWS.has(view) ? view : null) : (params.get(k) || null)]));
 }
 
 /**
@@ -43,7 +45,7 @@ export function hashFor(state = {}, current = typeof location === 'undefined' ? 
   const kept = parseView(current);
   for (const k of VIEW_KEYS) {
     const v = k in state ? state[k] : kept[k];
-    if (v) parts.push(`${k}=${encodeURIComponent(v)}`);
+    if (v) parts.push(`${k}=${encodeURIComponent(v).replace(/%2C/g, ',')}`); // commas stay readable (layers=spans,towers)
   }
   return parts.length ? `#${parts.join('&')}` : '';
 }

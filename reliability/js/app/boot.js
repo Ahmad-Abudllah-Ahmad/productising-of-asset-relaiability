@@ -14,6 +14,8 @@ import { initAssetPanel, openAsset } from './assetPanel.js';
 import { initFindingViewer, openFinding } from './findingViewer.js';
 import { initTheme } from './theme.js';
 import { createHealthScreens } from './healthScreens.js';
+import { createHistoryScreen } from './historyScreens.js';
+import { createMapScreen } from './mapScreen.js';
 import { parseView } from './hashState.js';
 
 const query = new URLSearchParams(location.search);
@@ -39,7 +41,7 @@ try {
   };
   const tabs = createRegistryTabs(screenDeps);
   const health = createHealthScreens(screenDeps);
-  window.NexusReliability.open('reliability', { screens: { registry: { tabs }, lines: health.lines, towers: health.towers } });
+  window.NexusReliability.open('reliability', { screens: { registry: { tabs }, lines: health.lines, towers: health.towers, history: createHistoryScreen(screenDeps), map: createMapScreen(screenDeps) } });
   const wanted = parseView(location.hash).view; // a link such as #view=towers&tower=TWR-132-01-011 opens that screen
   if (wanted) window.NexusReliability.go(wanted);
   window.NexusReliability.openAsset = openAsset; // any screen can open an asset's panel

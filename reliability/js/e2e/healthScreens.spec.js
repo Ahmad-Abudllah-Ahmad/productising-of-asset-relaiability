@@ -21,7 +21,7 @@ async function open(page, url = '/reliability') {
   return errors;
 }
 const lines = async (page, line = 'L-132-01') => { const e = await open(page, `/reliability#view=lines&line=${line}`); await expect(byId(page, 'strip')).toBeVisible(); return e; };
-const tower = async (page, query = 'tower=TWR-132-01-011&line=L-132-01') => { const e = await open(page, `/reliability#view=towers&${query}`); await expect(byId(page, 'schematic')).toBeVisible(); return e; };
+const tower = async (page, query = 'tower=TWR-132-01-011&line=L-132-01') => { const e = await open(page, `/reliability#view=towers&${query}`); await page.reload(); await expect(byId(page, 'schematic')).toBeVisible(); return e; };
 const chartReady = (page) => expect(byId(page, 'profile-chart')).toHaveAttribute('data-ready', 'true');
 
 async function setTheme(page, want) { if ((await theme(page)) !== want) await byId(page, 'theme-toggle').click(); await expect.poll(() => theme(page)).toBe(want); }
@@ -56,6 +56,39 @@ test.describe('Line Health', () => {
     await chartReady(page);
     await expect(byId(page, 'line-breakdown')).toContainText('length weight');
     expect(errors).toEqual([]);
+  });
+
+  test('KPI subtitles say what they mean: a bad count is never green', async ({ page }) => {
+    await lines(page);
+    const sub = (i) => byId(page, 'hl-kpis').locator('.kpi').nth(i).locator('.sub');
+    const colour = (loc) => loc.evaluate((n) => getComputedStyle(n).color);
+    const green = await sub(0).evaluate((n) => getComputedStyle(n).color); // normal band: ok = green
+    await expect(sub(2)).toHaveClass(/sub-bad/); // 2 poor
+    expect(await colour(sub(2))).not.toBe(green);
+    await expect(sub(1)).toHaveClass(/sub-warn/); // 8 units not assessed
+    await expect(sub(0)).toHaveClass(/sub-ok/);
+    await tower(page, 'tower=TWR-132-01-011&line=L-132-01');
+    const t = byId(page, 'hl-kpis').locator('.kpi');
+    await expect(t.nth(0).locator('.sub')).toHaveClass(/sub-bad/); // poor
+    await expect(t.nth(1).locator('.sub')).toHaveClass(/sub-bad/); // critical finding
+    await expect(t.nth(2).locator('.sub')).toHaveClass(/sub-bad/); // high risk
+    await tower(page, 'tower=TWR-132-01-041&line=L-132-01&band=none');
+    await expect(byId(page, 'hl-kpis').locator('.kpi').nth(0).locator('.sub')).toHaveClass(/sub-neutral/);
+  });
+
+  test('where the strip wraps, a "continues" marker ends the row and "continued" starts the next', async ({ page }) => {
+    await lines(page);
+    const rows = await byId(page, 'strip').locator('.hl-seg').evaluateAll((segs) => new Set(segs.map((s) => s.offsetTop)).size);
+    expect(rows).toBeGreaterThan(1);
+    await expect(byId(page, 'strip').getByTestId('continues')).toHaveCount(rows - 1);
+    await expect(byId(page, 'strip').getByTestId('continued')).toHaveCount(rows - 1);
+    await page.setViewportSize({ width: 1000, height: 900 }); // narrower: more rows, more markers
+    await expect.poll(() => byId(page, 'strip').getByTestId('continues').count()).toBeGreaterThan(rows - 1);
+    const inside = await page.evaluate(() => {
+      const strip = document.querySelector('[data-testid="strip"]');
+      return [...strip.querySelectorAll('.hl-cont')].every((n) => n.offsetLeft >= 0 && n.offsetLeft + n.offsetWidth <= strip.clientWidth + 1);
+    });
+    expect(inside).toBe(true);
   });
 
   test('the strip: 44 towers in order with 43 spans between, grey for the new section, clearance under each span', async ({ page }) => {
@@ -239,10 +272,13 @@ test.describe('Tower Health', () => {
     await expect(kpis.nth(3)).toContainText('2026-10-28');
     const zone = (z) => byId(page, 'schematic').locator(`[data-zone="${z}"]`);
     await expect(zone('earthwire peak')).toHaveAttribute('data-condition', '1');
-    for (const z of ['crossarms', 'body', 'legs', 'insulator strings', 'conductor hardware', 'fittings', 'foundation']) await expect(zone(z)).toHaveAttribute('data-condition', '5');
+    for (const z of ['steel structure', 'insulator strings', 'conductor hardware', 'fittings', 'foundation']) await expect(zone(z)).toHaveAttribute('data-condition', '5');
+    await expect(byId(page, 'schematic').locator('[data-zone]')).toHaveCount(6);
+    await expect(byId(page, 'schematic')).toContainText('Steel structure');
+    await expect(byId(page, 'schematic').locator('[data-zone="steel structure"] .hl-ol')).toHaveCount(1);
+    await expect(byId(page, 'schematic-card')).toContainText('Findings do not say where on the tower');
     await expect(zone('earthwire peak')).toHaveAttribute('aria-label', /Lightning protection, condition 1 \(very poor\)/);
-    expect(await zone('earthwire peak').evaluate((n) => getComputedStyle(n).fill)).not.toBe(await zone('body').evaluate((n) => getComputedStyle(n).fill));
-    expect(await zone('crossarms').evaluate((n) => getComputedStyle(n).fill)).toBe(await zone('legs').evaluate((n) => getComputedStyle(n).fill));
+    expect(await zone('earthwire peak').evaluate((n) => getComputedStyle(n).fill)).not.toBe(await zone('steel structure').evaluate((n) => getComputedStyle(n).fill));
     await expect(byId(page, 'cap-note')).toContainText('86.7 before the cap, 34.6 after');
     const g = byId(page, 'groups').locator('tbody tr');
     await expect(g).toHaveCount(6);
@@ -287,7 +323,7 @@ test.describe('Tower Health', () => {
     await expect(byId(page, 'not-assessed-banner')).toContainText('Not assessed');
     await expect(byId(page, 'not-assessed-banner')).toContainText('not a good score');
     await expect(byId(page, 'not-assessed-banner')).toContainText('No evidence on or before 2026-11-11');
-    for (const z of ['earthwire peak', 'crossarms', 'body', 'legs', 'insulator strings', 'conductor hardware', 'fittings', 'foundation']) await expect(byId(page, 'schematic').locator(`[data-zone="${z}"]`)).toHaveAttribute('data-condition', '');
+    for (const z of ['earthwire peak', 'steel structure', 'insulator strings', 'conductor hardware', 'fittings', 'foundation']) await expect(byId(page, 'schematic').locator(`[data-zone="${z}"]`)).toHaveAttribute('data-condition', '');
     await expect(byId(page, 'hl-kpis')).toContainText('not assessed');
     await expect(byId(page, 'hl-kpis')).toContainText('never inspected');
     await expect(byId(page, 'compare').locator('[data-row="hi"] td')).toHaveText(['not flown', 'not flown', 'not flown', 'not flown']);
