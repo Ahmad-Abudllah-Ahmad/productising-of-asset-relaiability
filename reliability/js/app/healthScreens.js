@@ -103,7 +103,7 @@ function drawLine(m, ctx, kit) {
   drillKpis(kpiHost, {
     'Line health index': () => openAsset(m.id),
     'Assessed by length': () => openScreen('towers', null, { line: m.id, band: 'none' }),
-    'Needs attention': () => openRegistryTab('Towers', { Line: line.name }),
+    'Needs attention': () => openRegistryTab('Towers', { line: m.id }),
     'Open findings': () => openScreen('history', 'Open findings', { line: m.id, sev: 'all' }),
   });
 

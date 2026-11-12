@@ -24,7 +24,7 @@ export function createDashboardScreen(deps) {
 }
 
 const TITLE = Object.fromEntries(CATEGORY.map((c) => [c.id, c.title]));
-const openBand = (catId, band) => openRegistryTab(TITLE[catId], band ? { 'Health band': BAND_WORD[band] } : {});
+const openBand = (catId, band) => openRegistryTab(TITLE[catId], band ? { band: BAND_WORD[band] } : {});
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 const BAND_LABEL = { poor: 'poor', moderate: 'moderate', normal: 'normal', none: 'not assessed' };
 

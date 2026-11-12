@@ -27,7 +27,7 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
 
   function filterColumn(groups) {
     const blocks = groups.map((g) => `<div class="filter-label">${esc(g.group)}</div>${g.selects.map((s) =>
-      `<label>${esc(s.label)}<select aria-label="${esc(s.label)}"><option value="All">All</option>${s.options.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`).join('')}`).join('');
+      `<label>${esc(s.label)}<select aria-label="${esc(s.label)}" data-facet="${esc(s.key)}"><option value="All">All</option>${s.options.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`).join('')}`).join('');
     return `<aside class="filter-col"><div class="filter-head"><b>Filter</b><button class="linkish clear-filters" type="button">Clear</button></div>${blocks}<div class="banner" data-banner>All</div>` +
       `<div class="asof" data-testid="as-of" title="The demo's fixed reference date. Scores use only evidence and repairs up to this date.">Scores as of ${esc(getSnapshot().asOf)}</div></aside>`;
   }
@@ -94,13 +94,17 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
     mount(stage) {
       // a drill-down from another screen (the Dashboard) arrives with filters to switch on
       if (pendingFilters.tab === cat.title && pendingFilters.filters) {
-        for (const [label, value] of Object.entries(pendingFilters.filters)) {
-          const sel = [...stage.querySelectorAll('select')].find((x) => x.getAttribute('aria-label') === label);
+        // structured values: { band: 'poor', line: 'L-132-01' }, matched on the select's facet key, never on display text
+        const snap = getSnapshot();
+        const resolve = { line: (id) => snap.byId.get(id)?.name ?? id, station: (id) => snap.byId.get(id)?.name ?? id };
+        for (const [key, raw] of Object.entries(pendingFilters.filters)) {
+          const value = resolve[key] ? resolve[key](raw) : raw;
+          const sel = stage.querySelector(`select[data-facet="${key}"]`);
           if (sel && [...sel.options].some((o) => o.value === value)) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
         }
       }
       pendingFilters.tab = null; pendingFilters.filters = null;
-      const band = stage.querySelector('select[aria-label="Health band"]');
+      const band = stage.querySelector('select[data-facet="band"]');
       drillKpis(stage, {
         'Average health index': () => openScreen('home'), 'Highest risk': () => openScreen('home'),
         'Open findings': () => openScreen('history', 'Open findings', { sev: 'all' }),

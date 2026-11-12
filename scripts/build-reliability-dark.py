@@ -61,6 +61,17 @@ def parse(text):
         i = k
     return items
 
+def used_words():
+    """Every word that appears in the Reliability page's own sources: a selector is kept only if its classes and ids are among them."""
+    words = set()
+    files = [root / 'reliability/index.html'] + [f for f in (root / 'reliability/js').rglob('*.js') if not any(x in f.parts for x in ('vendor', 'test', 'e2e'))]
+    for f in files:
+        words |= set(re.findall(r'[A-Za-z0-9_-]+', f.read_text(encoding='utf-8', errors='ignore')))
+    return words
+USED = used_words()
+def live(sel):
+    return all(w in USED for w in re.findall(r'[.#]([A-Za-z_][\w-]*)', sel))
+
 def emit(items, indent=''):
     out = []
     for it in items:
@@ -77,8 +88,9 @@ def emit(items, indent=''):
             imp = ' !important' if '!important' in value else ''
             r = remap(prop, value.replace('!important', '').strip())
             if r: decls.append(f'{prop.strip()}: {r}{imp};')
-        if decls:
-            sels = ',\n'.join(f'{indent}:root[data-rel-theme="dark"] {s.strip()}' for s in sel.split(',') if s.strip())
+        sels_live = [x for x in sel.split(',') if x.strip() and live(x)]
+        if decls and sels_live:
+            sels = ',\n'.join(f'{indent}:root[data-rel-theme="dark"] {s.strip()}' for s in sel.split(',') if s.strip() and live(s))
             out.append(f'{sels} {{ ' + ' '.join(decls) + ' }')
     return out
 

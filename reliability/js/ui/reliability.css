@@ -491,6 +491,7 @@ button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible
 .dash-key { margin-left: 8px; font-weight: 500; font-size: 10px; color: var(--muted); }
 .dash-mid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 8px; }
 .dash-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 8px; align-items: start; }
+@media (max-width: 1500px) { .dash-bottom { grid-template-columns: minmax(0, 1fr); } .dash-card { overflow-x: auto; } }
 .dash-card { padding: 8px 12px; } .dash-card h3 { margin: 0 0 3px; } .dash-card p { margin: 3px 0 0; }
 .dash-legend { margin: 0 0 2px; }
 .dash-chart { width: 100%; height: 250px; }

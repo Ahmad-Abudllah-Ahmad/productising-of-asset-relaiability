@@ -9,7 +9,7 @@ import { VIEW_KEYS, hashFor } from './hashState.js';
 
 /** Set by openLinkInReview, read once by the Links tab when it mounts. */
 export const pendingLink = { id: null, status: null };
-/** Set by openRegistryTab, read once by the category tab when it mounts: { tab, filters: { 'Health band': 'poor' } }. */
+/** Set by openRegistryTab, read once by the category tab when it mounts: { tab, filters: { band: 'poor' } }. */
 export const pendingFilters = { tab: null, filters: null };
 
 const where = () => window.NexusReliability?.where?.() ?? null;

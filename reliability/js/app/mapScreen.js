@@ -110,7 +110,7 @@ function mountMap(stage, deps) {
 function setKpis(host, m, kit) {
   host.innerHTML = kpiCards(m, kit);
   drillKpis(host, {
-    'Towers on the map': () => openRegistryTab('Towers', { 'Health band': 'poor' }),
+    'Towers on the map': () => openRegistryTab('Towers', { band: 'poor' }),
     'Highest risk': () => (m.top ? openAsset(m.top.id) : null),
     'Total risk': () => openScreen('home'),
     'Open findings': () => openScreen('history', 'Open findings', { sev: 'all' }),
