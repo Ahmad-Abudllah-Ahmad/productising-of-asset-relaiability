@@ -184,3 +184,80 @@ test('map: the totals and the highest-risk asset', async () => {
   assert.equal(m.riskSeries.length, snap.dates.length);
   assert.ok(m.bounds[0][0] < m.bounds[1][0] && m.bounds[0][1] < m.bounds[1][1]);
 });
+
+// ------------------------------------------------------------------- Maintenance History: the two timeline views
+
+test('history, fleet: findings per campaign by severity, open or closed by a repair; rejected ones are counted apart', async () => {
+  const { snap } = await ready();
+  const a = loadHistory(snap).aggregate;
+  assert.deepEqual(a.perCampaign.map((c) => c.name), ['2026 Q1', '2026 Q2', '2026 Q4']);
+  const all = loadHistory(snap).findings;
+  for (const c of a.perCampaign) {
+    const mine = all.filter((f) => f.campaignId === c.id);
+    assert.equal(c.total, mine.filter((f) => f.status !== 'rejected').length);
+    assert.equal(c.rejected, mine.filter((f) => f.status === 'rejected').length);
+    const cells = Object.values(c.counts).flatMap((x) => [x.open, x.closed]);
+    assert.equal(cells.reduce((p, q) => p + q, 0), c.total);
+    for (const n of [1, 2, 3, 4]) {
+      assert.equal(c.counts[n].closed, mine.filter((f) => f.condition === n && f.status !== 'rejected' && f.closed).length);
+      assert.equal(c.counts[n].open, mine.filter((f) => f.condition === n && f.status !== 'rejected' && !f.closed).length);
+    }
+  }
+  assert.equal(a.perCampaign.reduce((n, c) => n + c.total, 0) + a.perCampaign.reduce((n, c) => n + c.rejected, 0), 400);
+});
+
+test('history, fleet: work orders raised and completed per month, the open backlog, and repairs per month with the ineffective ones apart', async () => {
+  const { snap } = await ready();
+  const m = loadHistory(snap);
+  const pm = m.aggregate.perMonth;
+  assert.equal(pm[0].month, '2026-02');
+  assert.equal(pm.at(-1).month, '2026-11');
+  assert.equal(pm.reduce((n, x) => n + x.raised, 0), m.workOrders.length);
+  assert.equal(pm.reduce((n, x) => n + x.completed, 0), m.statusCounts.completed);
+  assert.equal(pm.reduce((n, x) => n + x.repairs + x.ineffective, 0), m.repairs.length);
+  assert.equal(pm.reduce((n, x) => n + x.ineffective, 0), m.ineffective.length);
+  assert.equal(pm.at(-1).backlog, m.statusCounts.open + m.statusCounts.in_progress, 'at the as-of date the backlog is what is still open');
+  pm.forEach((x, i) => { if (i) assert.equal(x.backlog, pm[i - 1].backlog + x.raised - x.completed, x.month); });
+});
+
+test('history, fleet: the ten assets with the most findings and work orders, and the same for one line', async () => {
+  const { snap } = await ready();
+  const b = loadHistory(snap).aggregate.busiest;
+  assert.equal(b.length, 10);
+  assert.deepEqual(b.map((x) => x.activity), [...b.map((x) => x.activity)].sort((p, q) => q - p));
+  assert.equal(b[0].activity, b[0].findings + b[0].workOrders);
+  const l = loadHistory(snap, { line: 'L-132-01' }).aggregate.busiest;
+  assert.ok(l.every((x) => x.line === 'L-132-01') && l[0].id === 'TWR-132-01-013');
+  assert.equal(loadHistory(snap, { unit: 'TWR-132-01-013' }).aggregate, null, 'one asset: no fleet counts');
+});
+
+test('history, one asset: a row per component and defect class, with sightings, work orders, repairs and re-sightings', async () => {
+  const { snap } = await ready();
+  const m = loadHistory(snap, { unit: 'TWR-132-01-013' });
+  assert.equal(m.aggregate, null);
+  assert.deepEqual(m.defects.map((d) => d.label), ['T-013 · Earthwire damaged', 'T-013 · Steel corrosion', 'T-013 · Insulator flashover mark']);
+  const steel = m.defects[1];
+  assert.deepEqual(steel.repairs.map((r) => [r.id, r.effective]), [['RPR-0038', false], ['RPR-0073', true]]);
+  assert.equal(steel.cameBack, true);
+  assert.deepEqual(steel.sightings.map((s) => s.again), [false, true], 'the later sighting came after the repair that did not hold');
+  assert.equal(steel.workOrders.length, 2);
+  assert.ok(steel.sightings.every((s) => s.date <= snap.asOf));
+  assert.equal(m.defects.flatMap((d) => d.sightings).length, m.findings.length, 'every finding is on exactly one row');
+  assert.deepEqual(m.defects.map((d) => d.firstDate), [...m.defects.map((d) => d.firstDate)].sort());
+});
+
+test('history, one asset: an asset that was never inspected has no rows and an empty selection', async () => {
+  const { snap } = await ready();
+  const m = loadHistory(snap, { unit: 'TWR-132-01-041' });
+  assert.deepEqual([m.empty, m.defects.length, m.findings.length], [true, 0, 0]);
+  assert.ok(m.units.some((u) => u.id === 'TWR-132-01-041' && u.events === 0), 'it is still offered, in the group with no history');
+  assert.equal(snap.ctx.coverageDates('TWR-132-01-041', snap.asOf).length, 0);
+});
+
+test('history: the asset list offers every tower, span and transformer on the line, and no duplicate records', async () => {
+  const { snap } = await ready();
+  const l = loadHistory(snap, { line: 'L-132-01' }).units;
+  assert.equal(l.length, 44 + 43);
+  assert.ok(!l.some((u) => u.id.startsWith('MX-')));
+  assert.ok(l.filter((u) => u.events === 0).length > 0 && l.some((u) => u.events > 0));
+});

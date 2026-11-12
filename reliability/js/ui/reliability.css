@@ -414,29 +414,11 @@
 /* ==== Maintenance History. Namespaced mh-. */
 .hl-scroll { max-height: 520px; overflow: auto; }
 .hl-chart-s { height: 260px; }
-.mh-axis { position: relative; height: 40px; margin-left: 76px; border-bottom: 1px solid var(--line); }
 .mh-camp { position: absolute; top: 0; height: 22px; background: var(--rel-sunken); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; font-size: 10px; color: var(--ink); white-space: nowrap; }
 .mh-camp b { padding: 0 4px; font-weight: 600; }
 .mh-tick { position: absolute; bottom: 2px; font-size: 10px; color: var(--muted); transform: translateX(-50%); }
 .mh-tick::before { content: ''; position: absolute; left: 50%; bottom: 14px; height: 4px; border-left: 1px solid var(--line); }
-.mh-lane { margin-top: 8px; } .mh-lane h4 { margin: 0 0 2px; font-size: 12px; color: var(--muted); font-weight: 600; }
-.mh-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; }
-.mh-rlabel { font-size: 11px; color: var(--muted); }
-.mh-track { position: relative; height: 20px; border-bottom: 1px dotted var(--line); }
-.mh-dot { position: absolute; top: 4px; width: 11px; height: 11px; margin-left: -5px; padding: 0; border: 1.5px solid var(--rel-shape-line); border-radius: 50%; background: var(--fill); cursor: pointer; }
-.mh-dot:hover, .mh-bar:hover, .mh-diamond:hover { outline: 2px solid var(--blue); outline-offset: 1px; z-index: 2; }
-.mh-dot.is-closed { opacity: 0.4; } .mh-dot.is-rejected { background: transparent; border-style: dashed; }
-.mh-wowrap { margin-left: 76px; max-height: 230px; overflow: auto; }
-.mh-wo { position: relative; }
-.mh-bar { position: absolute; height: 9px; padding: 0; border: 1.5px solid var(--rel-shape-line); border-radius: 3px; cursor: pointer; }
 .mh-open { background: var(--rel-cond-3); } .mh-in_progress { background: var(--rel-wo-progress); } .mh-completed { background: var(--rel-cond-5); } .mh-cancelled { background: var(--rel-cond-n); }
-.mh-bar.is-overdue { border: 2px dashed var(--rel-text-red); }
-.mh-diamond { position: absolute; top: 4px; width: 11px; height: 11px; margin-left: -5px; padding: 0; transform: rotate(45deg); border: 1.5px solid var(--rel-shape-line); background: var(--rel-cond-5); cursor: pointer; }
-.mh-diamond.is-bad { background: var(--rel-cond-1); border-width: 2.5px; }
-.mh-key { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border: 1.5px solid var(--rel-shape-line); border-radius: 3px; vertical-align: middle; }
-.mh-key-closed { background: var(--rel-cond-3); opacity: 0.4; border-radius: 50%; } .mh-key-rej { border-style: dashed; border-radius: 50%; }
-.mh-key-od { border: 2px dashed var(--rel-text-red); background: transparent; }
-.mh-key-d { transform: rotate(45deg) scale(0.85); border-radius: 0; } .mh-key-d.ok { background: var(--rel-cond-5); } .mh-key-d.bad { background: var(--rel-cond-1); border-width: 2.5px; }
 .mh-stack { display: flex; height: 30px; margin: 4px 0 8px; border: 1.5px solid var(--rel-shape-line); border-radius: 6px; overflow: hidden; }
 .mh-seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--rel-on-fill); white-space: nowrap; overflow: hidden; }
 .mh-table { font-size: 12px; } .mh-table thead th { position: sticky; top: 0; background: var(--card); z-index: 1; }
@@ -470,3 +452,21 @@
 .rm-map .leaflet-tooltip-left:before { border-left-color: var(--card); } .rm-map .leaflet-tooltip-right:before { border-right-color: var(--card); }
 :root[data-rel-theme="dark"] .rm-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
 @media (max-width: 1100px) { .rm-grid { grid-template-columns: 1fr; } }
+
+/* Maintenance History, one asset: a labelled row per defect */
+.mh-axis { position: relative; height: 40px; margin-left: 216px; border-bottom: 1px solid var(--line); }
+.mh-defect { display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--rel-sunken); }
+.mh-defect.is-bad { background: var(--rel-bad-bg); border-radius: 6px; }
+.mh-dlabel { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding-left: 6px; } .mh-dlabel .tag { align-self: flex-start; margin-top: 2px; }
+.mh-dtrack { position: relative; height: 38px; }
+.mh-dot { position: absolute; top: 5px; width: 13px; height: 13px; margin-left: -6px; padding: 0; border: 1.5px solid var(--rel-shape-line); border-radius: 50%; background: var(--fill); cursor: pointer; z-index: 2; }
+.mh-dot.is-closed { background: transparent; border: 2.5px solid var(--fill); }
+.mh-dot.is-rejected { background: transparent; border: 1.5px dashed var(--muted); }
+.mh-dot.is-again { box-shadow: 0 0 0 2px var(--rel-text-red); }
+.mh-bar { position: absolute; top: 24px; height: 8px; padding: 0; border: 1.5px solid var(--muted); border-radius: 3px; background: var(--rel-sunken-2); cursor: pointer; z-index: 1; }
+.mh-bar.is-open { border-style: dashed; }
+.mh-diamond { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; padding: 0; transform: rotate(45deg); border: 1.5px solid var(--rel-shape-line); background: var(--rel-cond-5); cursor: pointer; z-index: 3; }
+.mh-diamond.is-bad { background: var(--rel-cond-1); border-width: 2.5px; }
+.mh-dot:hover, .mh-bar:hover, .mh-diamond:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
+.hl-chart-half { height: 250px; }
+.hl-two-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }

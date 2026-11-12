@@ -51,7 +51,7 @@ export function emptyState(testid, title, text) {
  *   state(snap)          the selection, read from the hash (and written back, so the hash is always valid)
  *   controls(state, snap, redo)   nodes for the filter column
  *   load(snap, state)    the model (may be async)
- *   draw(model, ctx)     the content nodes. ctx = { snap, state, track(cleanup), deps }
+ *   draw(model, ctx)     the content nodes. ctx = { snap, state, track(cleanup), deps, redo() }
  *   redraw?(model, ctx)  optional: update what is drawn after a data or theme change (a map keeps its view this way)
  *   urlChanged?()        true when the hash changed in a way that needs a reload
  * Loading, error (with Retry) and the "Scores as of" note are handled here. ?healthdelay and ?healthfail slow or fail the first load.
@@ -86,7 +86,7 @@ export function mountScreen(stage, deps, spec) {
       if (flags.healthFail && !failedOnce) { failedOnce = true; throw new Error('The health service did not respond (simulated failure).'); }
       const model = await spec.load(snap, state);
       if (disposed || mine !== seq) return;
-      const ctx = { snap, state, track: (fn) => cleanups.push(fn), deps };
+      const ctx = { snap, state, track: (fn) => cleanups.push(fn), deps, redo: show };
       if (quiet && drawn && spec.redraw) { spec.redraw(model, ctx); phase = 'ready'; return; }
       runCleanups();
       phase = 'ready';

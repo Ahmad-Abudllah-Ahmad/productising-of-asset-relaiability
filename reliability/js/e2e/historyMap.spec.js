@@ -62,7 +62,7 @@ test.describe('Maintenance History', () => {
     await rail(page).nth(5).click();
     await expect(page.locator('#app-title')).toContainText('Maintenance History');
     await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders']);
-    await expect(byId(page, 'timeline')).toBeVisible();
+    await expect(byId(page, 'findings-card')).toBeVisible();
     expect(await hash(page)).toBe('#view=history');
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
     const kpis = byId(page, 'hl-kpis').locator('.kpi');
@@ -86,15 +86,47 @@ test.describe('Maintenance History', () => {
     await expect(sub(2)).toHaveClass(/sub-ok/); // the one repair on T-011 held
   });
 
-  test('the timeline: a dot for every finding, a bar for every work order, a diamond for every repair', async ({ page }) => {
+  test('fleet view: three charts and a table, and nothing drawn one by one', async ({ page }) => {
     await history(page);
-    await expect(byId(page, 'timeline').locator('.mh-dot')).toHaveCount(400);
-    await expect(byId(page, 'timeline').locator('.mh-bar')).toHaveCount(127);
-    await expect(byId(page, 'timeline').locator('.mh-diamond')).toHaveCount(85);
-    await expect(byId(page, 'timeline').locator('.mh-diamond.is-bad')).toHaveCount(13);
-    await expect(byId(page, 'timeline').locator('.mh-bar.is-overdue')).toHaveCount(26);
-    await expect(byId(page, 'timeline').locator('.mh-camp')).toHaveCount(3);
-    await expect(byId(page, 'timeline').locator('[data-sev="critical"] .mh-dot').first()).toBeVisible();
+    for (const c of ['findings', 'workorders', 'repairs']) await expect(byId(page, `${c}-chart`)).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('.mh-dot, .mh-bar, .mh-diamond')).toHaveCount(0);
+    await expect(byId(page, 'severity-legend').locator('span')).toHaveText(['critical', 'serious', 'moderate', 'minor']);
+    const f = await byId(page, 'findings-chart').evaluate((el) => window.echarts.getInstanceByDom(el).getOption());
+    expect(f.xAxis[0].data).toEqual(['2026 Q1', '2026 Q2', '2026 Q4']);
+    const totals = [74, 119, 137];
+    expect(f.series.some((x) => x.name === 'total')).toBe(true);
+    const stacked = f.series.filter((x) => x.stack === 'f' && x.name !== 'total');
+    expect(stacked).toHaveLength(8); // four severities, each open and closed by a repair
+    for (let i = 0; i < 3; i += 1) expect(stacked.reduce((n, x) => n + x.data[i], 0)).toBe(totals[i]);
+    const w = await byId(page, 'workorders-chart').evaluate((el) => window.echarts.getInstanceByDom(el).getOption().series.map((x) => [x.name, x.type, x.data.length]));
+    expect(w).toEqual([['Raised', 'bar', 10], ['Completed', 'bar', 10], ['Open backlog', 'line', 10]]);
+    const r = await byId(page, 'repairs-chart').evaluate((el) => window.echarts.getInstanceByDom(el).getOption().series.map((x) => [x.name, x.data.reduce((a, b) => a + b, 0)]));
+    expect(r).toEqual([['Held so far', 72], ['Ineffective (defect came back)', 13]]);
+    await expect(byId(page, 'busiest').locator('tbody tr')).toHaveCount(10);
+    await expect(byId(page, 'busiest').locator('tbody tr').first()).toContainText('T-007');
+    await expect(byId(page, 'timeline-key')).toHaveCount(0);
+  });
+
+  test('fleet view: the ineffective repairs are red in the chart, and the closed part of a bar is pale with a dashed outline', async ({ page }) => {
+    await history(page);
+    await expect(byId(page, 'repairs-chart')).toHaveAttribute('data-ready', 'true');
+    const style = await byId(page, 'findings-chart').evaluate((el) => {
+      const s = window.echarts.getInstanceByDom(el).getOption().series;
+      return { open: s.find((x) => x.name === 'critical open').itemStyle, closed: s.find((x) => x.name === 'critical closed by a repair').itemStyle };
+    });
+    expect(style.closed.borderType).toBe('dashed');
+    expect(style.closed.color).toMatch(/^rgba\(/);
+    expect(style.open.color).toMatch(/^#/);
+  });
+
+  test('"Most activity": a click opens that asset\'s timeline, with its URL', async ({ page }) => {
+    await history(page);
+    await byId(page, 'busiest').locator('tbody tr').first().getByTestId('open-timeline').click();
+    await expect(byId(page, 'timeline')).toBeVisible();
+    await expect(byId(page, 'hl-head')).toContainText('T-007');
+    expect(await hash(page)).toBe('#view=history&unit=TWR-500-01-007');
+    await expect(byId(page, 'unit-select')).toHaveValue('TWR-500-01-007');
+    await expect(byId(page, 'findings-chart')).toHaveCount(0);
   });
 
   test('clicking a finding opens the viewer, a work order or repair opens its asset', async ({ page }) => {
@@ -117,20 +149,59 @@ test.describe('Maintenance History', () => {
     expect(pts).toEqual([['2026-02-25', 34.6, 'campaign'], ['2026-05-27', 33.2, 'campaign'], ['2026-06-24', 33.2, 'before'], ['2026-06-25', 34.6, 'after'], ['2026-10-28', 34.6, 'campaign'], ['2026-11-11', 34.6, 'today']]);
   });
 
-  test('a line: its score at each campaign; all lines: no single score, and it says so', async ({ page }) => {
+  test('a line: the same fleet charts for that line, and the busiest assets are on it', async ({ page }) => {
     await history(page, '&line=L-132-01');
+    await expect(byId(page, 'findings-chart')).toHaveAttribute('data-ready', 'true');
+    const sums = await byId(page, 'findings-chart').evaluate((el) => window.echarts.getInstanceByDom(el).getOption().series.filter((x) => x.stack === 'f' && x.name !== 'total').reduce((n, x) => n + x.data.reduce((a, b) => a + b, 0), 0));
+    expect(sums).toBeLessThan(330);
+    const rows = byId(page, 'busiest').locator('tbody tr');
+    await expect(rows).toHaveCount(10);
+    await expect(rows.first()).toContainText('T-013');
+    for (const t of await rows.locator('td:first-child .a360-muted').allInnerTexts()) expect(t).toContain('L-132-01');
+  });
+
+  test('one asset: a labelled row per defect, with sightings, the work order and the repair', async ({ page }) => {
+    await history(page, '&unit=TWR-132-01-013');
+    const rows = byId(page, 'timeline').locator('.mh-defect');
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0)).toContainText('Earthwire damaged');
+    const steel = rows.nth(1);
+    await expect(steel.locator('.mh-dlabel')).toContainText('T-013');
+    await expect(steel.locator('.mh-dlabel')).toContainText('Steel corrosion');
+    await expect(steel.locator('.mh-dlabel .tag')).toHaveText('came back');
+    await expect(steel.locator('.mh-dot')).toHaveCount(2);
+    await expect(steel.locator('.mh-dot.is-again')).toHaveCount(1);
+    await expect(steel.locator('.mh-bar')).toHaveCount(2);
+    await expect(steel.locator('.mh-diamond.is-bad')).toHaveCount(1);
+    await expect(steel.locator('.mh-diamond.is-ok')).toHaveCount(1);
+    await expect(steel).toHaveClass(/is-bad/);
+    await expect(rows.nth(2).locator('.mh-diamond.is-ok')).toHaveCount(1);
+    await expect(rows.nth(2).locator('.mh-dot.is-closed')).toHaveCount(1);
+    await expect(byId(page, 'severity-legend').locator('span')).toHaveCount(4);
+    await expect(byId(page, 'timeline-key')).toContainText('Hollow: closed by a repair. Dashed: rejected.');
+    await expect(byId(page, 'timeline-key')).toContainText('Diamond: repair');
+    await expect(byId(page, 'timeline').locator('.mh-dot, .mh-bar, .mh-diamond').first()).toBeVisible();
     await expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true');
-    expect(await byId(page, 'trend-chart').evaluate((el) => window.echarts.getInstanceByDom(el).getOption().series[0].data.length)).toBe(4);
-    await history(page);
-    await expect(byId(page, 'trend-card')).toContainText('Choose a line or an asset');
+  });
+
+  test('one asset: a rejected sighting is dashed, and rejecting from the viewer updates the row', async ({ page }) => {
+    await history(page, '&unit=TWR-132-01-010');
+    await expect(byId(page, 'timeline').locator('.mh-defect')).toHaveCount(1);
+    await byId(page, 'timeline').locator('[data-finding="F-0090"]').click();
+    await expect(viewer(page)).toBeVisible();
+    await page.keyboard.press('r');
+    await viewer(page).getByTestId('reject-yes').click();
+    await expect(viewer(page).getByTestId('rejected-banner')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(byId(page, 'timeline').locator('[data-finding="F-0090"]')).toHaveClass(/is-rejected/);
   });
 
   test('filters: line and asset narrow every tab, are kept in the URL, and survive a tab change and a reload', async ({ page }) => {
     await history(page);
     await byId(page, 'line-select').selectOption('L-132-01');
-    await expect(byId(page, 'unit-select').locator('option')).toHaveCount(39); // all assets + 38 with a history
+    await expect(byId(page, 'unit-select').locator('option')).toHaveCount(88); // all assets + the 87 towers and spans of the line
     expect(await hash(page)).toBe('#view=history&line=L-132-01');
-    await expect(byId(page, 'timeline').locator('.mh-diamond')).toHaveCount(22);
+    await expect(byId(page, 'busiest').locator('tbody tr').first()).toContainText('L-132-01');
     await byId(page, 'unit-select').selectOption('TWR-132-01-011');
     await expect(byId(page, 'hl-head')).toContainText('T-011');
     expect(await hash(page)).toBe('#view=history&line=L-132-01&unit=TWR-132-01-011');
@@ -194,14 +265,15 @@ test.describe('Maintenance History', () => {
     await expect(panel(page)).toBeVisible();
   });
 
-  test('an asset with no history is not offered, and a link to one falls back to the whole line', async ({ page }) => {
-    await history(page, '&unit=TWR-132-01-011');
-    await byId(page, 'line-select').selectOption('L-220-03');
-    await expect(byId(page, 'unit-select')).toHaveValue('');
-    await open(page, '/reliability#view=history&line=L-132-01&unit=TWR-132-01-041');
-    await page.reload();
-    await expect(byId(page, 'timeline')).toBeVisible(); // unit 041 has no history, so it falls back to all assets on the line
-    expect(await hash(page)).toBe('#view=history&line=L-132-01');
+  test('an asset with no history: it is offered in its own group, and says why there is nothing to show', async ({ page }) => {
+    await history(page, '&line=L-132-01&unit=TWR-132-01-041');
+    expect(await hash(page)).toBe('#view=history&line=L-132-01&unit=TWR-132-01-041');
+    await expect(byId(page, 'history-empty')).toContainText('No history for T-041');
+    await expect(byId(page, 'history-empty')).toContainText('installed on 2026-11-02');
+    await expect(byId(page, 'history-empty')).toContainText('no inspection campaign has flown it yet');
+    await expect(byId(page, 'unit-select').locator('optgroup').nth(1)).toHaveAttribute('label', /No history recorded/);
+    await expect(byId(page, 'unit-select')).toHaveValue('TWR-132-01-041');
+    await expect(page.locator('.mh-dot')).toHaveCount(0);
   });
 
   test('a reviewer decision elsewhere changes the numbers: reject F-0090 and T-010 has one open finding fewer', async ({ page }) => {
@@ -220,19 +292,26 @@ test.describe('Maintenance History', () => {
   test('loading and error states', async ({ page }) => {
     await reopen(page, '/reliability?healthdelay=1500#view=history');
     await expect(byId(page, 'hl-loading')).toBeVisible();
-    await expect(byId(page, 'timeline')).toBeVisible();
+    await expect(byId(page, 'findings-card')).toBeVisible();
     await page.goto('/reliability?healthfail=1#view=history');
     await page.reload();
     await expect(byId(page, 'hl-error')).toContainText('Could not load the maintenance history');
     await byId(page, 'hl-retry').click();
-    await expect(byId(page, 'timeline')).toBeVisible();
+    await expect(byId(page, 'findings-card')).toBeVisible();
   });
 
-  test('screenshots, both themes: timeline of a line and of one asset', async ({ page }) => {
+  test('screenshots, both themes: the timeline of the fleet, of one line, of a busy asset, of an asset with an ineffective repair, of an asset with no history', async ({ page }) => {
+    const charts = async () => { for (const c of ['findings', 'workorders', 'repairs']) await expect(byId(page, `${c}-chart`)).toHaveAttribute('data-ready', 'true'); };
+    await history(page);
+    await both(page, 'history-timeline-fleet', 1650, charts);
     await history(page, '&line=L-132-01');
-    await both(page, 'history-timeline-line', 1500, () => expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true'));
-    await history(page, '&unit=TWR-132-01-011');
-    await both(page, 'history-timeline-asset', 1250, () => expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true'));
+    await both(page, 'history-timeline-line', 1650, charts);
+    await history(page, '&unit=TWR-132-01-013');
+    await both(page, 'history-timeline-busy-asset', 1150, () => expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true'));
+    await history(page, '&unit=TWR-500-01-003');
+    await both(page, 'history-timeline-ineffective-repair', 1150, () => expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true'));
+    await history(page, '&line=L-132-01&unit=TWR-132-01-041');
+    await both(page, 'history-timeline-no-history', 800);
   });
 
   test('screenshots, both themes: repairs (all, and ineffective only), work orders', async ({ page }) => {

@@ -12,7 +12,7 @@
 import { h } from '../ui/dom.js';
 import { spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { loadHistory, WO_STATUSES } from './historyModel.js';
-import { drawChart, historyTrendOption } from './charts.js';
+import { drawChart, historyTrendOption, campaignFindingsOption, workOrdersOption, repairsMonthlyOption } from './charts.js';
 import { openAsset } from './assetPanel.js';
 import { openFinding } from './findingViewer.js';
 import { parseView } from './hashState.js';
@@ -59,7 +59,7 @@ function mountHistory(stage, deps, kind) {
       return [
         h('div', { class: 'filter-label' }, 'Scope'),
         field('Line', select('line-select', 'Line', [['', 'All lines'], ...lines.map((l) => [l.asset_id, `${l.name} · ${l.voltage_kv} kV`])], st.line, (v) => set({ line: v || null, unit: null }))),
-        field(`Asset (${st.units.length} with a history)`, select('unit-select', 'Asset', [['', 'All assets'], ...st.units.map((u) => [u.id, `${u.name} · ${u.class}`])], st.unit, (v) => set({ unit: v || null }))),
+        field(`Asset (${st.units.filter((u) => u.events).length} with a history)`, unitSelect(st, (v) => set({ unit: v || null }))),
         kind === 'repairs' ? field('Show', select('show-select', 'Show', SHOW, st.show, (v) => set({ show: v || null }))) : null,
         kind === 'workorders' ? field('Status', select('status-select', 'Status', [['', 'All statuses'], ...WO_STATUSES.map((s) => [s, STATUS_LABEL[s]])], st.status, (v) => set({ status: v || null }))) : null,
         h('button', { class: 'linkish hl-clear-filters', type: 'button', 'data-testid': 'clear-filters', onClick: () => set({ line: null, unit: null, show: null, status: null }) }, 'Clear filters'),
@@ -69,6 +69,17 @@ function mountHistory(stage, deps, kind) {
     load: (snap, st) => loadHistory(snap, { line: st.line || null, unit: st.unit || null }),
     draw: (m, ctx) => draw(m, ctx, kind),
   });
+}
+
+/** All assets of the scope: those with a history first, then (in a second group) those with none. */
+function unitSelect(st, onChange) {
+  const withHistory = st.units.filter((u) => u.events);
+  const without = st.units.filter((u) => !u.events);
+  const opt = (u) => h('option', { value: u.id, selected: u.id === st.unit }, `${u.name} · ${u.class}`);
+  return h('select', { 'data-testid': 'unit-select', 'aria-label': 'Asset', onChange: (e) => onChange(e.target.value) },
+    h('option', { value: '' }, 'All assets'),
+    h('optgroup', { label: `With a history (${withHistory.length})` }, withHistory.map(opt)),
+    without.length ? h('optgroup', { label: `No history recorded (${without.length})` }, without.map(opt)) : null);
 }
 
 // ---------------------------------------------------------------------------------------------------- KPI cards
@@ -97,11 +108,19 @@ function draw(m, ctx, kind) {
   kpiHost.innerHTML = kpiCards(m, kit);
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, scopeTitle(m, ctx.snap)), h('p', { class: 'a360-muted a360-small' }, `${plural(m.findings.length, 'finding')} · ${plural(m.workOrders.length, 'work order')} · ${plural(m.repairs.length, 'repair')} up to ${m.asOf}`)));
-  if (m.empty) {
-    return [h('div', { class: 'hl-main' }, head, kpiHost, emptyState('history-empty', 'Nothing recorded for this selection', 'No finding, work order or repair is recorded for it. Choose All assets, or press Clear filters.'))];
-  }
+  if (m.empty) return [h('div', { class: 'hl-main' }, head, kpiHost, emptyReason(m, ctx.snap))];
   const body = kind === 'repairs' ? repairsView(m, ctx) : kind === 'workorders' ? workOrdersView(m, ctx) : timelineView(m, ctx);
   return [h('div', { class: 'hl-main' }, head, kpiHost, ...body)];
+}
+
+/** Why there is nothing to show, in terms of the asset: it was never flown, or it was flown and nothing was found. */
+function emptyReason(m, snap) {
+  if (!m.unit) return emptyState('history-empty', 'Nothing recorded for this selection', 'No finding, work order or repair is recorded for it. Choose All lines, or press Clear filters.');
+  const a = snap.byId.get(m.unit);
+  const flown = snap.ctx.coverageDates(m.unit, snap.asOf);
+  const why = flown.length ? `It was flown in ${plural(flown.length, 'campaign')}, the latest on ${flown.at(-1)}, and nothing was found, ordered or repaired.`
+    : `It was installed on ${a.install_date ?? 'an unknown date'} and no inspection campaign has flown it yet, so it has no findings, work orders or repairs.`;
+  return emptyState('history-empty', `No history for ${a.name}`, why);
 }
 
 function scopeTitle(m, snap) {
@@ -110,14 +129,16 @@ function scopeTitle(m, snap) {
   return h('span', {}, 'All lines', h('span', { class: 'a360-muted' }, ' · every tower, span and transformer'));
 }
 
-// ---- timeline
+// ---- timeline: fleet or line (counts, nothing drawn one by one), or one asset (a row per defect)
+
+const SEVERITIES = [['critical', 1], ['serious', 2], ['moderate', 3], ['minor', 4]];
+const severityLegend = () => h('div', { class: 'hl-legend', 'data-testid': 'severity-legend' }, ...SEVERITIES.map(([word, cond]) => h('span', {}, h('i', { class: `hl-swatch hl-c${cond}` }), word)));
 
 const pos = (m, date) => {
   const a = Date.parse(`${m.range.from}T00:00:00Z`);
   const b = Date.parse(`${m.range.to}T00:00:00Z`);
   return b === a ? 0 : Math.min(100, Math.max(0, ((Date.parse(`${date}T00:00:00Z`) - a) / (b - a)) * 100));
 };
-const SEV_ROWS = [['critical', 1], ['serious', 2], ['moderate', 3], ['minor', 4]];
 
 function monthTicks(m) {
   const out = [];
@@ -131,70 +152,66 @@ function monthTicks(m) {
   return out;
 }
 
-/** Greedy packing of bars into rows so that bars in one row do not overlap. */
-function packRows(items) {
-  const ends = [];
-  const rows = new Map();
-  for (const it of [...items].sort((a, b) => a.from.localeCompare(b.from))) {
-    let r = ends.findIndex((e) => e < it.from);
-    if (r < 0) { r = ends.length; ends.push(it.to); } else ends[r] = it.to;
-    rows.set(it, r);
-  }
-  return { rows, count: ends.length };
+function chartCard(testid, title, note, build, ctx, { wide = false } = {}) {
+  const el = h('div', { class: `hl-chart hl-chart-s${wide ? '' : ' hl-chart-half'}`, 'data-chart': testid, 'data-testid': `${testid}-chart`, role: 'img', 'aria-label': title });
+  const card = h('section', { class: 'card hl-card', 'data-testid': `${testid}-card` }, h('h3', {}, title), el, h('p', { class: 'a360-muted a360-small' }, note));
+  drawChart(el, build)
+    .then((c) => { ctx.track(() => c.dispose()); el.dataset.ready = 'true'; })
+    .catch((e) => { el.replaceChildren(h('p', { class: 'a360-muted a360-note', role: 'status' }, `The chart could not be drawn (${e.message}).`)); el.dataset.ready = 'failed'; });
+  return card;
 }
 
 function timelineView(m, ctx) {
+  return m.unit ? assetView(m, ctx) : aggregateView(m, ctx);
+}
+
+function aggregateView(m, ctx) {
+  const agg = m.aggregate;
+  const findings = chartCard('findings', 'Findings per campaign', 'Solid: still open. Pale with a dashed outline: closed by a repair. The number on top is the total; rejected findings are not counted. Hover a bar for the split.', (p) => campaignFindingsOption(agg, p), ctx, { wide: true });
+  findings.insertBefore(severityLegend(), findings.querySelector('.hl-chart'));
+  const wo = chartCard('workorders', 'Work orders', 'Bars: raised and completed in the month. Line: work orders still open at the end of the month.', (p) => workOrdersOption(agg, p), ctx);
+  const rp = chartCard('repairs', 'Repairs per month', 'Red: the defect it closed was sighted again afterwards.', (p) => repairsMonthlyOption(agg, p), ctx);
+  return [findings, h('div', { class: 'hl-two hl-two-even' }, wo, rp), busiestCard(m, ctx)];
+}
+
+function busiestCard(m, ctx) {
+  const pick = (id) => { writeView({ view: 'history', line: m.line || null, unit: id, show: null, status: null }); ctx.redo(); };
+  const rows = m.aggregate.busiest.map((b) => h('tr', { 'data-asset': b.id },
+    h('td', {}, h('button', { class: 'a360-link', type: 'button', 'data-testid': 'open-timeline', onClick: () => pick(b.id) }, b.name), h('div', { class: 'a360-muted a360-small' }, `${b.class}${b.line ? ` · ${b.line}` : ''}`)),
+    h('td', { class: 'rm-num' }, String(b.findings)), h('td', { class: 'rm-num' }, String(b.workOrders)), h('td', { class: 'rm-num' }, String(b.repairs)),
+    h('td', {}, b.ineffective ? tag(`${b.ineffective} came back`, 'r') : h('span', { class: 'a360-muted' }, '–')), h('td', { class: 'rm-num' }, String(b.open))));
+  return h('section', { class: 'card hl-card', 'data-testid': 'busiest-card' }, h('h3', {}, 'Most activity'),
+    h('p', { class: 'a360-muted a360-small' }, 'The ten assets with the most findings and work orders. Click one to see its timeline: a row for each defect.'),
+    h('table', { class: 'a360-table mh-table', 'data-testid': 'busiest' }, h('thead', {}, h('tr', {}, ...['Asset', 'Findings', 'Work orders', 'Repairs', 'Repair result', 'Open now'].map((x, i) => h('th', { scope: 'col', class: [1, 2, 3, 5].includes(i) ? 'rm-num' : '' }, x)))), h('tbody', {}, rows)));
+}
+
+/** One asset: a labelled row per defect (a component and a class): each sighting, the work order, the repair, any re-sighting. */
+function assetView(m, ctx) {
   const axis = h('div', { class: 'mh-axis' },
     m.campaigns.map((c) => h('span', { class: 'mh-camp', style: { left: `${pos(m, c.start)}%`, width: `${Math.max(0.5, pos(m, c.end) - pos(m, c.start))}%` }, title: `${c.name}: ${c.start} to ${c.end}` }, h('b', {}, c.name))),
     monthTicks(m).map((t) => h('span', { class: 'mh-tick', style: { left: `${pos(m, t.date)}%` } }, t.label)));
-
-  // findings: one row per severity
-  const fRows = SEV_ROWS.map(([word, cond]) => h('div', { class: 'mh-row', 'data-sev': word },
-    h('span', { class: 'mh-rlabel' }, word),
-    h('div', { class: 'mh-track' }, m.findings.filter((f) => f.condition === cond).map((f) => h('button', {
-      class: `mh-dot hl-c${cond}${f.status === 'rejected' ? ' is-rejected' : ''}${!f.counted && f.status !== 'rejected' ? ' is-closed' : ''}`, type: 'button', 'data-finding': f.id, style: { left: `${pos(m, f.date)}%` },
-      title: `${f.id} · ${f.label} · ${f.date} · ${f.severity}${f.status === 'rejected' ? ' · rejected' : f.counted ? '' : ' · closed by a repair'}${m.unit ? '' : ` · ${f.ownerName}`}`,
-      'aria-label': `Finding ${f.id}, ${f.label}, ${f.severity}, ${f.date}`, onClick: (e) => openFindingFrom(f.id, e.currentTarget),
-    })))));
-
-  // work orders: bars from creation to completion (or to the as-of date while they are open)
-  const bars = m.workOrders.map((w) => ({ w, from: w.created, to: w.completed ?? m.asOf }));
-  const packed = packRows(bars);
-  const wo = h('div', { class: 'mh-wo', 'data-testid': 'wo-lane', style: { height: `${Math.max(1, packed.count) * 13 + 4}px` } },
-    bars.map((b) => { const { w, from, to } = b; return h('button', {
-      class: `mh-bar mh-${w.status}${w.overdue ? ' is-overdue' : ''}`, type: 'button', 'data-wo': w.id, style: { left: `${pos(m, from)}%`, width: `${Math.max(0.7, pos(m, to) - pos(m, from))}%`, top: `${packed.rows.get(b) * 13 + 2}px` },
-      title: `${w.id} · ${w.type} · ${STATUS_LABEL[w.status]}${w.overdue ? ' · overdue' : ''} · ${w.created} to ${w.completed ?? 'now'} (${w.daysOpen} days) · ${w.ownerName}`,
-      'aria-label': `Work order ${w.id}, ${w.type}, ${STATUS_LABEL[w.status]}`, onClick: (e) => openAssetFrom(w.assetId, e.currentTarget),
-    }); }));
-
-  const rep = h('div', { class: 'mh-row mh-reprow' }, h('span', { class: 'mh-rlabel' }, 'repairs'),
-    h('div', { class: 'mh-track' }, m.repairs.map((r) => h('button', {
-      class: `mh-diamond ${r.effective ? 'is-ok' : 'is-bad'}`, type: 'button', 'data-repair': r.id, style: { left: `${pos(m, r.date)}%` },
-      title: `${r.id} · ${r.action} · ${r.date} · ${r.effective ? 'effective so far' : `ineffective: ${r.seenAgain[0].id} seen again on ${r.seenAgain[0].date}`} · ${r.ownerName}`,
-      'aria-label': `Repair ${r.id}, ${r.action}, ${r.effective ? 'effective' : 'ineffective'}`, onClick: (e) => openAssetFrom(r.ownerId, e.currentTarget),
-    }))));
-
-  const legend = h('div', { class: 'hl-legend' },
-    ...SEV_ROWS.map(([word, cond]) => h('span', {}, h('i', { class: `hl-swatch hl-c${cond}` }), word)),
-    h('span', {}, h('i', { class: 'mh-key mh-key-closed' }), 'closed by a repair'), h('span', {}, h('i', { class: 'mh-key mh-key-rej' }), 'rejected'),
-    ...['open', 'in_progress', 'completed'].map((s) => h('span', {}, h('i', { class: `mh-key mh-${s}` }), `${STATUS_LABEL[s]} work order`)),
-    h('span', {}, h('i', { class: 'mh-key mh-key-od' }), 'overdue'),
-    h('span', {}, h('i', { class: 'mh-key mh-key-d ok' }), 'repair held'), h('span', {}, h('i', { class: 'mh-key mh-key-d bad' }), 'ineffective repair (defect seen again)'));
-
-  const card = h('section', { class: 'card hl-card', 'data-testid': 'timeline-card' }, h('h3', {}, 'Findings, work orders and repairs over time'), legend,
-    h('div', { class: 'mh-tl', 'data-testid': 'timeline' }, axis, h('div', { class: 'mh-lane' }, h('h4', {}, 'Findings'), ...fRows), h('div', { class: 'mh-lane' }, h('h4', {}, `Work orders (${m.workOrders.length})`), h('div', { class: 'mh-wowrap' }, wo)), h('div', { class: 'mh-lane' }, h('h4', {}, `Repairs (${m.repairs.length})`), rep)),
-    h('p', { class: 'a360-muted a360-small' }, 'Click a finding to open it, a work order or repair to open its asset. Bars run from the day a work order was raised to the day it was completed, or to the as-of date while it is open.'));
-
+  const rows = m.defects.map((d) => h('div', { class: `mh-defect${d.cameBack ? ' is-bad' : ''}`, 'data-defect': d.key },
+    h('div', { class: 'mh-dlabel' }, h('b', {}, d.component), h('span', { class: 'a360-muted a360-small' }, d.className), d.cameBack ? tag('came back', 'r') : null),
+    h('div', { class: 'mh-dtrack' },
+      d.workOrders.map((w) => h('button', { class: `mh-bar${w.completed ? '' : ' is-open'}`, type: 'button', 'data-wo': w.id, style: { left: `${pos(m, w.created)}%`, width: `${Math.max(0.8, pos(m, w.to) - pos(m, w.created))}%` },
+        title: `${w.id} · ${w.type} · ${STATUS_LABEL[w.status]} · raised ${w.created}${w.completed ? `, completed ${w.completed}` : ', still open'}`, 'aria-label': `Work order ${w.id}, ${w.type}, ${STATUS_LABEL[w.status]}`, onClick: (e) => openAssetFrom(m.unit, e.currentTarget) })),
+      d.sightings.map((f) => h('button', {
+        class: `mh-dot hl-c${f.condition}${f.status === 'rejected' ? ' is-rejected' : f.closed ? ' is-closed' : ''}${f.again ? ' is-again' : ''}`, type: 'button', 'data-finding': f.id, style: { left: `${pos(m, f.date)}%` },
+        title: `${f.id} · ${f.label} · ${f.date} · ${f.severity}${f.status === 'rejected' ? ' · rejected' : f.closed ? ' · closed by a repair' : ''}${f.again ? ' · sighted again after a repair' : ''}`,
+        'aria-label': `Finding ${f.id}, ${f.severity}, ${f.date}`, onClick: (e) => openFindingFrom(f.id, e.currentTarget) })),
+      d.repairs.map((r) => h('button', { class: `mh-diamond ${r.effective ? 'is-ok' : 'is-bad'}`, type: 'button', 'data-repair': r.id, style: { left: `${pos(m, r.date)}%` },
+        title: `${r.id} · ${r.action} · ${r.date} · ${r.effective ? 'held so far' : 'the defect came back'}`, 'aria-label': `Repair ${r.id}, ${r.action}, ${r.effective ? 'held' : 'ineffective'}`, onClick: (e) => openAssetFrom(m.unit, e.currentTarget) })))));
+  const card = h('section', { class: 'card hl-card', 'data-testid': 'timeline-card' }, h('h3', {}, `Defects of ${ctx.snap.byId.get(m.unit).name}, over time`), severityLegend(),
+    h('div', { class: 'mh-tl', 'data-testid': 'timeline' }, axis, h('div', { class: 'mh-defects' }, rows)),
+    h('p', { class: 'a360-muted a360-small', 'data-testid': 'timeline-key' }, 'Dot colour is severity. Hollow: closed by a repair. Dashed: rejected. Red ring: sighted again after a repair that did not hold. Bar: work order, raised to completed (dashed while open). Diamond: repair, red when the defect came back.'));
   return [card, trendCard(m, ctx)];
 }
 
 function trendCard(m, ctx) {
-  if (!m.trend) {
-    return h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Health index'), h('p', { class: 'a360-muted' }, 'Choose a line or an asset to see its health index. A single score for all lines together is not defined.'));
-  }
+  if (!m.trend) return h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Health index'), h('p', { class: 'a360-muted' }, 'This asset has no health index of its own.'));
   const el = h('div', { class: 'hl-chart hl-chart-s', 'data-chart': 'history-trend', 'data-testid': 'trend-chart', role: 'img', 'aria-label': `Health index of ${m.trend.targetName}` });
   const card = h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, `Health index of ${m.trend.targetName}`), el,
-    h('p', { class: 'a360-muted a360-small' }, m.trend.perRepair ? 'Hollow points are the day before a repair, filled points the day of it; dashed lines are repairs. The score uses only evidence and repairs up to each date.' : 'The line score at the end of each campaign and today. Choose one asset to see its score before and after each repair.'));
+    h('p', { class: 'a360-muted a360-small' }, 'Hollow points are the day before a repair, filled points the day of it; dashed lines are repairs. The score uses only evidence and repairs up to each date.'));
   drawChart(el, (p) => historyTrendOption(m.trend, m, p))
     .then((c) => { ctx.track(() => c.dispose()); el.dataset.ready = 'true'; })
     .catch((e) => { el.replaceChildren(h('p', { class: 'a360-muted a360-note', role: 'status' }, `The chart could not be drawn (${e.message}).`)); el.dataset.ready = 'failed'; });

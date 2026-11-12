@@ -52,7 +52,7 @@ function chains(snap) {
 }
 
 const findingView = (snap, f) => ({
-  id: f.finding_id, date: f.date, defectClass: f.defect_class, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '),
+  id: f.finding_id, date: f.date, campaignId: f.campaign_id, defectClass: f.defect_class, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '),
   condition: f.condition_score, severity: SEVERITY[f.condition_score].word, status: f.review_status,
   assetId: f.asset_id, assetName: nameOf(snap, f.asset_id),
 });
@@ -73,12 +73,12 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
   const woAll = snap.workOrders.filter((w) => w.created_at <= asOf);
   const ownerIds = snap.assets.filter((a) => OWNERS.has(a.class)).map((a) => a.asset_id);
 
-  // ---- the units that have a history on the chosen line (for the asset selector)
+  // ---- the units on the chosen line (for the asset selector), with how much history each has. Duplicate records are not offered.
   const activity = new Map();
   const bump = (id) => activity.set(id, (activity.get(id) ?? 0) + 1);
-  for (const id of ownerIds) if (inLine(id)) for (const _ of ctx.findingsFor(id, asOf).evidence) bump(id);
-  for (const r of repairsAll) if (inLine(ownerOf(r.asset_id))) bump(ownerOf(r.asset_id));
-  for (const w of woAll) if (inLine(ownerOf(w.asset_id))) bump(ownerOf(w.asset_id));
+  for (const id of ownerIds) if (inLine(id) && !snap.dupRecord.has(id)) { activity.set(id, 0); for (const _ of ctx.findingsFor(id, asOf).evidence) bump(id); }
+  for (const r of repairsAll) if (activity.has(ownerOf(r.asset_id))) bump(ownerOf(r.asset_id));
+  for (const w of woAll) if (activity.has(ownerOf(w.asset_id))) bump(ownerOf(w.asset_id));
   const units = [...activity.keys()].map((id) => { const a = snap.byId.get(id); return { id, name: a.name, class: a.class.replace(/_/g, ' '), events: activity.get(id) }; })
     .sort((a, b) => a.class.localeCompare(b.class) || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
@@ -89,7 +89,7 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     if (!inScope(id)) continue;
     const f = ctx.findingsFor(id, asOf);
     open += f.counted.length; unreviewed += f.unreviewed.length;
-    for (const x of f.evidence) findings.push({ ...findingView(snap, x), ownerId: id, ownerName: nameOf(snap, id), counted: f.counted.includes(x) });
+    for (const x of f.evidence) findings.push({ ...findingView(snap, x), ownerId: id, ownerName: nameOf(snap, id), counted: f.counted.includes(x), closed: f.closed.includes(x) });
   }
   findings.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
@@ -157,10 +157,68 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     trend = { targetId: target, targetName: nameOf(snap, target), perRepair: Boolean(unit), points };
   }
 
+  // ---- no single asset: counts by campaign and by month, and the busiest assets (nothing is drawn one by one)
+  const month = (d) => d.slice(0, 7);
+  let aggregate = null;
+  if (!unit) {
+    const sevs = [1, 2, 3, 4];
+    const perCampaign = snap.campaigns.filter((c) => c.start <= asOf).map((c) => {
+      const mine = findings.filter((f) => f.campaignId === c.campaign_id);
+      const cell = (cond, closed) => mine.filter((f) => f.condition === cond && f.status !== 'rejected' && f.closed === closed).length;
+      return { id: c.campaign_id, name: c.name, start: c.start, end: c.end, counts: Object.fromEntries(sevs.map((n) => [n, { open: cell(n, false), closed: cell(n, true) }])), rejected: mine.filter((f) => f.status === 'rejected').length, total: mine.filter((f) => f.status !== 'rejected').length };
+    });
+    const first = [...workOrders.map((w) => w.created), ...repairs.map((r) => r.date)].sort()[0] ?? asOf;
+    const months = [];
+    for (let [y, mo] = first.slice(0, 7).split('-').map(Number); `${y}-${String(mo).padStart(2, '0')}` <= month(asOf); mo += 1) { if (mo > 12) { mo = 1; y += 1; } months.push(`${y}-${String(mo).padStart(2, '0')}`); }
+    const lastDay = (mm) => { if (mm === month(asOf)) return asOf; const d = new Date(`${mm}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(0); return d.toISOString().slice(0, 10); };
+    const perMonth = months.map((mm) => {
+      const end = lastDay(mm);
+      return {
+        month: mm, raised: workOrders.filter((w) => month(w.created) === mm).length, completed: workOrders.filter((w) => w.completed && month(w.completed) === mm).length,
+        backlog: workOrders.filter((w) => w.created <= end && !(w.completed && w.completed <= end) && w.status !== 'cancelled').length,
+        repairs: repairs.filter((r) => month(r.date) === mm && r.effective).length, ineffective: repairs.filter((r) => month(r.date) === mm && !r.effective).length,
+      };
+    });
+    const busy = new Map();
+    const row = (id) => busy.get(id) ?? busy.set(id, { id, findings: 0, workOrders: 0, repairs: 0, ineffective: 0, open: 0 }).get(id);
+    for (const f of findings) if (f.status !== 'rejected') { row(f.ownerId).findings += 1; if (f.counted) row(f.ownerId).open += 1; }
+    for (const w of workOrders) row(w.ownerId).workOrders += 1;
+    for (const r of repairs) { row(r.ownerId).repairs += 1; if (!r.effective) row(r.ownerId).ineffective += 1; }
+    const busiest = [...busy.values()].map((x) => { const a = snap.byId.get(x.id); return { ...x, name: a.name, class: a.class.replace(/_/g, ' '), line: lineOf(snap, x.id, lineMemo), activity: x.findings + x.workOrders }; })
+      .sort((a, b) => b.activity - a.activity || a.id.localeCompare(b.id, undefined, { numeric: true })).slice(0, 10);
+    aggregate = { perCampaign, perMonth, busiest };
+  }
+
+  // ---- one asset: a row per defect (a component and a class), with each sighting, the work order, the repair and any re-sighting
+  let defects = null;
+  if (unit) {
+    // one row per component and defect class; sightings of the same component and class are the same defect
+    const groups = new Map();
+    for (const f of findings) {
+      const key = `${f.assetId}|${f.defectClass}`;
+      (groups.get(key) ?? groups.set(key, []).get(key)).push(f);
+    }
+    defects = [...groups.values()].map((list) => {
+      list.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      const ids = new Set(list.map((f) => f.id));
+      const reps = repairs.filter((r) => r.closes.some((c) => ids.has(c.id))).sort((a, b) => a.date.localeCompare(b.date));
+      const wos = workOrders.filter((w) => w.findingIds.some((id) => ids.has(id))).sort((a, b) => a.created.localeCompare(b.created));
+      const firstRepair = reps[0]?.date ?? null;
+      const head = list[0];
+      return {
+        key: head.id, label: `${head.assetName} · ${head.label}`, component: head.assetName, className: head.label,
+        sightings: list.map((f) => ({ id: f.id, date: f.date, condition: f.condition, severity: f.severity, status: f.status, closed: f.closed, counted: f.counted, label: f.label, again: reps.some((r) => !r.effective && f.date > r.date) })),
+        workOrders: wos.map((w) => ({ id: w.id, type: w.type, created: w.created, to: w.completed ?? asOf, completed: w.completed, status: w.status })),
+        repairs: reps.map((r) => ({ id: r.id, date: r.date, action: r.action, effective: r.effective })),
+        cameBack: reps.some((r) => !r.effective), firstDate: head.date, firstRepair,
+      };
+    }).sort((a, b) => a.firstDate.localeCompare(b.firstDate) || a.key.localeCompare(b.key));
+  }
+
   const dates = [...findings.map((f) => f.date), ...workOrders.map((w) => w.created), ...repairs.map((r) => r.date), ...snap.campaigns.map((c) => c.start)].sort();
   return {
     found: true, asOf, line, unit, units, lines: listLines(snap),
-    findings, repairs, workOrders, statusCounts, turnaround, ineffective: ineffective.map((r) => r.id),
+    findings, repairs, workOrders, aggregate, defects, statusCounts, turnaround, ineffective: ineffective.map((r) => r.id),
     open, unreviewed, series,
     overdue: workOrders.filter((w) => w.overdue).length,
     campaigns: snap.campaigns.filter((c) => c.start <= asOf).map((c) => ({ id: c.campaign_id, name: c.name, start: c.start, end: c.end })),

@@ -29,6 +29,7 @@ export function palette(el) {
     blue: v('--blue', '#1f6feb'), green: v('--green', '#178a4c'), red: v('--red', '#d14343'), amber: v('--amber', '#b7791f'),
     band: { normal: v('--rel-band-normal', '#55c38a'), moderate: v('--rel-band-moderate', '#efc24a'), poor: v('--rel-band-poor', '#ef6a6a'), none: v('--rel-band-none', '#aab4c3') },
     stroke: v('--rel-shape-line', '#5f6a7b'),
+    cond: Object.fromEntries([1, 2, 3, 4, 5].map((n) => [n, v(`--rel-cond-${n}`, '#aab4c3')])),
   };
 }
 
@@ -126,6 +127,63 @@ export function historyTrendOption(trend, model, p) {
     yAxis: { type: 'value', min: 0, max: 100, name: 'Health index', nameTextStyle: { color: p.muted, align: 'left' }, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
     series: [{ type: 'line', step: 'end', symbol: 'circle', symbolSize: 9, lineStyle: { width: 1.5, color: p.muted }, data,
       markLine: { silent: true, symbol: 'none', data: [{ yAxis: 70, label: { formatter: 'normal from 70', color: p.muted, fontSize: 10, position: 'insideStartTop' }, lineStyle: { color: p.muted, type: 'dotted' } }, { yAxis: 40, label: { formatter: 'poor below 40', color: p.muted, fontSize: 10, position: 'insideStartTop' }, lineStyle: { color: p.muted, type: 'dotted' } }, ...repairLines] } }],
+  };
+}
+
+const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
+const SEVERITY_WORD = { 1: 'critical', 2: 'serious', 3: 'moderate', 4: 'minor' };
+
+/**
+ * Maintenance History, fleet or line: findings per campaign as stacked bars by severity. Each severity has an open part
+ * (solid) and a part closed by a repair (pale, dashed outline). The total sits above each bar.
+ */
+export function campaignFindingsOption(agg, p) {
+  const names = agg.perCampaign.map((c) => c.name);
+  const series = [];
+  for (const n of [1, 2, 3, 4]) {
+    series.push({ name: `${SEVERITY_WORD[n]} open`, type: 'bar', stack: 'f', barMaxWidth: 70, itemStyle: { color: p.cond[n], borderColor: p.stroke, borderWidth: 1 }, data: agg.perCampaign.map((c) => c.counts[n].open) });
+    series.push({ name: `${SEVERITY_WORD[n]} closed by a repair`, type: 'bar', stack: 'f', barMaxWidth: 70, itemStyle: { color: alpha(p.cond[n], 0.42), borderColor: p.cond[n], borderWidth: 1, borderType: 'dashed' }, data: agg.perCampaign.map((c) => c.counts[n].closed) });
+  }
+  series.push({ name: 'total', type: 'bar', stack: 'f', silent: true, tooltip: { show: false }, itemStyle: { color: 'transparent' }, data: agg.perCampaign.map(() => 0), label: { show: true, position: 'top', color: p.ink, fontWeight: 600, formatter: (x) => String(agg.perCampaign[x.dataIndex].total) } });
+  return {
+    ...base(p), grid: { left: 40, right: 16, top: 24, bottom: 28 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (items) => {
+      const i = items[0].dataIndex; const c = agg.perCampaign[i];
+      return `<b>${c.name}</b> (${c.start} to ${c.end})<br/>${[1, 2, 3, 4].map((n) => `${SEVERITY_WORD[n]}: ${c.counts[n].open} open, ${c.counts[n].closed} closed by a repair`).join('<br/>')}<br/>${c.total} findings${c.rejected ? ` (${c.rejected} rejected, not counted)` : ''}`;
+    } },
+    xAxis: { type: 'category', data: names, axisLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series,
+  };
+}
+
+/** Work orders by month: raised and completed as small bars, and the open backlog at the end of each month as a line. */
+export function workOrdersOption(agg, p) {
+  const months = agg.perMonth.map((m) => m.month);
+  return {
+    ...base(p), grid: { left: 40, right: 16, top: 34, bottom: 28 }, tooltip: { trigger: 'axis' },
+    legend: { top: 0, textStyle: { color: p.muted }, data: ['Raised', 'Completed', 'Open backlog'] },
+    xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series: [
+      { name: 'Raised', type: 'bar', barMaxWidth: 12, itemStyle: { color: p.blue }, data: agg.perMonth.map((m) => m.raised) },
+      { name: 'Completed', type: 'bar', barMaxWidth: 12, itemStyle: { color: p.band.normal, borderColor: p.stroke, borderWidth: 1 }, data: agg.perMonth.map((m) => m.completed) },
+      { name: 'Open backlog', type: 'line', symbolSize: 7, lineStyle: { width: 2.5, color: p.ink }, itemStyle: { color: p.ink }, data: agg.perMonth.map((m) => m.backlog) },
+    ],
+  };
+}
+
+/** Repairs by month; the ones where the defect came back are red. */
+export function repairsMonthlyOption(agg, p) {
+  return {
+    ...base(p), grid: { left: 40, right: 16, top: 34, bottom: 28 }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { top: 0, textStyle: { color: p.muted }, data: ['Held so far', 'Ineffective (defect came back)'] },
+    xAxis: { type: 'category', data: agg.perMonth.map((m) => m.month), axisLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series: [
+      { name: 'Held so far', type: 'bar', stack: 'r', barMaxWidth: 28, itemStyle: { color: p.band.normal, borderColor: p.stroke, borderWidth: 1 }, data: agg.perMonth.map((m) => m.repairs) },
+      { name: 'Ineffective (defect came back)', type: 'bar', stack: 'r', barMaxWidth: 28, itemStyle: { color: p.band.poor, borderColor: p.stroke, borderWidth: 1 }, data: agg.perMonth.map((m) => m.ineffective) },
+    ],
   };
 }
 
