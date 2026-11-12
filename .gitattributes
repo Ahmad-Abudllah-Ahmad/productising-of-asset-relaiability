@@ -1,4 +1,4 @@
-* text=auto
+* text=auto eol=lf
 
 # Vendored third-party files are stored byte for byte: no line-ending conversion, no diffs.
 reliability/js/vendor/** -text -diff
