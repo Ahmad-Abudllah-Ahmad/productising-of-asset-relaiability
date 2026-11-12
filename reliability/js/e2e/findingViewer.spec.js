@@ -408,7 +408,8 @@ test.describe('reviewer actions', () => {
     await expect(t(page, 'link-asset')).toContainText('Recorded on T-011 earthwire');
     await t(page, 'link-toggle').click();
     const items = t(page, 'suggestions').locator(':scope > li');
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(2); // the duplicate record T-11 (MX-TOW-1212) is not offered
+    await expect(t(page, 'suggestions')).not.toContainText('MX-TOW-1212');
     await expect(items.first()).toHaveClass(/is-current/);
     await expect(items.first()).toContainText('current');
     const scores = (await items.locator('.fv-sugg-score').allInnerTexts()).map((s) => Number(s));

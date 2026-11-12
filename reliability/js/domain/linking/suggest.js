@@ -15,17 +15,18 @@ const humanize = (s) => String(s).replace(/_/g, ' ');
 /**
  * @param {import('../types.js').Finding} finding
  * @param {import('../types.js').Asset[]} assets
- * @param {{config?: typeof CONFIG}} [options]
+ * @param {{config?: typeof CONFIG, exclude?: Set<string>}} [options]
  * @returns {Array<{assetId:string, name:string, class:string, score:number, distance:number|null, current:boolean,
  *   reasons:Array<{signal:string,value:number,weight:number,contribution:number,detail:string}>}>}
  */
-export function suggestAssets(finding, assets, { config = CONFIG } = {}) {
+export function suggestAssets(finding, assets, { config = CONFIG, exclude = new Set() } = {}) {
   const sc = config.linking.suggest;
   const targets = sc.defectTargets[finding.defect_class] ?? [];
   const out = [];
   for (const a of assets) {
     if (a.merged_into || a.category === 'inspection_evidence') continue;
     const current = a.asset_id === finding.asset_id;
+    if (!current && exclude.has(a.asset_id)) continue; // e.g. a record waiting to be merged away: not a place to put evidence
     const anchor = anchorOf(a);
     const d = anchor ? distM(finding.location, anchor) : null;
     if (!current && (d === null || d > sc.gateMeters)) continue;
