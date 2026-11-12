@@ -57,11 +57,11 @@ async function both(page, name, height = 1300, ready) {
 // ======================================================================================== Maintenance History
 
 test.describe('Maintenance History', () => {
-  test('opens from the rail with three tabs, KPI cards, "Scores as of" and its selection in the URL', async ({ page }) => {
+  test('opens from the rail with four tabs, KPI cards, "Scores as of" and its selection in the URL', async ({ page }) => {
     const errors = await open(page);
     await rail(page).nth(5).click();
     await expect(page.locator('#app-title')).toContainText('Maintenance History');
-    await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders']);
+    await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders', 'Open findings']);
     await expect(byId(page, 'findings-card')).toBeVisible();
     expect(await hash(page)).toBe('#view=history');
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
@@ -107,6 +107,16 @@ test.describe('Maintenance History', () => {
     await expect(byId(page, 'timeline-key')).toHaveCount(0);
   });
 
+  test('dark theme: the closed-by-a-repair part of a findings bar is clearly lighter than the open part', async ({ page }) => {
+    await history(page);
+    await byId(page, 'theme-toggle').click();
+    await expect.poll(() => theme(page)).toBe('dark');
+    await expect(byId(page, 'findings-chart')).toHaveAttribute('data-ready', 'true');
+    const c = await byId(page, 'findings-chart').evaluate((el) => { const s = window.echarts.getInstanceByDom(el).getOption().series; return [s.find((x) => x.name === 'moderate open').itemStyle.color, s.find((x) => x.name === 'moderate closed by a repair').itemStyle.color]; });
+    const lum = (css) => { const m = css.match(/\d+/g).map(Number); if (css.startsWith('#')) { const n = parseInt(css.slice(1), 16); return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255); } return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
+    expect(lum(c[1])).toBeGreaterThan(lum(c[0]) + 30);
+  });
+
   test('fleet view: the ineffective repairs are red in the chart, and the closed part of a bar is pale with a dashed outline', async ({ page }) => {
     await history(page);
     await expect(byId(page, 'repairs-chart')).toHaveAttribute('data-ready', 'true');
@@ -115,7 +125,7 @@ test.describe('Maintenance History', () => {
       return { open: s.find((x) => x.name === 'critical open').itemStyle, closed: s.find((x) => x.name === 'critical closed by a repair').itemStyle };
     });
     expect(style.closed.borderType).toBe('dashed');
-    expect(style.closed.color).toMatch(/^rgba\(/);
+    expect(style.closed.color).toMatch(/^rgba?\(/);
     expect(style.open.color).toMatch(/^#/);
   });
 

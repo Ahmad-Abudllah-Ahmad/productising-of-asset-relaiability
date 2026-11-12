@@ -6,6 +6,7 @@
 //
 // The Line Health and Tower Health screens keep their selection in the same hash, next to the overlays:
 //   view=lines|towers|history|map   line=<line id>  tower=<tower id>  band=normal|moderate|poor|none
+//   view=dashboard (no other keys)   sev=urgent|critical|serious|moderate|minor (history, Open findings tab)
 //   unit=<asset id> (history)  show=ineffective  status=<work order status>  layers=lines,towers,...  label=<label id> (map)
 // Opening or closing a panel keeps those keys, and changing them keeps the panel keys.
 
@@ -19,8 +20,8 @@ export function parseHash(hash = '') {
 }
 
 /** The screens that keep a selection in the hash, and the keys they use (each screen uses some of them). */
-export const VIEW_KEYS = ['view', 'line', 'tower', 'band', 'unit', 'show', 'status', 'layers', 'label'];
-const VIEWS = new Set(['lines', 'towers', 'history', 'map']);
+export const VIEW_KEYS = ['view', 'line', 'tower', 'band', 'unit', 'show', 'status', 'layers', 'label', 'sev'];
+const VIEWS = new Set(['lines', 'towers', 'history', 'map', 'dashboard']);
 
 /** @returns {Record<string, string|null>} view is one of lines, towers, history, map or null; the other keys are strings or null */
 export function parseView(hash = '') {

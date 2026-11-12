@@ -47,6 +47,7 @@ export function emptyState(testid, title, text) {
 /**
  * Mount a screen. The spec:
  *   view                 the screen's id in the hash (view=...). Keys left by another screen are dropped on mount.
+ *   bare?                no filter column; the screen shows "Scores as of" itself
  *   noun                 "this tower", used in "Could not load ..."
  *   state(snap)          the selection, read from the hash (and written back, so the hash is always valid)
  *   controls(state, snap, redo)   nodes for the filter column
@@ -64,7 +65,7 @@ export function mountScreen(stage, deps, spec) {
   const grid = h('div', { class: 'hl-grid' });
   const filter = h('aside', { class: 'filter-col hl-filter' });
   const main = h('div', { class: 'hl-main-wrap' });
-  grid.append(filter, main);
+  if (spec.bare) { grid.classList.add('is-bare'); grid.append(main); } else grid.append(filter, main); // bare: no filter column (the Dashboard)
   root.append(grid);
   const cleanups = [];
   let seq = 0;

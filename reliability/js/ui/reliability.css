@@ -470,3 +470,36 @@
 .mh-dot:hover, .mh-bar:hover, .mh-diamond:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
 .hl-chart-half { height: 250px; }
 .hl-two-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+
+/* ==== Reliability Dashboard. Namespaced dash-. One screen at 1920 x 1080. */
+.hl-grid.is-bare { grid-template-columns: minmax(0, 1fr); }
+.dash-main { gap: 8px; padding-bottom: 6px; }
+.dash-head { align-items: center; } .dash-head .asof { margin: 0; }
+.dash-kpis { gap: 10px; }
+.dash .kpi { min-height: 0; padding: 8px 12px 0; text-align: left; font: inherit; color: inherit; }
+.dash .kpi .n { font-size: 26px; margin-top: 2px; }
+.dash .kpi .spark { height: 34px; }
+button.dash-kpi { cursor: pointer; display: flex; flex-direction: column; } button.dash-kpi:hover { border-color: var(--blue); }
+button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.dash-kpi-assets { padding-bottom: 8px; }
+.dash-rows { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 5px; }
+.dash-row { display: grid; grid-template-columns: 86px repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; }
+.dash-rlabel { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); text-align: left; cursor: pointer; } .dash-rlabel:hover { color: var(--blue); text-decoration: underline; }
+.dash-chip { display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 5px; padding: 1px 6px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
+.dash-chip:hover { border-color: var(--blue); } .dash-chip.is-zero { color: var(--muted); font-weight: 500; }
+.dash-chip .hl-swatch, .dash-count .hl-swatch { width: 10px; height: 10px; margin: 0; border-radius: 3px; }
+.dash-key { margin-left: 8px; font-weight: 500; font-size: 10px; color: var(--muted); }
+.dash-mid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 8px; }
+.dash-bottom { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 8px; align-items: start; }
+.dash-card { padding: 8px 12px; } .dash-card h3 { margin: 0 0 3px; } .dash-card p { margin: 3px 0 0; }
+.dash-legend { margin: 0 0 2px; }
+.dash-chart { width: 100%; height: 250px; }
+.dash-dists { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.dash-dist { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; }
+.dash-bar { display: flex; gap: 2px; height: 32px; }
+.dash-seg { flex-basis: 0; min-width: 24px; border: 1.5px solid var(--rel-shape-line); border-radius: 4px; background: var(--fill); color: var(--rel-on-fill); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.dash-seg.hl-band-none { border-style: dashed; } .dash-seg:hover { outline: 2px solid var(--blue); outline-offset: 1px; }
+.dash-table { margin: 4px 0 0; font-size: 12px; } .dash-table th, .dash-table td { padding: 4px 8px; }
+.dash-table tbody tr { cursor: pointer; } .dash-table tbody tr:hover td { background: var(--rel-surface-2); }
+.dash-num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.dash-counts { display: inline-flex; gap: 10px; } .dash-count { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; font-weight: 600; } .dash-count.is-zero { color: var(--muted); font-weight: 400; }

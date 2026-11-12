@@ -130,6 +130,10 @@ export function historyTrendOption(trend, model, p) {
   };
 }
 
+const mixWhite = (hex, k) => { const n = parseInt(hex.slice(1), 16); const m = (c) => Math.round(c + (255 - c) * k); return `rgb(${m((n >> 16) & 255)}, ${m((n >> 8) & 255)}, ${m(n & 255)})`; };
+const isDark = () => document.documentElement.dataset.relTheme === 'dark';
+/** The "closed by a repair" tint of a severity colour: pale on light (a wash), clearly lighter than the solid colour on dark (a light tint). */
+const closedTint = (hex) => (isDark() ? mixWhite(hex, 0.6) : alpha(hex, 0.42));
 const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
 const SEVERITY_WORD = { 1: 'critical', 2: 'serious', 3: 'moderate', 4: 'minor' };
 
@@ -142,7 +146,7 @@ export function campaignFindingsOption(agg, p) {
   const series = [];
   for (const n of [1, 2, 3, 4]) {
     series.push({ name: `${SEVERITY_WORD[n]} open`, type: 'bar', stack: 'f', barMaxWidth: 70, itemStyle: { color: p.cond[n], borderColor: p.stroke, borderWidth: 1 }, data: agg.perCampaign.map((c) => c.counts[n].open) });
-    series.push({ name: `${SEVERITY_WORD[n]} closed by a repair`, type: 'bar', stack: 'f', barMaxWidth: 70, itemStyle: { color: alpha(p.cond[n], 0.42), borderColor: p.cond[n], borderWidth: 1, borderType: 'dashed' }, data: agg.perCampaign.map((c) => c.counts[n].closed) });
+    series.push({ name: `${SEVERITY_WORD[n]} closed by a repair`, type: 'bar', stack: 'f', barMaxWidth: 70, itemStyle: { color: closedTint(p.cond[n]), borderColor: isDark() ? '#ffffff' : p.cond[n], borderWidth: 1, borderType: 'dashed' }, data: agg.perCampaign.map((c) => c.counts[n].closed) });
   }
   series.push({ name: 'total', type: 'bar', stack: 'f', silent: true, tooltip: { show: false }, itemStyle: { color: 'transparent' }, data: agg.perCampaign.map(() => 0), label: { show: true, position: 'top', color: p.ink, fontWeight: 600, formatter: (x) => String(agg.perCampaign[x.dataIndex].total) } });
   return {
@@ -184,6 +188,35 @@ export function repairsMonthlyOption(agg, p) {
       { name: 'Held so far', type: 'bar', stack: 'r', barMaxWidth: 28, itemStyle: { color: p.band.normal, borderColor: p.stroke, borderWidth: 1 }, data: agg.perMonth.map((m) => m.repairs) },
       { name: 'Ineffective (defect came back)', type: 'bar', stack: 'r', barMaxWidth: 28, itemStyle: { color: p.band.poor, borderColor: p.stroke, borderWidth: 1 }, data: agg.perMonth.map((m) => m.ineffective) },
     ],
+  };
+}
+
+/**
+ * Dashboard: towers and spans by health band at each campaign date and today. Each date has two bars side by side
+ * (towers on the left, spans on the right), each stacked by band. A segment carries { cls, band } so a click can open the
+ * registry on it. An empty bar tagged T or S above it names the stack.
+ */
+export function dashboardTrendOption(trend, p) {
+  const BANDS = ['normal', 'moderate', 'poor', 'none'];
+  const WORD = { normal: 'normal', moderate: 'moderate', poor: 'poor', none: 'not assessed' };
+  const series = [];
+  for (const [cls, key, tagLetter] of [['tower', 'towers', 'T'], ['span', 'spans', 'S']]) {
+    for (const b of BANDS) {
+      series.push({ name: `${cls} ${WORD[b]}`, type: 'bar', stack: cls, barMaxWidth: 46, barGap: '8%', itemStyle: { color: p.band[b], borderColor: p.stroke, borderWidth: 1, borderType: b === 'none' ? 'dashed' : 'solid' },
+        emphasis: { focus: 'self' }, data: trend[key].map((c) => ({ value: c[b], cls: key, band: b })) });
+    }
+    series.push({ name: `${cls} label`, type: 'bar', stack: cls, silent: true, tooltip: { show: false }, itemStyle: { color: 'transparent' }, data: trend[key].map(() => 0), label: { show: true, position: 'top', color: p.muted, fontSize: 10, formatter: tagLetter } });
+  }
+  return {
+    ...base(p), grid: { left: 40, right: 12, top: 18, bottom: 26 },
+    tooltip: { trigger: 'item', formatter: (x) => {
+      const d = x.data; const i = x.dataIndex; const noun = d.cls;
+      const today = trend.labels[i] === 'Today';
+      return `<b>${trend.labels[i]}</b> (${trend.dates[i]})<br/>${d.value} ${noun}: ${WORD[d.band]}<br/><span style="opacity:.75">${today ? 'Click to open the registry on this band' : "Click opens today's registry on this band"}</span>`;
+    } },
+    xAxis: { type: 'category', data: trend.labels, axisLine: { lineStyle: { color: p.line } }, axisTick: { show: false }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series,
   };
 }
 

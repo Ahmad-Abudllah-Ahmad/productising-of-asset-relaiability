@@ -9,7 +9,7 @@
 import { CATEGORIES, tableFor, filtersFor, kpisFor, linksKpis } from './registryModel.js';
 import { mountLinkReview } from '../ui/linkReview.js';
 import { openAsset } from './assetPanel.js';
-import { pendingLink, openLinkInReview } from './navigation.js';
+import { pendingLink, pendingFilters, openLinkInReview } from './navigation.js';
 
 /**
  * @param {{kit: any, repo: any, getSnapshot: () => any, subscribeSnapshot: (fn: () => void) => (() => void), flags?: object}} deps
@@ -91,6 +91,14 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
         `<div class="card table-card">${tableHtml(columns, rows, nested)}<div class="empty-note">Nothing matches these filters. Choose All to restore the list.</div></div></div></div>`;
     },
     mount(stage) {
+      // a drill-down from another screen (the Dashboard) arrives with filters to switch on
+      if (pendingFilters.tab === cat.title && pendingFilters.filters) {
+        for (const [label, value] of Object.entries(pendingFilters.filters)) {
+          const sel = [...stage.querySelectorAll('select')].find((x) => x.getAttribute('aria-label') === label);
+          if (sel && [...sel.options].some((o) => o.value === value)) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+        }
+      }
+      pendingFilters.tab = null; pendingFilters.filters = null;
       const offSort = enableSorting(stage);
       const offRows = enableRows(stage);
       return () => { offSort?.(); offRows?.(); };

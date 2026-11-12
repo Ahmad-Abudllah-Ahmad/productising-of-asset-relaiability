@@ -10,12 +10,8 @@
  * Loaded by reliability/index.html, which then calls NexusReliability.open("reliability").
  */
 (function () {
-  var BLUE = "#1f6feb";
   var AMBER = "#d97706";
   var RED = "#d14343";
-  var PURPLE = "#7c3aed";
-  var GREEN = "#178a4c";
-
   function esc(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -32,10 +28,6 @@
     return { tag: text, tone: tone };
   }
 
-  function row(cells, text, zone) {
-    return { cells: cells, tip: text, zone: zone || "" };
-  }
-
   function icon(path) {
     return '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">' + path + "</svg>";
   }
@@ -49,24 +41,6 @@
     pulse: icon('<path d="M2 9h3l2-4 3 8 2-4h4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'),
     sheet: icon('<rect x="3" y="2.5" width="12" height="13" rx="1.2" stroke="currentColor"/><path d="M6 6h6M6 9h6M6 12h4" stroke="currentColor"/>')
   };
-
-  function filters(names) {
-    var groups = names && names.length ? names : ["Region", "Line", "Voltage", "Corridor"];
-    var options = ["All", "Corridor North", "Coastal", "Inland", "220 kV"].map(function (name) {
-      return "<option>" + name + "</option>";
-    }).join("");
-    var location = groups.slice(0, 3);
-    var rest = groups.slice(3);
-    function block(title, items) {
-      if (!items.length) return "";
-      return '<div class="filter-label">' + esc(title) + "</div>" + items.map(function (name) {
-        return "<label>" + esc(name) + "<select>" + options + "</select></label>";
-      }).join("");
-    }
-    return '<aside class="filter-col"><div class="filter-head"><b>Filter</b><button class="linkish clear-filters" type="button">Clear</button></div>' +
-      block("Location", location) + block("Asset", rest) +
-      '<div class="banner" data-banner>All corridors</div></aside>';
-  }
 
   function areaSpark(values, id) {
     var series = values && values.length > 1 ? values : [4, 6, 5, 7, 6, 8, 7, 9, 8];
@@ -101,214 +75,7 @@
     }).join("") + "</div>";
   }
 
-  function legend(series) {
-    if (!series) return "";
-    return '<div class="legend">' + series.map(function (item) {
-      var name = item.name || item.label;
-      if (!name) return "";
-      return '<span><i style="background:' + (item.color || "#94a3b8") + '"></i>' + esc(name) + "</span>";
-    }).join("") + "</div>";
-  }
-
-  function gridLines(W, H, L, R, T, B) {
-    var marks = "";
-    for (var g = 0; g <= 4; g++) {
-      var y = T + (g * (H - T - B)) / 4;
-      marks += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - R) + '" y2="' + y + '" stroke="#eef2f6"/>';
-    }
-    return marks;
-  }
-
-  function scale(labels, values, W, H) {
-    var L = 36, R = 16, T = 16, B = 32;
-    var max = 1;
-    values.forEach(function (set) {
-      set.forEach(function (value) { if (value > max) max = value; });
-    });
-    var n = labels.length;
-    function X(i) { return L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1)); }
-    function Y(v) { return T + (1 - v / max) * (H - T - B); }
-    return { L: L, R: R, T: T, B: B, max: max, X: X, Y: Y, n: n, W: W, H: H };
-  }
-
-  function areaChart(labels, series) {
-    var W = 680, H = 280;
-    var sets = series.map(function (item) { return item.values; });
-    var box = scale(labels, sets, W, H);
-    var svg = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '">' + gridLines(W, H, box.L, box.R, box.T, box.B);
-    series.forEach(function (item) {
-      var line = item.values.map(function (value, index) {
-        return (index ? "L" : "M") + box.X(index).toFixed(1) + " " + box.Y(value).toFixed(1);
-      }).join(" ");
-      var area = line + " L " + box.X(item.values.length - 1).toFixed(1) + " " + (H - box.B) + " L " + box.X(0).toFixed(1) + " " + (H - box.B) + " Z";
-      svg += '<path d="' + area + '" fill="' + item.color + '" opacity="0.16"/>';
-      svg += '<path d="' + line + '" fill="none" stroke="' + item.color + '" stroke-width="2.2"/>';
-      item.values.forEach(function (value, index) {
-        var text = (item.tips && item.tips[index]) || (labels[index] + " · " + item.name + " · " + value);
-        svg += '<circle class="node" cx="' + box.X(index).toFixed(1) + '" cy="' + box.Y(value).toFixed(1) + '" r="5" fill="#fff" stroke="' + item.color + '" stroke-width="2"' + tip(text) + "/>";
-      });
-    });
-    labels.forEach(function (label, index) {
-      svg += '<text x="' + box.X(index).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + esc(label) + "</text>";
-    });
-    return svg + "</svg>";
-  }
-
-  function barChart(labels, series) {
-    var W = 680, H = 280, L = 36, R = 12, T = 16, B = 32;
-    var max = 1;
-    series.forEach(function (item) { item.values.forEach(function (value) { if (value > max) max = value; }); });
-    var group = (W - L - R) / labels.length;
-    var width = Math.min(28, (group - 16) / series.length);
-    var svg = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '">' + gridLines(W, H, L, R, T, B);
-    labels.forEach(function (label, index) {
-      series.forEach(function (item, seriesIndex) {
-        var value = item.values[index];
-        var h = (value / max) * (H - T - B);
-        var x = L + index * group + 8 + seriesIndex * (width + 4);
-        var y = H - B - h;
-        var text = (item.tips && item.tips[index]) || (label + " · " + item.name + " · " + value);
-        svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + width.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" fill="' + item.color + '"' + tip(text) + "/>";
-      });
-      svg += '<text x="' + (L + index * group + group / 2).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + esc(label) + "</text>";
-    });
-    return svg + "</svg>";
-  }
-
-  function chartBody(chart) {
-    if (!chart) return "";
-    var plot = "";
-    if (chart.type === "area") plot = areaChart(chart.labels, chart.series);
-    else if (chart.type === "bar" || chart.type === "grouped") plot = barChart(chart.labels, chart.series);
-    return '<div class="k">' + esc(chart.title) + '</div><div class="chart-box">' + plot + "</div>" + legend(chart.series || chart.items);
-  }
-
-  function table(columns, rows) {
-    var head = "<tr>" + columns.map(function (column) { return "<th>" + esc(column) + "</th>"; }).join("") + "</tr>";
-    var body = rows.map(function (item) {
-      var cells = item.cells.map(function (cell) {
-        if (cell && typeof cell === "object") return '<td><span class="tag ' + esc(cell.tone) + '">' + esc(cell.tag) + "</span></td>";
-        return "<td>" + esc(cell) + "</td>";
-      }).join("");
-      return "<tr" + tip(item.tip) + (item.zone ? ' data-zone="' + esc(item.zone) + '"' : "") + ">" + cells + "</tr>";
-    }).join("");
-    return "<table><thead>" + head + "</thead><tbody>" + body + "</tbody></table>";
-  }
-
-  function rankValue(item) {
-    var raw = item.value != null ? item.value : item.pct;
-    var n = parseFloat(String(raw).replace(/[^0-9.]/g, ""));
-    return isNaN(n) ? 0 : n;
-  }
-
-  function toRank(chart) {
-    if (!chart) return [];
-    if (chart.labels && chart.series && chart.series[0]) {
-      var series = chart.series[0];
-      var max = 1;
-      series.values.forEach(function (value) { if (value > max) max = value; });
-      return chart.labels.map(function (label, index) {
-        var value = series.values[index];
-        return {
-          label: label,
-          value: value,
-          pct: Math.round((value / max) * 100),
-          tip: (series.tips && series.tips[index]) || (label + " · " + series.name + " · " + value)
-        };
-      });
-    }
-    return [];
-  }
-
-  function toRankFromRows(rows) {
-    if (!rows || !rows.length) return [];
-    var items = rows.slice(0, 8).map(function (item) {
-      var label = typeof item.cells[0] === "string" ? item.cells[0] : "Record";
-      var shown = "";
-      item.cells.forEach(function (cell) {
-        if (!shown && typeof cell === "string" && /[0-9]/.test(cell)) shown = cell;
-      });
-      return { label: label, value: shown || "1", tip: item.tip, _n: parseFloat(String(shown).replace(/[^0-9.]/g, "")) || 1 };
-    });
-    var max = 1;
-    items.forEach(function (item) { if (item._n > max) max = item._n; });
-    items.forEach(function (item) { item.pct = Math.round((item._n / max) * 100); });
-    return items;
-  }
-
-  function rankChart(title, items) {
-    if (!items || !items.length) return "";
-    var max = 1;
-    items.forEach(function (item) {
-      var n = rankValue(item);
-      if (n > max) max = n;
-    });
-    var ticks = [0, 0.25, 0.5, 0.75, 1].map(function (part) {
-      var n = max * part;
-      return n >= 10 ? String(Math.round(n)) : String(Math.round(n * 10) / 10);
-    });
-    var rows = items.map(function (item) {
-      var pct = item.pct != null ? item.pct : Math.round((rankValue(item) / max) * 100);
-      pct = Math.max(2, Math.min(100, pct));
-      return '<div class="rank"' + tip(item.tip || item.label) + "><span>" + esc(item.label) + '</span><div class="rank-track"><div class="rank-fill" style="width:' + pct + '%"></div></div></div>';
-    }).join("");
-    return '<div class="card rank-card"><div class="rank-title">' + esc(title) + '</div><div class="rank-rows">' + rows +
-      '</div><div class="rank-axis"><span></span>' + ticks.map(function (tick) { return "<i>" + esc(tick) + "</i>"; }).join("") + "</div></div>";
-  }
-
-  function metricStrip(spec) {
-    var cells = [];
-    if (spec.side && spec.side.gauge) {
-      cells.push({ l: spec.side.gauge.label, v: spec.side.gauge.value, tip: spec.side.gauge.tip });
-    }
-    if (spec.side && spec.side.items) {
-      spec.side.items.slice(0, 4).forEach(function (item) {
-        cells.push({ l: item.label, v: item.value, tip: item.tip });
-      });
-    }
-    cells = cells.slice(0, 4);
-    if (!cells.length) return "";
-    return '<div class="metric-strip">' + cells.map(function (cell) {
-      return "<div" + tip(cell.tip || cell.l) + '><div class="k">' + esc(cell.l) + "</div><b>" + esc(cell.v) + "</b></div>";
-    }).join("") + "</div>";
-  }
-
-  function pack(spec) {
-    var leftItems = toRank(spec.chart);
-    if (!leftItems.length) leftItems = toRankFromRows(spec.rows);
-    var rightItems = spec.side && spec.side.items && spec.side.items.length ? spec.side.items : toRankFromRows(spec.rows);
-    var leftTitle = (spec.chart && spec.chart.title) || "Distribution";
-    var rightTitle = (spec.side && (spec.side.title || spec.side.kicker)) || "Comparison";
-    var detail = "";
-    if (spec.chart && (spec.chart.type === "area" || spec.chart.type === "grouped")) {
-      detail = '<div class="card chart-card">' + chartBody(spec.chart) + "</div>";
-    }
-    var summary = spec.side && spec.side.text ? '<div class="card side-card"><div class="sum"><strong>' + esc(spec.side.kicker || "CASE") + "</strong>" + esc(spec.side.text) + "</div></div>" : "";
-    return '<div class="screen desk">' + filters(spec.filters) + '<div class="desk-main">' + kpis(spec.kpis) + metricStrip(spec) + summary + detail +
-      '<div class="chart-pair">' + rankChart(leftTitle, leftItems) + rankChart(rightTitle, rightItems) + "</div>" +
-      '<div class="pair-legend"><span><i></i>Higher bar is the larger value in this cut</span></div>' +
-      (spec.columns ? '<div class="card table-card">' + table(spec.columns, spec.rows) + '<div class="empty-note">Nothing in this cut. Choose All to restore the corridor.</div></div>' : "") +
-      "</div></div>";
-  }
-
-  function formula(spec) {
-    var cards = spec.factors.map(function (factor) {
-      return '<div class="card"' + tip(factor.tip) + '><div class="k">' + esc(factor.label) + "</div><b>" + esc(factor.value) + '</b><div class="sub">' + esc(factor.note) + "</div></div>";
-    }).join("");
-    return '<div class="screen"><div class="eq">' + cards + "</div>" +
-      '<div class="card formula" style="padding:12px 14px"><div class="k">' + esc(spec.chart.title) + '</div><div class="chart-box">' + barChart(spec.chart.labels, spec.chart.series) + "</div>" + legend(spec.chart.series) + "</div>" +
-      '<div class="card table-card">' + table(spec.columns, spec.rows) + "</div></div>";
-  }
-
-  var kv = "220 kV Corridor North";
-
   function reliability() {
-    var k = [
-      { l: "Towers in view", v: "48", s: "Corridor North · 220 kV", tip: "Registry cut for SS-North to the east angle.", spark: [48, 48, 48, 48, 48, 48] },
-      { l: "Open findings", v: "12", s: "2 verified · 1 visual", tip: "Two verified structural findings are both on T-104. The damper is still visual.", spark: [6, 7, 8, 9, 11, 12], color: AMBER },
-      { l: "Priority · T-104", v: "0.69", s: "0.86 × 0.91 × 0.88", tip: "Condition severity × criticality × consequence. Higher means review sooner.", spark: [0.4, 0.44, 0.5, 0.55, 0.62, 0.69], color: RED },
-      { l: "Linked evidence", v: "98%", s: "Image, GPS, tower id", tip: "Share of findings with an image, GPS, and tower id. Not a model-accuracy score.", spark: [90, 92, 94, 95, 97, 98], color: GREEN }
-    ];
     return [
       drawingScreen([
         { tab: "SS-North", src: "/pids/nx-ari-sld-0104-corridor-north.svg", kicker: "SS-North · 220 kV", note: "Corridor North. Illustrative. Not for construction." },
@@ -347,57 +114,10 @@
           return '<div class="screen"><div class="card" data-testid="maintenance-history-unavailable" style="padding:16px"><b>Maintenance History could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
+      // The Dashboard comes from reliability/js/app/dashboardScreen.js. This single tab only shows if that code could not load.
       screen("home", "Reliability Dashboard", "pulse", [
-        tab("Outlook", function () {
-          return pack({
-            filters: ["Region", "Line", "Voltage", "Corridor"],
-            kpis: k,
-            chart: { type: "area", title: "Findings next to the inspection plan", labels: ["Q1", "Q2", "Q3", "Q4", "Next", "Q+2"], series: [
-              { name: "Open findings", color: AMBER, values: [6, 7, 8, 9, 12, 12] },
-              { name: "Reviews due", color: RED, values: [0, 0, 1, 1, 1, 1] }
-            ] },
-            side: { kicker: "CASE", text: "Tower T-104 has two verified structural findings and requires engineering review.", gauge: { value: 98, label: "Evidence", tip: "Linked image, GPS, and tower id. Not a model-accuracy score." } },
-            columns: ["Asset", "Finding", "Evidence", "State"],
-            rows: [
-              row(["T-104", "Leg B steel", "Verified", tag("Review", "r")], "Structural finding one", kv),
-              row(["T-104", "Cotter pin", "Verified", tag("Review", "r")], "Structural finding two", kv),
-              row(["N-18", "Damper", "4 frames · 0.93", tag("Confirm", "a")], "Confirm the asset location", kv),
-              row(["Coastal", "None", "—", tag("Stable", "g")], "Shown when the Coastal cut is applied", "Coastal")
-            ]
-          });
-        }),
-        tab("Bridge", function () {
-          return formula({
-            factors: [
-              { label: "Condition severity", value: "0.86", note: "Two findings", tip: "Higher means worse condition." },
-              { label: "Criticality", value: "0.91", note: "220 kV", tip: "From the line master." },
-              { label: "Consequence", value: "0.88", note: "Corridor", tip: "Span serves SS-North." },
-              { label: "Priority", value: "0.69", note: "Review", tip: "Product of the three factors." }
-            ],
-            chart: { title: "How the three factors step down to 0.69", labels: ["0.86", "0.78", "0.69"], series: [{ name: "Running score", color: PURPLE, values: [86, 78, 69], tips: ["Severity × 100", "After criticality", "After consequence · review"] }] },
-            columns: ["Factor", "Value", "Source", "State"],
-            rows: [
-              row(["Severity", "0.86", "Verified findings", tag("In", "r")], "Does not use an unpublished accuracy figure", kv),
-              row(["Criticality", "0.91", "Line master", tag("In", "b")], "220 kV Corridor North", kv),
-              row(["Consequence", "0.88", "Network role", tag("In", "b")], "Configurable", kv)
-            ]
-          });
-        }),
-        tab("Case", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "bar", title: "What is verified versus still visual", labels: ["Steel", "Cotter", "Damper", "Foundation", "ROW"], series: [{ name: "Status code", color: BLUE, values: [3, 3, 2, 1, 1], tips: ["3 = verified structural", "3 = verified structural", "2 = visual, confirm location", "1 = watch", "1 = watch"] }] },
-            side: { kicker: "OUTPUT", text: "Tower T-104 has two verified structural findings and requires engineering review.", items: [
-              { label: "Verified", pct: 100, value: "2", color: RED, tip: "Steel and cotter pin" },
-              { label: "Visual", pct: 50, value: "1", color: AMBER, tip: "Damper" }
-            ] },
-            columns: ["Record", "Class", "Needs", "State"],
-            rows: [
-              row(["Steel", "Verified defect", "Review", tag("Open", "r")], "Human confirmation already recorded", kv),
-              row(["Cotter", "Verified defect", "Review", tag("Open", "r")], "Human confirmation already recorded", kv),
-              row(["Damper", "Visual finding", "Location", tag("Open", "a")], "Not promoted to a confirmed electrical fault", kv)
-            ]
-          });
+        tab("Overview", function () {
+          return '<div class="screen"><div class="card" data-testid="dashboard-unavailable" style="padding:16px"><b>The Reliability Dashboard could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ])
     ];

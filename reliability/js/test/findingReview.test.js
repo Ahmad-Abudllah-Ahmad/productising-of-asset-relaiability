@@ -413,9 +413,9 @@ test('suggestions never offer a duplicate record that is waiting to be merged, b
 });
 
 test('hash state: the screen keys (view, line, tower, band) sit next to the overlay keys and each survives the other', () => {
-  assert.deepEqual(parseView('#view=towers&line=L-132-01&tower=TWR-132-01-011&band=poor'), { view: 'towers', line: 'L-132-01', tower: 'TWR-132-01-011', band: 'poor', unit: null, show: null, status: null, layers: null, label: null });
+  assert.deepEqual(parseView('#view=towers&line=L-132-01&tower=TWR-132-01-011&band=poor'), { view: 'towers', line: 'L-132-01', tower: 'TWR-132-01-011', band: 'poor', unit: null, show: null, status: null, layers: null, label: null, sev: null });
   assert.equal(parseView('#view=nonsense').view, null);
-  assert.deepEqual(parseView('#view=history&unit=TWR-132-01-011&show=ineffective&status=open'), { view: 'history', line: null, tower: null, band: null, unit: 'TWR-132-01-011', show: 'ineffective', status: 'open', layers: null, label: null });
+  assert.deepEqual(parseView('#view=history&unit=TWR-132-01-011&show=ineffective&status=open'), { view: 'history', line: null, tower: null, band: null, unit: 'TWR-132-01-011', show: 'ineffective', status: 'open', layers: null, label: null, sev: null });
   assert.equal(parseView('#view=map&layers=lines,towers&label=corridor%3Acorridor-coastal').label, 'corridor:corridor-coastal');
   const now = '#view=lines&line=L-220-03';
   assert.equal(hashFor({ asset: 'X' }, now), '#asset=X&view=lines&line=L-220-03', 'opening a panel keeps the screen keys');

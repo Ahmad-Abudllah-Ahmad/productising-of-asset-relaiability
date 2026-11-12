@@ -19,11 +19,12 @@ import { parseView } from './hashState.js';
 
 const STATUS_LABEL = { open: 'open', in_progress: 'in progress', completed: 'completed', cancelled: 'cancelled' };
 const STATUS_SUB = { open: 'warn', in_progress: 'neutral', completed: 'ok' };
+const SEV_FILTERS = [['urgent', 'Critical and serious'], ['all', 'All severities'], ['critical', 'Critical'], ['serious', 'Serious'], ['moderate', 'Moderate'], ['minor', 'Minor']];
 const SHOW = [['', 'All repairs'], ['ineffective', 'Ineffective only']];
 
 export function createHistoryScreen(deps) {
   const tab = (name, kind) => ({ name, render: () => `<div class="screen hl" data-testid="maintenance-${kind}" data-hl-root></div>`, mount: (stage) => mountHistory(stage, deps, kind) });
-  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders')] };
+  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders'), tab('Open findings', 'findings')] };
 }
 
 const openAssetFrom = (id, el) => openAsset(id, { opener: el });
@@ -46,23 +47,25 @@ function mountHistory(stage, deps, kind) {
         if (!units.some((u) => u.id === unit)) unit = '';
       }
       const show = kind === 'repairs' && want.show === 'ineffective' ? 'ineffective' : '';
-      const status = kind === 'workorders' && WO_STATUSES.includes(want.status) ? want.status : '';
-      writeView({ view: 'history', line: line || null, unit: unit || null, show: show || null, status: status || null });
-      this.last = [line, unit, show, status].join('|');
-      return { line, unit, show, status, units };
+      const status = kind === 'workorders' && (WO_STATUSES.includes(want.status) || want.status === 'overdue') ? want.status : '';
+      const sev = kind === 'findings' && SEV_FILTERS.some(([v]) => v === want.sev) ? want.sev : 'urgent';
+      writeView({ view: 'history', line: line || null, unit: unit || null, show: show || null, status: status || null, sev: kind === 'findings' ? sev : null });
+      this.last = [line, unit, show, status, kind === 'findings' ? sev : ''].join('|');
+      return { line, unit, show, status, sev, units };
     },
-    urlChanged() { const w = parseView(location.hash); return w.view === 'history' && [w.line ?? '', w.unit ?? '', w.show ?? '', w.status ?? ''].join('|') !== this.last; },
+    urlChanged() { const w = parseView(location.hash); return w.view === 'history' && [w.line ?? '', w.unit ?? '', w.show ?? '', w.status ?? '', kind === 'findings' ? (w.sev ?? 'urgent') : ''].join('|') !== this.last; },
     controls(st, snap, redo) {
       if (!snap) return [];
-      const set = (patch) => { writeView({ view: 'history', line: st.line || null, unit: st.unit || null, show: st.show || null, status: st.status || null, ...patch }); redo(); };
+      const set = (patch) => { writeView({ view: 'history', line: st.line || null, unit: st.unit || null, show: st.show || null, status: st.status || null, sev: kind === 'findings' ? st.sev : null, ...patch }); redo(); };
       const lines = snap.assets.filter((a) => a.class === 'line').sort((a, b) => a.voltage_kv - b.voltage_kv);
       return [
         h('div', { class: 'filter-label' }, 'Scope'),
         field('Line', select('line-select', 'Line', [['', 'All lines'], ...lines.map((l) => [l.asset_id, `${l.name} · ${l.voltage_kv} kV`])], st.line, (v) => set({ line: v || null, unit: null }))),
         field(`Asset (${st.units.filter((u) => u.events).length} with a history)`, unitSelect(st, (v) => set({ unit: v || null }))),
         kind === 'repairs' ? field('Show', select('show-select', 'Show', SHOW, st.show, (v) => set({ show: v || null }))) : null,
-        kind === 'workorders' ? field('Status', select('status-select', 'Status', [['', 'All statuses'], ...WO_STATUSES.map((s) => [s, STATUS_LABEL[s]])], st.status, (v) => set({ status: v || null }))) : null,
-        h('button', { class: 'linkish hl-clear-filters', type: 'button', 'data-testid': 'clear-filters', onClick: () => set({ line: null, unit: null, show: null, status: null }) }, 'Clear filters'),
+        kind === 'workorders' ? field('Status', select('status-select', 'Status', [['', 'All statuses'], ...WO_STATUSES.map((s) => [s, STATUS_LABEL[s]]), ['overdue', 'Overdue']], st.status, (v) => set({ status: v || null }))) : null,
+        kind === 'findings' ? field('Severity', select('sev-select', 'Severity', SEV_FILTERS, st.sev, (v) => set({ sev: v }))) : null,
+        h('button', { class: 'linkish hl-clear-filters', type: 'button', 'data-testid': 'clear-filters', onClick: () => set({ line: null, unit: null, show: null, status: null, sev: kind === 'findings' ? 'urgent' : null }) }, 'Clear filters'),
         h('p', { class: 'a360-muted a360-small' }, 'Transformers have no line: they are listed under All lines.'),
       ];
     },
@@ -109,7 +112,7 @@ function draw(m, ctx, kind) {
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, scopeTitle(m, ctx.snap)), h('p', { class: 'a360-muted a360-small' }, `${plural(m.findings.length, 'finding')} · ${plural(m.workOrders.length, 'work order')} · ${plural(m.repairs.length, 'repair')} up to ${m.asOf}`)));
   if (m.empty) return [h('div', { class: 'hl-main' }, head, kpiHost, emptyReason(m, ctx.snap))];
-  const body = kind === 'repairs' ? repairsView(m, ctx) : kind === 'workorders' ? workOrdersView(m, ctx) : timelineView(m, ctx);
+  const body = kind === 'findings' ? openFindingsView(m, ctx) : kind === 'repairs' ? repairsView(m, ctx) : kind === 'workorders' ? workOrdersView(m, ctx) : timelineView(m, ctx);
   return [h('div', { class: 'hl-main' }, head, kpiHost, ...body)];
 }
 
@@ -238,11 +241,31 @@ function repairsView(m, ctx) {
       h('thead', {}, h('tr', {}, ...['Date', 'Repair', 'Asset', 'Findings closed (days from finding)', 'Health index before → after', 'Result'].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {}, rows))))];
 }
 
+// ---- open findings
+
+function openFindingsView(m, ctx) {
+  const sev = ctx.state.sev;
+  const open = m.findings.filter((f) => f.counted);
+  const list = open.filter((f) => (sev === 'all' ? true : sev === 'urgent' ? f.condition <= 2 : f.severity === sev)).sort((a, b) => a.condition - b.condition || b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+  if (!list.length) return [emptyState('findings-empty', 'No open findings', 'No open finding has this severity in this selection.')];
+  const camp = new Map(m.campaigns.map((c) => [c.id, c.name]));
+  const rows = list.map((f) => h('tr', { 'data-finding': f.id },
+    h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(f.id, e.currentTarget) }, f.id)),
+    h('td', {}, tag(f.severity, SEV_TONE[f.severity]), ' ', f.label),
+    h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openAssetFrom(f.ownerId, e.currentTarget) }, f.ownerName), f.assetId !== f.ownerId ? h('div', { class: 'a360-muted a360-small' }, `on ${f.assetName}`) : null),
+    h('td', {}, f.date), h('td', {}, camp.get(f.campaignId) ?? f.campaignId),
+    h('td', {}, f.status === 'confirmed' ? tag('confirmed', 'g') : tag('unreviewed', 'a'))));
+  return [h('section', { class: 'card hl-card', 'data-testid': 'findings-list-card' }, h('h3', {}, `Open findings (${list.length}${list.length !== open.length ? ` of ${open.length}` : ''})`),
+    h('p', { class: 'a360-muted a360-small' }, 'Findings no repair has closed and no reviewer has rejected, most severe first. Click a finding to open it, an asset to open its panel.'),
+    h('div', { class: 'hl-scroll' }, h('table', { class: 'a360-table mh-table', 'data-testid': 'open-findings' },
+      h('thead', {}, h('tr', {}, ...['Finding', 'Severity and class', 'Asset', 'Seen', 'Campaign', 'Review'].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {}, rows))))];
+}
+
 // ---- work orders
 
 function workOrdersView(m, ctx) {
   const st = ctx.state.status;
-  const list = st ? m.workOrders.filter((w) => w.status === st) : m.workOrders;
+  const list = st === 'overdue' ? m.workOrders.filter((w) => w.overdue) : st ? m.workOrders.filter((w) => w.status === st) : m.workOrders;
   const total = Math.max(1, m.workOrders.length);
   const bar = h('div', { class: 'mh-stack', 'data-testid': 'status-bar', role: 'img', 'aria-label': WO_STATUSES.map((s) => `${m.statusCounts[s]} ${STATUS_LABEL[s]}`).join(', ') },
     WO_STATUSES.filter((s) => m.statusCounts[s]).map((s) => h('span', { class: `mh-seg mh-${s}`, 'data-status': s, style: { width: `${(m.statusCounts[s] / total) * 100}%` } }, `${m.statusCounts[s]} ${STATUS_LABEL[s]}`)));

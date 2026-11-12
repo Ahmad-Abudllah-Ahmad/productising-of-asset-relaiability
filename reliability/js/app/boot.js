@@ -16,6 +16,7 @@ import { initTheme } from './theme.js';
 import { createHealthScreens } from './healthScreens.js';
 import { createHistoryScreen } from './historyScreens.js';
 import { createMapScreen } from './mapScreen.js';
+import { createDashboardScreen } from './dashboardScreen.js';
 import { parseView } from './hashState.js';
 
 const query = new URLSearchParams(location.search);
@@ -41,9 +42,9 @@ try {
   };
   const tabs = createRegistryTabs(screenDeps);
   const health = createHealthScreens(screenDeps);
-  window.NexusReliability.open('reliability', { screens: { registry: { tabs }, lines: health.lines, towers: health.towers, history: createHistoryScreen(screenDeps), map: createMapScreen(screenDeps) } });
+  window.NexusReliability.open('reliability', { screens: { registry: { tabs }, lines: health.lines, towers: health.towers, history: createHistoryScreen(screenDeps), map: createMapScreen(screenDeps), home: createDashboardScreen(screenDeps) } });
   const wanted = parseView(location.hash).view; // a link such as #view=towers&tower=TWR-132-01-011 opens that screen
-  if (wanted) window.NexusReliability.go(wanted);
+  if (wanted) window.NexusReliability.go(wanted === 'dashboard' ? 'home' : wanted);
   window.NexusReliability.openAsset = openAsset; // any screen can open an asset's panel
   window.NexusReliability.openFinding = openFinding; // ... or a finding's viewer
   const deps = { repo: repository, getSnapshot: () => state.snapshot, subscribeSnapshot: (fn) => { listeners.add(fn); return () => listeners.delete(fn); }, flags };
