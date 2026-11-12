@@ -32,6 +32,7 @@ const plain = (text, asOf) => String(text ?? '').replace(/\basOf\b/g, asOf);
 export function initAssetPanel(deps) {
   ctl.deps = deps;
   window.addEventListener('hashchange', sync);
+  window.addEventListener('reliability-theme', () => { if (ctl.state.open && ctl.state.view === 'ready') { disposeCharts(); drawCharts(); } }); // charts read their colours when drawn
   deps.subscribeSnapshot(() => { if (ctl.state.open && ctl.state.view === 'ready') load({ quiet: true }); });
   sync();
 }

@@ -11,6 +11,7 @@ import { loadSnapshot } from './snapshot.js';
 import { createRegistryTabs } from './registryTabs.js';
 import { initAssetPanel, openAsset } from './assetPanel.js';
 import { initFindingViewer, openFinding } from './findingViewer.js';
+import { initTheme } from './theme.js';
 
 const query = new URLSearchParams(location.search);
 const flags = { delay: Number(query.get('delay')) || 0, fail: query.get('fail') === '1', panelDelay: Number(query.get('paneldelay')) || 0, panelFail: query.get('panelfail') === '1', viewerDelay: Number(query.get('viewerdelay')) || 0, viewerFail: query.get('viewerfail') === '1' };
@@ -39,6 +40,7 @@ try {
   const deps = { repo: repository, getSnapshot: () => state.snapshot, subscribeSnapshot: (fn) => { listeners.add(fn); return () => listeners.delete(fn); }, flags };
   initAssetPanel(deps);
   initFindingViewer(deps);
+  initTheme();
 } catch (error) {
   console.error('Reliability: could not build the registry', error);
   window.NexusReliability.open('reliability');
