@@ -561,7 +561,7 @@
       var gl = (function () { try { var c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; } })();
       if (gl) {
         var labelsEl = $("labels"); var nodes = [];
-        import("./scene.js").then(function (mod) {
+        import("/login/scene.js").then(function (mod) {
           mod.mountScene($("scene3d"), m.key, {
             accent: m.acc,
             onLabels: function (ls) {

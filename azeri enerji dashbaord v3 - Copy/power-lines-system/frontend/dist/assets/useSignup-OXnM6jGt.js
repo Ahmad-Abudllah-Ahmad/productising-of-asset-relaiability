@@ -1,0 +1,1 @@
+import{r as n,o as u}from"./index-H-PuAGZp.js";let e=null;function c(){const[a,t]=n.useState(e??!1);return n.useEffect(()=>{e===null&&u.config().then(s=>{e=!!s.signup_enabled,t(e)}).catch(()=>t(!1))},[]),a}export{c as u};
