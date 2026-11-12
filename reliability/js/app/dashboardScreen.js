@@ -11,11 +11,13 @@
 // tooltip says so). The URL holds view=dashboard. ?healthdelay and ?healthfail slow and fail the load, as on the other screens.
 
 import { h } from '../ui/dom.js';
-import { tag, plural, emptyState, mountScreen, asOfNote, writeView, BAND_TONE } from './screenKit.js';
+import { scopeNote, tag, plural, emptyState, mountScreen, asOfNote, writeView, BAND_TONE } from './screenKit.js';
 import { loadDashboard, BANDS, BAND_WORD, CATEGORY } from './dashboardModel.js';
 import { drawChart, dashboardTrendOption } from './charts.js';
 import { openAsset } from './assetPanel.js';
+import { RISK_TAG } from './palette.js';
 import { openRegistryTab, openScreen } from './navigation.js';
+import { parseView } from './hashState.js';
 
 export function createDashboardScreen(deps) {
   return { tabs: [{ name: 'Overview', render: () => '<div class="screen hl dash" data-testid="dashboard" data-hl-root></div>', mount: (stage) => mountDashboard(stage, deps) }] };
@@ -29,7 +31,8 @@ const BAND_LABEL = { poor: 'poor', moderate: 'moderate', normal: 'normal', none:
 function mountDashboard(stage, deps) {
   return mountScreen(stage, deps, {
     view: 'dashboard', bare: true, noun: 'the dashboard',
-    state() { writeView({ view: 'dashboard' }); return {}; },
+    // the dashboard is the landing screen, so it needs no key in the URL; a link that names it keeps it
+    state() { if (parseView(location.hash).view === 'dashboard') writeView({ view: 'dashboard' }); return {}; },
     controls() { return []; },
     load: (snap) => loadDashboard(snap),
     draw: (m, ctx) => draw(m, ctx),
@@ -37,7 +40,7 @@ function mountDashboard(stage, deps) {
 }
 
 function draw(m, ctx) {
-  if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show yet', 'The registry has no assets. Import assets, then reload.')];
+  if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show', `No asset is in view.${scopeNote(ctx.snap)}`)];
   const kit = ctx.deps.kit;
   const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
   return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), distributionCard(m)), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
@@ -61,7 +64,7 @@ function kpiRow(m, kit) {
   const assets = h('div', { class: 'kpi card dash-kpi dash-kpi-assets', 'data-testid': 'kpi-assets', role: 'group', 'aria-label': 'Assets by band' },
     h('div', { class: 'k' }, 'Assets by band'),
     h('div', { class: 'dash-rows' }, k.assets.byCategory.map((c) => h('div', { class: 'dash-row', 'data-cat': c.id }, h('button', { class: 'dash-rlabel', type: 'button', onClick: () => openBand(c.id, null), title: `Open the ${c.title} registry` }, c.title), BANDS.map((b) => chip(c, b))))),
-    h('div', { class: 'sub sub-warn' }, `${k.assets.attention} need attention`, h('span', { class: 'dash-key' }, 'poor · moderate · normal · not assessed')));
+    h('div', { class: 'sub sub-warn' }, `${k.assets.attention} need attention`, k.assets.stale ? h('span', { class: 'dash-stale', title: 'Scores older than the inspection interval are greyed out' }, ` · ${k.assets.stale} stale`) : null, h('span', { class: 'dash-key' }, 'poor · moderate · normal · not assessed')));
   const button = (id, cls, testid, label, value, sub, tone, series, onClick) => {
     const b = h('button', { class: `kpi card dash-kpi ${cls}`, type: 'button', 'data-testid': testid, 'aria-label': `${label}: ${value}. ${sub}`, onClick });
     b.innerHTML = `<div class="k">${esc(label)}</div><div class="n">${esc(value)}</div><div class="sub sub-${tone}">${esc(sub)}</div>`;
@@ -117,12 +120,13 @@ function risksCard(m) {
     h('td', { class: 'dash-num' }, String(i + 1)),
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: stop((e) => openAsset(r.id, { opener: e.currentTarget })) }, r.name), h('span', { class: 'a360-muted a360-small' }, ` ${r.kind}`)),
     h('td', {}, r.lineId ? h('button', { class: 'a360-link', type: 'button', 'data-testid': 'risk-line', onClick: stop(() => openScreen('lines', null, { line: r.lineId })) }, r.lineName) : r.lineName),
-    h('td', {}, tag(`${r.hi} · ${BAND_LABEL[r.band]}`, BAND_TONE[r.band])),
+    h('td', {}, tag(`${r.hi} · ${BAND_LABEL[r.band]}${r.fresh.stale ? ' · stale' : ''}`, BAND_TONE[r.band], r.fresh.stale ? { class: 'is-stale', title: r.fresh.text } : { title: r.fresh.text })),
+    h('td', { class: `dash-num${r.fresh.stale ? ' is-stale' : ''}`, title: r.fresh.text, 'data-testid': 'evidence-age' }, r.fresh.short),
     h('td', { class: 'dash-num' }, String(r.points)), h('td', { class: 'dash-num' }, String(r.criticality)), h('td', { class: 'dash-num' }, String(r.consequence)),
-    h('td', { class: 'dash-num' }, h('b', {}, String(Math.round(r.risk))), ' ', tag(r.riskBand, { low: 'g', medium: 'b', high: 'a', critical: 'r' }[r.riskBand]))));
+    h('td', { class: 'dash-num' }, h('b', {}, String(Math.round(r.risk))), ' ', tag(r.riskBand, RISK_TAG[r.riskBand]))));
   return h('section', { class: 'card hl-card dash-card', 'data-testid': 'risks-card' }, h('h3', {}, 'Top 10 risks'),
     h('p', { class: 'a360-muted a360-small' }, 'Risk = (100 − health index) × criticality × consequence, with the linked-asset uplift. Towers and transformers together.'),
-    m.risks.length ? h('table', { class: 'a360-table dash-table', 'data-testid': 'risks' }, h('thead', {}, h('tr', {}, ...['#', 'Asset', 'Line', 'Health index', 'Condition', 'Criticality', 'Consequence', 'Risk'].map((x, i) => h('th', { scope: 'col', class: i === 0 || i >= 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows))
+    m.risks.length ? h('table', { class: 'a360-table dash-table', 'data-testid': 'risks' }, h('thead', {}, h('tr', {}, ...['#', 'Asset', 'Line', 'Health index', 'Evidence', 'Condition', 'Criticality', 'Consequence', 'Risk'].map((x, i) => h('th', { scope: 'col', class: i === 0 || i >= 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows))
       : h('p', { class: 'a360-muted' }, 'Nothing has a risk score yet.'));
 }
 
@@ -130,11 +134,11 @@ function linesCard(m) {
   const goLine = (id) => openScreen('lines', null, { line: id });
   const rows = m.lines.map((l) => h('tr', { 'data-line': l.id, tabindex: '0', onClick: () => goLine(l.id), onKeydown: (e) => { if (e.key === 'Enter') goLine(l.id); } },
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: stop(() => goLine(l.id)) }, l.name), h('span', { class: 'a360-muted a360-small' }, ` ${l.kv} kV`)),
-    h('td', {}, tag(`${l.hi} · ${BAND_LABEL[l.band]}`, BAND_TONE[l.band])),
+    h('td', {}, tag(`${l.hi} · ${BAND_LABEL[l.band]}${l.fresh.stale ? ' · stale' : ''}`, BAND_TONE[l.band], l.fresh.stale ? { class: 'is-stale', title: l.fresh.text } : { title: l.fresh.text }), h('span', { class: `a360-muted a360-small${l.fresh.stale ? ' is-stale' : ''}`, 'data-testid': 'line-evidence' }, ` ${l.fresh.short}`)),
     h('td', {}, h('span', { class: 'dash-counts', title: `${l.counts.poor} poor, ${l.counts.moderate} moderate, ${l.counts.normal} normal (towers and spans)` }, ...['poor', 'moderate', 'normal'].map((b) => h('span', { class: `dash-count${l.counts[b] ? '' : ' is-zero'}` }, h('i', { class: `hl-swatch hl-band-${b}` }), String(l.counts[b]))))),
     h('td', {}, l.worstTower ? [h('button', { class: 'a360-link', type: 'button', 'data-testid': 'worst-tower', onClick: stop((e) => openAsset(l.worstTower.id, { opener: e.currentTarget })) }, l.worstTower.name), ' ', tag(String(l.worstTower.score), BAND_TONE[l.worstTower.band])] : h('span', { class: 'a360-muted' }, '–')),
     h('td', { class: 'dash-num' }, l.notAssessed ? h('button', { class: 'a360-link', type: 'button', 'data-testid': 'not-assessed-count', title: `${plural(l.notAssessedTowers, 'tower')} and ${plural(l.notAssessed - l.notAssessedTowers, 'span')} with no inspection evidence yet`, onClick: stop(() => openScreen('towers', null, { line: l.id, band: 'none' })) }, String(l.notAssessed)) : h('span', { class: 'a360-muted' }, '0'))));
   return h('section', { class: 'card hl-card dash-card', 'data-testid': 'lines-card' }, h('h3', {}, 'Lines'),
     h('p', { class: 'a360-muted a360-small' }, 'Length-weighted health index, units by band, the worst tower, and units with no evidence yet. Click a row to open the line.'),
-    h('table', { class: 'a360-table dash-table', 'data-testid': 'lines' }, h('thead', {}, h('tr', {}, ...['Line', 'Health index', 'Poor · moderate · normal', 'Worst tower', 'Not assessed'].map((x, i) => h('th', { scope: 'col', class: i === 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows)));
+    h('table', { class: 'a360-table dash-table', 'data-testid': 'lines' }, h('thead', {}, h('tr', {}, ...['Line', 'Health index · evidence', 'Poor · moderate · normal', 'Worst tower', 'Not assessed'].map((x, i) => h('th', { scope: 'col', class: i === 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows)));
 }

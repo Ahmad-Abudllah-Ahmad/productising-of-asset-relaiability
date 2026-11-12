@@ -10,10 +10,11 @@
 // Findings open the finding viewer; assets, work orders and repairs open Asset 360.
 
 import { h } from '../ui/dom.js';
-import { spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
+import { openScreen } from './navigation.js';
+import { drillKpis, scopeNote, spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { loadHistory, WO_STATUSES } from './historyModel.js';
 import { drawChart, historyTrendOption, campaignFindingsOption, workOrdersOption, repairsMonthlyOption } from './charts.js';
-import { openAsset } from './assetPanel.js';
+import { openAsset, thumb } from './assetPanel.js';
 import { openFinding } from './findingViewer.js';
 import { parseView } from './hashState.js';
 
@@ -109,6 +110,8 @@ function draw(m, ctx, kind) {
   const kit = ctx.deps.kit;
   const kpiHost = h('div', { 'data-testid': 'hl-kpis' });
   kpiHost.innerHTML = kpiCards(m, kit);
+  const to = (tab, extra = {}) => () => openScreen('history', tab, { line: m.line || null, unit: m.unit || null, ...extra });
+  drillKpis(kpiHost, { 'Work orders': to('Work orders'), 'Finding to repair': to('Repairs'), Repairs: to('Repairs'), 'Open findings': to('Open findings', { sev: 'all' }) });
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, scopeTitle(m, ctx.snap)), h('p', { class: 'a360-muted a360-small' }, `${plural(m.findings.length, 'finding')} · ${plural(m.workOrders.length, 'work order')} · ${plural(m.repairs.length, 'repair')} up to ${m.asOf}`)));
   if (m.empty) return [h('div', { class: 'hl-main' }, head, kpiHost, emptyReason(m, ctx.snap))];
@@ -118,7 +121,7 @@ function draw(m, ctx, kind) {
 
 /** Why there is nothing to show, in terms of the asset: it was never flown, or it was flown and nothing was found. */
 function emptyReason(m, snap) {
-  if (!m.unit) return emptyState('history-empty', 'Nothing recorded for this selection', 'No finding, work order or repair is recorded for it. Choose All lines, or press Clear filters.');
+  if (!m.unit) return emptyState('history-empty', 'Nothing recorded for this selection', `No finding, work order or repair is recorded for it. Choose All lines, or press Clear filters.${scopeNote(snap)}`);
   const a = snap.byId.get(m.unit);
   const flown = snap.ctx.coverageDates(m.unit, snap.asOf);
   const why = flown.length ? `It was flown in ${plural(flown.length, 'campaign')}, the latest on ${flown.at(-1)}, and nothing was found, ordered or repaired.`
@@ -232,7 +235,7 @@ function repairsView(m, ctx) {
     h('td', {}, r.date),
     h('td', {}, h('b', {}, r.id), h('div', { class: 'a360-muted a360-small' }, `${r.action} · ${r.workOrderId}`)),
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openAssetFrom(r.ownerId, e.currentTarget) }, r.ownerName), r.assetId !== r.ownerId ? h('div', { class: 'a360-muted a360-small' }, `on ${r.assetName}`) : null),
-    h('td', {}, r.closes.map((c) => h('div', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(c.id, e.currentTarget) }, c.id), h('span', { class: 'a360-muted a360-small' }, ` ${c.label} · ${c.days} d`)))),
+    h('td', {}, r.closes.map((c) => h('div', { class: 'mh-closed' }, h('span', { class: 'mh-mini' }, thumb(c.thumb)), h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(c.id, e.currentTarget) }, c.id), h('span', { class: 'a360-muted a360-small' }, ` ${c.label} · ${c.days} d`)))),
     h('td', { 'data-testid': 'hi-change' }, hiText(r), r.delta !== null ? h('div', { class: `a360-small ${r.delta > 0 ? 'hl-better' : r.delta < 0 ? 'hl-worse' : 'a360-muted'}` }, `${r.delta > 0 ? '+' : ''}${r.delta}`) : null),
     h('td', {}, r.effective ? tag('held', 'g') : [tag('ineffective', 'r'), ...r.seenAgain.map((x) => h('div', { class: 'a360-small' }, 'seen again ', h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(x.id, e.currentTarget) }, x.id), ` ${x.date} (+${x.daysAfter} d)`))])));
   return [h('section', { class: 'card hl-card', 'data-testid': 'repairs-card' }, h('h3', {}, `Repairs (${show.length}${show.length !== m.repairs.length ? ` of ${m.repairs.length}` : ''})`),
@@ -250,6 +253,7 @@ function openFindingsView(m, ctx) {
   if (!list.length) return [emptyState('findings-empty', 'No open findings', 'No open finding has this severity in this selection.')];
   const camp = new Map(m.campaigns.map((c) => [c.id, c.name]));
   const rows = list.map((f) => h('tr', { 'data-finding': f.id },
+    h('td', { class: 'mh-thumbcell' }, thumb(f.thumb)),
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(f.id, e.currentTarget) }, f.id)),
     h('td', {}, tag(f.severity, SEV_TONE[f.severity]), ' ', f.label),
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openAssetFrom(f.ownerId, e.currentTarget) }, f.ownerName), f.assetId !== f.ownerId ? h('div', { class: 'a360-muted a360-small' }, `on ${f.assetName}`) : null),
@@ -258,7 +262,7 @@ function openFindingsView(m, ctx) {
   return [h('section', { class: 'card hl-card', 'data-testid': 'findings-list-card' }, h('h3', {}, `Open findings (${list.length}${list.length !== open.length ? ` of ${open.length}` : ''})`),
     h('p', { class: 'a360-muted a360-small' }, 'Findings no repair has closed and no reviewer has rejected, most severe first. Click a finding to open it, an asset to open its panel.'),
     h('div', { class: 'hl-scroll' }, h('table', { class: 'a360-table mh-table', 'data-testid': 'open-findings' },
-      h('thead', {}, h('tr', {}, ...['Finding', 'Severity and class', 'Asset', 'Seen', 'Campaign', 'Review'].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {}, rows))))];
+      h('thead', {}, h('tr', {}, ...['Evidence', 'Finding', 'Severity and class', 'Asset', 'Seen', 'Campaign', 'Review'].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {}, rows))))];
 }
 
 // ---- work orders
@@ -278,7 +282,7 @@ function workOrdersView(m, ctx) {
     h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: (e) => openAssetFrom(w.ownerId, e.currentTarget) }, w.ownerName), w.assetId !== w.ownerId ? h('div', { class: 'a360-muted a360-small' }, `on ${w.assetName}`) : null),
     h('td', {}, tag(STATUS_LABEL[w.status], STATUS_TONE[w.status]), w.overdue ? [' ', tag('overdue', 'r')] : null),
     h('td', {}, w.created), h('td', {}, w.planned), h('td', {}, w.completed ?? '–'), h('td', {}, `${w.daysOpen}`),
-    h('td', {}, w.findingIds.slice(0, 3).map((id) => h('button', { class: 'a360-link mh-fid', type: 'button', onClick: (e) => openFindingFrom(id, e.currentTarget) }, id)), w.findingIds.length > 3 ? h('span', { class: 'a360-muted a360-small' }, ` +${w.findingIds.length - 3}`) : null),
+    h('td', {}, w.thumbs.slice(0, 3).map((t) => h('span', { class: 'mh-fid' }, h('span', { class: 'mh-mini' }, thumb(t)), h('button', { class: 'a360-link', type: 'button', onClick: (e) => openFindingFrom(t.id, e.currentTarget) }, t.id))), w.findingIds.length > 3 ? h('span', { class: 'a360-muted a360-small' }, ` +${w.findingIds.length - 3}`) : null),
     h('td', {}, w.repairId ?? '–')));
   return [counts, h('section', { class: 'card hl-card', 'data-testid': 'wo-card' }, h('h3', {}, `Work orders (${list.length}${list.length !== m.workOrders.length ? ` of ${m.workOrders.length}` : ''})`),
     h('div', { class: 'hl-scroll' }, h('table', { class: 'a360-table mh-table', 'data-testid': 'workorders' },

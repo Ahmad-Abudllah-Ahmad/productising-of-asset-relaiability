@@ -503,3 +503,39 @@ button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible
 .dash-table tbody tr { cursor: pointer; } .dash-table tbody tr:hover td { background: var(--rel-surface-2); }
 .dash-num { text-align: right !important; font-variant-numeric: tabular-nums; }
 .dash-counts { display: inline-flex; gap: 10px; } .dash-count { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; font-weight: 600; } .dash-count.is-zero { color: var(--muted); font-weight: 400; }
+
+/* ==== Global filter bar. Namespaced gf-. */
+.gf { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; padding: 6px 12px; margin: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.gf.is-active { border-color: var(--blue); }
+.gf-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.gf select, .gf input[type="date"] { height: 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); padding: 0 6px; font: inherit; font-size: 13px; min-width: 120px; }
+.gf input[type="date"] { min-width: 140px; color-scheme: light dark; }
+.gf-btn { height: 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); padding: 0 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.gf-btn:hover:not(:disabled) { border-color: var(--blue); }
+.gf :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.gf-note { font-size: 12px; color: var(--muted); align-self: center; }
+.gf.is-off { opacity: 0.7; }
+.work > .gf { margin-top: 8px; margin-bottom: 0; }
+
+/* ==== Freshness: a score older than the inspection interval is greyed out and says "stale". */
+.is-stale { filter: grayscale(0.9); opacity: 0.62; }
+.tag.is-stale { border: 1px dashed var(--muted); }
+.hl-tower.is-stale, .hl-span.is-stale .hl-wire { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(95, 106, 123, 0.45) 4px 6px); }
+.a360-scores.is-stale .a360-card { background-image: repeating-linear-gradient(135deg, transparent 0 8px, rgba(128, 128, 128, 0.12) 8px 10px); }
+.dash-stale { font-weight: 700; color: var(--muted); }
+
+/* ==== The condition palette on tags: bands, severities, condition scores and risk bands all use the same fills (palette.js). */
+.tag.cond-1 { background: var(--rel-cond-1); } .tag.cond-2 { background: var(--rel-cond-2); } .tag.cond-3 { background: var(--rel-cond-3); }
+.tag.cond-4 { background: var(--rel-cond-4); } .tag.cond-5 { background: var(--rel-cond-5); } .tag.cond-n { background: var(--rel-cond-n); border-style: dashed; }
+.tag[class*="cond-"] { color: var(--rel-on-fill); border: 1px solid var(--rel-shape-line); }
+:root[data-rel-theme="dark"] .tag[class*="cond-"] { color: var(--rel-on-fill); }
+
+/* KPI cards that open the list behind them */
+.kpi.is-drill { cursor: pointer; } .kpi.is-drill:hover { border-color: var(--blue); } .kpi.is-drill:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* thumbnails in lists: small, with the Demo tag */
+.mh-mini .a360-thumb { width: 60px; height: 42px; line-height: 42px; flex: none; } .mh-mini .a360-demo { font-size: 8px; }
+.mh-closed { display: flex; align-items: center; gap: 6px; margin: 2px 0; } .mh-fid { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
+.mh-thumbcell { width: 100px; }
+.rm-tipimg { position: relative; margin-top: 4px; width: 120px; } .rm-tipimg img { display: block; width: 120px; height: 84px; object-fit: cover; border-radius: 4px; }
+.rm-tipimg span { position: absolute; left: 3px; bottom: 3px; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(16, 24, 40, 0.72); color: #fff; }

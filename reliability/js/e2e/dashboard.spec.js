@@ -14,7 +14,7 @@ const theme = (page) => page.evaluate(() => document.documentElement.dataset.rel
 const title = (page) => page.locator('#app-title');
 const visibleRows = (page) => page.locator('#stage table.reg-table tbody tr:not([hidden])');
 
-async function open(page, url = '/reliability#view=dashboard', size = { width: 1920, height: 1080 }) {
+async function open(page, url = '/reliability', size = { width: 1920, height: 1080 }) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/tile|ERR_|Failed to load resource/i.test(m.text())) errors.push(m.text()); });
@@ -40,10 +40,10 @@ const evalChart = (page, fn, arg) => page.evaluate(([src, a]) => (0, eval)(`(${s
 test.describe('the dashboard', () => {
   test('opens from the rail: four KPI cards, "Scores as of", the trend, the distribution, ten risks and a row per line', async ({ page }) => {
     const errors = await open(page, '/reliability');
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await expect(title(page)).toContainText('Reliability Dashboard');
     await expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true');
-    expect(await hash(page)).toBe('#view=dashboard');
+    expect(await hash(page)).toBe('');
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
     await expect(byId(page, 'hl-kpis').locator('.kpi')).toHaveCount(4);
     await expect(byId(page, 'kpi-assets')).toContainText('26 need attention');
@@ -79,14 +79,14 @@ test.describe('the dashboard', () => {
     await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Towers');
     await expect(page.locator('select[aria-label="Health band"]')).toHaveValue('poor');
     await expect(visibleRows(page)).toHaveCount(6);
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await byId(page, 'kpi-assets').locator('[data-cat="transformers"][data-band="normal"]').click();
     await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Transformers');
     await expect(visibleRows(page)).toHaveCount(6);
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await byId(page, 'kpi-assets').locator('[data-cat="towers"][data-band="none"]').click();
     await expect(visibleRows(page)).toHaveCount(9); // four new towers and the duplicate records
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await byId(page, 'kpi-assets').locator('.dash-rlabel', { hasText: 'Spans' }).click();
     await expect(page.locator('select[aria-label="Health band"]')).toHaveValue('All');
     await expect(visibleRows(page)).toHaveCount(151);
@@ -148,7 +148,7 @@ test.describe('the dashboard', () => {
     await seg.click();
     await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Spans');
     await expect(visibleRows(page)).toHaveCount(3);
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await byId(page, 'distribution').locator('.dash-dist[data-cat="lines"] .dash-rlabel').click();
     await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Lines');
     await expect(visibleRows(page)).toHaveCount(3);
@@ -160,12 +160,12 @@ test.describe('the dashboard', () => {
     await expect(first).toContainText('T-039');
     await expect(first).toContainText('1090');
     const cells = await first.locator('td.dash-num').allInnerTexts();
-    const [points, crit, cons] = [cells[1], cells[2], cells[3]].map(Number);
+    const [points, crit, cons] = [cells[2], cells[3], cells[4]].map(Number); // cells: #, evidence, condition, criticality, consequence, risk
     expect(Math.round(points * crit * cons)).toBe(1090);
     await expect(byId(page, 'risks').locator('tbody tr', { hasText: 'transformer' }).first()).toBeVisible();
     await first.click();
     await expect(panel(page)).toContainText('TWR-220-03-039');
-    expect(await hash(page)).toMatch(/^#asset=TWR-220-03-039&view=dashboard$/);
+    expect(await hash(page)).toBe('#asset=TWR-220-03-039');
     await page.keyboard.press('Escape');
     await first.getByTestId('risk-line').click();
     await expect(title(page)).toContainText('Line Health');
@@ -186,7 +186,7 @@ test.describe('the dashboard', () => {
     await expect(title(page)).toContainText('Tower Health');
     expect(await hash(page)).toContain('band=none');
     await expect(byId(page, 'hl-head')).toContainText('T-041');
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await byId(page, 'lines').locator('tr[data-line="L-500-01"]').click();
     await expect(title(page)).toContainText('Line Health');
     await expect(byId(page, 'line-select')).toHaveValue('L-500-01');
@@ -212,6 +212,60 @@ test.describe('the dashboard', () => {
     expect(await evalChart(page, (c) => c.getOption().xAxis[0].axisLabel.color)).not.toBe('#5f6a7b');
   });
 
+  test('Back from any drill-down returns to the dashboard, with its URL; Forward goes to the drill-down again', async ({ page }) => {
+    await dashboard(page);
+    const backToDashboard = async () => {
+      await page.goBack();
+      await expect(title(page)).toContainText('Reliability Dashboard');
+      await expect(byId(page, 'kpi-assets')).toBeVisible();
+      await expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true');
+      expect(await hash(page)).toBe('');
+    };
+    // a KPI that opens Maintenance History
+    await byId(page, 'kpi-findings').click();
+    await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Open findings');
+    await backToDashboard();
+    await page.goForward();
+    await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Open findings');
+    expect(await hash(page)).toBe('#view=history&sev=urgent');
+    await backToDashboard();
+    // a chip that opens the registry on a band
+    await byId(page, 'kpi-assets').locator('[data-cat="towers"][data-band="poor"]').click();
+    await expect(visibleRows(page)).toHaveCount(6);
+    await backToDashboard();
+    await page.goForward();
+    await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Towers');
+    await expect(visibleRows(page)).toHaveCount(6); // the filter comes back with Forward
+    await backToDashboard();
+    // links, overdue, a chart segment, a line row, a risk line
+    await byId(page, 'kpi-links').click();
+    await expect(page.locator('#tabs [data-tab].is-on')).toHaveText('Links');
+    await backToDashboard();
+    await byId(page, 'kpi-overdue').click();
+    await expect(byId(page, 'workorders')).toBeVisible();
+    await backToDashboard();
+    await byId(page, 'lines').locator('tr[data-line="L-500-01"]').click();
+    await expect(title(page)).toContainText('Line Health');
+    await backToDashboard();
+    await byId(page, 'risks').locator('tbody tr').first().getByTestId('risk-line').click();
+    await expect(byId(page, 'line-select')).toHaveValue('L-220-03');
+    await backToDashboard();
+    // two steps deep: dashboard -> line -> back -> back leaves nothing broken
+    await byId(page, 'lines').locator('tr[data-line="L-132-01"]').getByTestId('not-assessed-count').click();
+    await expect(title(page)).toContainText('Tower Health');
+    await backToDashboard();
+  });
+
+  test('Back also closes a panel opened from the dashboard and stays on the dashboard', async ({ page }) => {
+    await dashboard(page);
+    await byId(page, 'risks').locator('tbody tr').first().click();
+    await expect(panel(page)).toBeVisible();
+    await page.goBack();
+    await expect(panel(page)).toBeHidden();
+    await expect(title(page)).toContainText('Reliability Dashboard');
+    expect(await hash(page)).toBe('');
+  });
+
   test('a link such as #view=dashboard opens the dashboard from anywhere', async ({ page }) => {
     await open(page, '/reliability#view=dashboard');
     await expect(title(page)).toContainText('Reliability Dashboard');
@@ -231,7 +285,7 @@ test.describe('the dashboard', () => {
   test('if the app scripts fail, the Dashboard rail entry says it could not be loaded', async ({ page }) => {
     await page.route('**/reliability/js/data/seed.js*', (route) => route.abort());
     await page.goto('/reliability');
-    await rail(page).nth(6).click();
+    await rail(page).nth(0).click();
     await expect(byId(page, 'dashboard-unavailable')).toContainText('could not be loaded');
   });
 

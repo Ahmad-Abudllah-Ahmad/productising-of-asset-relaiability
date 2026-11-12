@@ -11,12 +11,13 @@
 // real: ?healthdelay=1200 slows the load, ?healthfail=1 makes the first load fail (see boot.js).
 
 import { h } from '../ui/dom.js';
-import { BAND_TONE, BAND_SUB, RISK_SUB, SEV_TONE, COND_CLASS, condWord, spark, tag, pct, plural, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
+import { drillKpis, scopeNote, BAND_TONE, BAND_SUB, RISK_SUB, SEV_TONE, COND_CLASS, condWord, spark, tag, pct, plural, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { CONFIG } from '../domain/config.js';
 import { loadLineHealth, loadTowerHealth, listLines, listTowers, BAND_LABEL, TOWER_GROUPS } from './healthModel.js';
 import { SEVERITY } from './assetModel.js';
 import { drawChart, profileOption } from './charts.js';
 import { openAsset, thumb } from './assetPanel.js';
+import { openRegistryTab, openScreen } from './navigation.js';
 import { parseView } from './hashState.js';
 
 const BAND_FILTERS = [['', 'All'], ['poor', 'Poor'], ['moderate', 'Moderate'], ['normal', 'Normal'], ['none', 'Not assessed']];
@@ -63,7 +64,7 @@ function mountLines(stage, deps, kit) {
   });
 }
 
-function bandTag(m) { return m.assessed ? tag(`${m.hi} · ${BAND_LABEL[m.band]}`, BAND_TONE[m.band]) : tag('not assessed', 'x'); }
+function bandTag(m) { return m.assessed ? tag(`${m.hi} · ${BAND_LABEL[m.band]}${m.stale ? ' · stale' : ''}`, BAND_TONE[m.band], m.stale ? { class: 'is-stale', title: m.evidence } : {}) : tag('not assessed', 'x'); }
 
 function lineKpis(m, kit) {
   const t = m.trend;
@@ -78,19 +79,19 @@ function lineKpis(m, kit) {
 
 function stripUnit(u) {
   const label = u.kind === 'tower'
-    ? `${u.name}: ${u.assessed ? `health index ${u.hi}, ${BAND_LABEL[u.band]}` : 'not assessed'}, ${plural(u.open, 'open finding')}`
-    : `Span ${u.name}: ${u.assessed ? `health index ${u.hi}, ${BAND_LABEL[u.band]}` : 'not assessed'}, clearance ${u.clearance ?? 'unknown'} m, ${plural(u.open, 'open finding')}`;
+    ? `${u.name}: ${u.assessed ? `health index ${u.hi}, ${BAND_LABEL[u.band]}${u.stale ? ', stale' : ''}` : 'not assessed'}, ${plural(u.open, 'open finding')}${u.assessed ? `. ${u.evidence}` : ''}`
+    : `Span ${u.name}: ${u.assessed ? `health index ${u.hi}, ${BAND_LABEL[u.band]}${u.stale ? ', stale' : ''}` : 'not assessed'}, clearance ${u.clearance ?? 'unknown'} m, ${plural(u.open, 'open finding')}${u.assessed ? `. ${u.evidence}` : ''}`;
   if (u.kind === 'tower') {
-    return h('button', { class: `hl-tower hl-band-${u.band}`, type: 'button', 'data-asset': u.id, 'data-band': u.band, 'aria-label': label, title: label, onClick: (e) => openAssetFrom(u.id, e.currentTarget) },
+    return h('button', { class: `hl-tower hl-band-${u.band}${u.stale ? ' is-stale' : ''}`, type: 'button', 'data-asset': u.id, 'data-band': u.band, 'data-stale': u.stale ? 'true' : null, 'aria-label': label, title: label, onClick: (e) => openAssetFrom(u.id, e.currentTarget) },
       h('span', { class: 'hl-hi' }, u.assessed ? String(Math.round(u.hi)) : '–'), u.open ? h('span', { class: 'hl-count', 'aria-hidden': 'true' }, String(u.open)) : null);
   }
-  return h('button', { class: 'hl-span', type: 'button', 'data-asset': u.id, 'data-band': u.band, 'aria-label': label, title: label, onClick: (e) => openAssetFrom(u.id, e.currentTarget) },
+  return h('button', { class: `hl-span${u.stale ? ' is-stale' : ''}`, type: 'button', 'data-asset': u.id, 'data-band': u.band, 'data-stale': u.stale ? 'true' : null, 'aria-label': label, title: label, onClick: (e) => openAssetFrom(u.id, e.currentTarget) },
     h('i', { class: `hl-wire hl-band-${u.band}` }, u.open ? h('span', { class: 'hl-count', 'aria-hidden': 'true' }, String(u.open)) : null),
     h('span', { class: 'hl-clear' }, u.clearance === null ? '' : `${u.clearance} m`));
 }
 
 function drawLine(m, ctx, kit) {
-  if (!m.found) return [emptyState('line-empty', 'No line to show', 'The registry has no lines. Add or import assets, then reload.')];
+  if (!m.found) return [emptyState('line-empty', 'No line to show', `The registry has no line in view.${scopeNote(ctx.snap)}`)];
   const { line } = m;
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, `${line.name}`, h('span', { class: 'a360-muted' }, ` · ${line.kv} kV${line.lengthKm ? ` · ${line.lengthKm} km` : ''}${line.ends.length ? ` · ends ${line.ends.join(', ')}` : ''}`)),
@@ -99,6 +100,12 @@ function drawLine(m, ctx, kit) {
 
   const kpiHost = h('div', { 'data-testid': 'hl-kpis' });
   kpiHost.innerHTML = lineKpis(m, kit);
+  drillKpis(kpiHost, {
+    'Line health index': () => openAsset(m.id),
+    'Assessed by length': () => openScreen('towers', null, { line: m.id, band: 'none' }),
+    'Needs attention': () => openRegistryTab('Towers', { Line: line.name }),
+    'Open findings': () => openScreen('history', 'Open findings', { line: m.id, sev: 'all' }),
+  });
 
   const legend = h('div', { class: 'hl-legend', 'aria-label': 'Legend' },
     ...['normal', 'moderate', 'poor', 'none'].map((b) => h('span', {}, h('i', { class: `hl-swatch hl-band-${b}` }), b === 'none' ? 'not assessed' : `${b} (${b === 'normal' ? `${CONFIG.bands.normalMin}+` : b === 'moderate' ? `${CONFIG.bands.poorBelow}-${CONFIG.bands.normalMin - 1}` : `below ${CONFIG.bands.poorBelow}`})`)),
@@ -215,14 +222,14 @@ function towerKpis(m, kit) {
     { l: 'Health index', v: m.assessed ? String(m.hi) : '-', s: m.assessed ? `${BAND_LABEL[m.band]}${m.cap?.applied ? ' · condition cap applies' : ''}` : 'not assessed', tone: BAND_SUB[m.band], tip: m.assessed ? 'Weighted roll-up of the six groups, limited by the worst group (the condition cap). See the Asset 360 panel for the full breakdown.' : (m.reason ?? 'No evidence yet.'), spark: spark(cols.map((c) => c.hi)) },
     { l: 'Open findings', v: String(f.total), s: m.worstWord ? `worst: ${m.worstWord} · ${f.unreviewed} unreviewed` : (m.assessed ? 'none open' : 'not inspected'), tone: m.worstFinding && m.worstFinding <= 2 ? 'bad' : m.worstFinding === 3 ? 'warn' : 'neutral', tip: 'Findings on this tower and its components that no repair has closed. Rejected ones are left out.', spark: spark(m.history.open) },
     { l: 'Risk', v: m.risk ? String(Math.round(m.risk.score)) : '-', s: m.risk ? `${m.risk.band} · criticality ${m.risk.criticality} × consequence ${m.risk.consequence.value}` : 'not assessed', tone: m.risk ? RISK_SUB[m.risk.band] : 'neutral', tip: '(100 - health index) x criticality x consequence, with the linked-asset uplift.', spark: spark([m.risk?.score ?? null]) },
-    { l: 'Newest evidence', v: m.newest ?? '-', s: m.newest ? `${m.ageDays} days ago${m.stale ? ' · overdue' : ''}` : 'never inspected', tone: m.stale ? 'warn' : 'neutral', tip: 'Date of the newest finding or inspection that counts toward the score, and whether it is older than the inspection interval.', spark: spark([m.ageDays ?? null]) },
+    { l: 'Newest evidence', v: m.newest ?? '-', s: m.newest ? `${m.ageDays} days ago${m.stale ? ` · stale (interval ${m.intervalDays} days)` : ''}` : 'never inspected', tone: m.stale ? 'warn' : 'neutral', tip: 'Date of the newest finding or inspection that counts toward the score, and whether it is older than the inspection interval.', spark: spark([m.ageDays ?? null]) },
   ]);
 }
 
 function drawTower(m, ctx, kit) {
   if (!m.found) {
     return [m.empty
-      ? emptyState('tower-empty', 'No towers match', m.filtered ? 'No tower matches these filters. Choose All, or press Clear filters.' : 'The registry has no towers.')
+      ? emptyState('tower-empty', 'No towers match', (m.filtered ? 'No tower matches these filters. Choose All, or press Clear filters.' : 'The registry has no tower in view.') + scopeNote(ctx.snap))
       : emptyState('tower-empty', 'Tower not found', `There is no tower with the id "${m.id}". The link may be old.`)];
   }
   const t = m.tower;
@@ -233,16 +240,21 @@ function drawTower(m, ctx, kit) {
 
   const kpiHost = h('div', { 'data-testid': 'hl-kpis' });
   kpiHost.innerHTML = towerKpis(m, kit);
+  drillKpis(kpiHost, {
+    'Health index': () => openAsset(t.id), Risk: () => openAsset(t.id), 'Newest evidence': () => openAsset(t.id),
+    'Open findings': () => openScreen('history', 'Open findings', { unit: t.id, sev: 'all' }),
+  });
 
+  const staleNote = m.assessed && m.stale ? h('div', { class: 'fv-banner a hl-na-banner', role: 'status', 'data-testid': 'stale-banner' }, h('b', {}, 'Stale scores. '), `${m.evidence} The scores below are greyed out until the tower is inspected again.`) : null;
   const banner = !m.assessed ? h('div', { class: 'fv-banner a hl-na-banner', role: 'status', 'data-testid': 'not-assessed-banner' }, h('b', {}, 'Not assessed. '), `${m.reason}. The zones are grey because there is nothing to colour them from; this is not a good score.`) : null;
 
   const cap = m.cap?.applied ? h('p', { class: 'a360-small', 'data-testid': 'cap-note' }, h('b', {}, 'A condition cap applies. '), `${m.cap.causedBy.map((g) => m.groupLabel[g] ?? g).join(', ')} at condition ${m.cap.condition} limits the score to the ${m.cap.band} band: ${m.cap.uncappedScore} before the cap, ${m.cap.scaledScore} after.`) : null;
 
-  const schematic = h('section', { class: 'card hl-card hl-schematic', 'data-testid': 'schematic-card' }, h('h3', {}, 'Tower schematic'), schematicSvg(m), conditionLegend(),
+  const schematic = h('section', { class: `card hl-card hl-schematic${m.stale ? ' is-stale' : ''}`, 'data-testid': 'schematic-card' }, h('h3', {}, 'Tower schematic'), schematicSvg(m), conditionLegend(),
     h('p', { class: 'a360-muted a360-small' }, 'Each zone takes the colour of its scoring group (the worst component in the group). Findings do not say where on the tower they were seen, so zones are coloured by group, not by position. Crossarms, body and legs are one group, the steel structure, and are drawn as one shape with one outline.'));
-  const groupsCard = h('section', { class: 'card hl-card', 'data-testid': 'groups-card' }, h('h3', {}, 'Group conditions'), groupTable(m), cap);
+  const groupsCard = h('section', { class: `card hl-card${m.stale ? ' is-stale' : ''}`, 'data-testid': 'groups-card' }, h('h3', {}, 'Group conditions'), groupTable(m), cap);
 
-  return [h('div', { class: 'hl-main' }, head, banner, kpiHost, h('div', { class: 'hl-two hl-two-wide' }, schematic, groupsCard), findingsCard(m), compareCard(m))];
+  return [h('div', { class: 'hl-main' }, head, banner, staleNote, kpiHost, h('div', { class: 'hl-two hl-two-wide' }, schematic, groupsCard), findingsCard(m), compareCard(m))];
 }
 
 // ---- schematic

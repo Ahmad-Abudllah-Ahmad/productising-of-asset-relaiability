@@ -41,7 +41,7 @@ async function both(page, name, height = 1500, ready) {
 test.describe('Line Health', () => {
   test('opens from the rail on the first line: KPI cards, "Scores as of", the strip, the chart and the breakdown', async ({ page }) => {
     const errors = await open(page);
-    await rail(page).nth(3).click();
+    await rail(page).nth(4).click();
     await expect(byId(page, 'strip')).toBeVisible();
     await expect(page.locator('#app-title')).toContainText('Line Health');
     expect(await hash(page)).toBe('#view=lines&line=L-132-01');
@@ -168,6 +168,7 @@ test.describe('Line Health', () => {
       return { series: opt.series.map((s) => [s.name, s.data.length]), x, y };
     });
     expect(info.series).toEqual([['Towers', 44], ['Spans', 39], ['Not assessed', 8]]);
+    await el.scrollIntoViewIfNeeded();
     const box = await el.boundingBox();
     await page.mouse.click(box.x + info.x, box.y + info.y);
     await expect(panel(page)).toContainText('TWR-132-01-011');
@@ -216,7 +217,7 @@ test.describe('Line Health', () => {
 
   test('leaving the screen takes its keys out of the URL', async ({ page }) => {
     await lines(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await expect(page.locator('#app-title')).toContainText('Asset Registry');
     expect(await hash(page)).toBe('');
   });
@@ -252,7 +253,7 @@ test.describe('Line Health', () => {
 test.describe('Tower Health', () => {
   test('opens from the rail on the first tower of the first line, not on a duplicate record', async ({ page }) => {
     await open(page);
-    await rail(page).nth(2).click();
+    await rail(page).nth(3).click();
     await expect(byId(page, 'schematic')).toBeVisible();
     await expect(page.locator('#app-title')).toContainText('Tower Health');
     await expect(byId(page, 'hl-head')).toContainText('T-001');

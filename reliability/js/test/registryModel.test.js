@@ -45,19 +45,19 @@ test('towers: the health index and risk cells are the Phase 2 scores', async () 
   const riskCol = columns.indexOf('Risk');
   for (const r of rows.slice(0, 80)) {
     const hi = healthIndex(ctx, r.id, AS_OF);
-    if (hi.score === null) { assert.equal(r.cells[hiCol].text, 'not assessed'); assert.equal(r.cells[hiCol].tone, 'x'); continue; }
+    if (hi.score === null) { assert.equal(r.cells[hiCol].text, 'not assessed'); assert.equal(r.cells[hiCol].tone, 'cond-n'); continue; }
     assert.equal(r.cells[hiCol].text, `${hi.score} ${hi.band}`);
-    assert.equal(r.cells[hiCol].tone, { normal: 'g', moderate: 'a', poor: 'r' }[hi.band]);
+    assert.equal(r.cells[hiCol].tone, { normal: 'cond-5', moderate: 'cond-3', poor: 'cond-1' }[hi.band]);
     assert.equal(r.cells[riskCol].sort, risk(ctx, r.id, AS_OF).score);
   }
-  assert.ok(rows.some((r) => r.cells[hiCol].tone === 'r') && rows.some((r) => r.cells[hiCol].tone === 'a') && rows.some((r) => r.cells[hiCol].tone === 'g'));
+  assert.ok(rows.some((r) => r.cells[hiCol].tone === 'cond-1') && rows.some((r) => r.cells[hiCol].tone === 'cond-3') && rows.some((r) => r.cells[hiCol].tone === 'cond-5'));
 });
 
 test('a poor tower says why in its hover text: the group that limits it and what it would be without that', async () => {
   const snap = await snapOf(make());
   const { columns, rows } = tableFor(snap, 'towers');
   const hiCol = columns.indexOf('Health index');
-  const row = rows.find((r) => r.cells[hiCol].tone === 'r');
+  const row = rows.find((r) => r.cells[hiCol].tone === 'cond-1');
   assert.match(row.tip, /health index [\d.]+ \(poor\)\. A group at condition 1 \(.+\) limits it; without that it would be [\d.]+\./);
   assert.match(row.tip, /open finding/);
 });
@@ -77,10 +77,10 @@ test('components show their worst open condition; clean ones say so', async () =
   const snap = await snapOf(make());
   const { columns, rows } = tableFor(snap, 'components');
   const cond = columns.indexOf('Condition');
-  assert.ok(rows.some((r) => r.cells[cond].text === 'no open findings' && r.cells[cond].tone === 'g'));
+  assert.ok(rows.some((r) => r.cells[cond].text === 'no open findings' && r.cells[cond].tone === 'cond-5'));
   const worst = rows.find((r) => r.cells[cond].text.startsWith('1 '));
   assert.equal(worst.cells[cond].text, '1 very poor');
-  assert.equal(worst.cells[cond].tone, 'r');
+  assert.equal(worst.cells[cond].tone, 'cond-1');
   assert.match(worst.tip, /worst condition 1 \(very poor\)/);
 });
 
@@ -124,13 +124,13 @@ test('KPI cards: four per tab, different for each tab, and consistent with the r
   const towers = kpisFor(snap, 'towers');
   const { columns, rows } = tableFor(snap, 'towers');
   const hi = columns.indexOf('Health index');
-  const assessed = rows.filter((r) => r.cells[hi].tone !== 'x');
+  const assessed = rows.filter((r) => r.cells[hi].tone !== 'cond-n');
   assert.equal(towers[0].v, String(rows.length));
   assert.equal(assessed.length, 150, '154 towers, 4 of them newly built and never inspected, are not assessed; neither are the 5 duplicates');
   assert.equal(towers[0].s, `${assessed.length} assessed · incl. 5 possible duplicates`);
-  const attention = rows.filter((r) => ['a', 'r'].includes(r.cells[hi].tone)).length;
+  const attention = rows.filter((r) => ['cond-3', 'cond-1'].includes(r.cells[hi].tone)).length;
   assert.equal(towers[2].v, String(attention));
-  assert.equal(towers[2].s, `${rows.filter((r) => r.cells[hi].tone === 'r').length} poor · ${rows.filter((r) => r.cells[hi].tone === 'a').length} moderate`);
+  assert.equal(towers[2].s, `${rows.filter((r) => r.cells[hi].tone === 'cond-1').length} poor · ${rows.filter((r) => r.cells[hi].tone === 'cond-3').length} moderate`);
   const tx = kpisFor(snap, 'transformers');
   assert.equal(tx[3].l, 'Highest risk');
   assert.equal(tx[3].s, 'TX-1B · high');

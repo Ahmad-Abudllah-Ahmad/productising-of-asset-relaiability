@@ -7,7 +7,7 @@ const SHOTS = `docs/screens/${process.env.SHOTS_DIR || 'step3a'}`;
 fs.mkdirSync(SHOTS, { recursive: true });
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
-const RAIL = ['Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History', 'Reliability Dashboard'];
+const RAIL = ['Reliability Dashboard', 'Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History'];
 const REGISTRY_TABS = ['Lines', 'Towers', 'Spans', 'Components', 'Substations', 'Transformers', 'Links'];
 const OLD_TABS = ['Production', 'Sourcing', 'Overview', 'Matrix', 'Forecast', 'Issues', 'Entities', 'Recommendations', 'Blackboard', 'Schedule', 'Graph', 'Register', 'Hierarchy'];
 // seed: 150 towers + 4 newly built + 5 unmerged duplicates; 151 spans; 2 stations + 10 bays; 6 transformers + 1 duplicate
@@ -27,7 +27,7 @@ async function open(page, url = '/reliability') {
   await expect(rail(page).first()).toBeVisible();
   return errors;
 }
-const openRegistry = async (page, name) => { await rail(page).nth(1).click(); await tab(page, name).click(); };
+const openRegistry = async (page, name) => { await rail(page).nth(2).click(); await tab(page, name).click(); };
 
 test.describe('page structure', () => {
   test('six screens and the drawing, no new navigation entries, no script errors', async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe('page structure', () => {
 test.describe('Asset Registry', () => {
   test('the 13 copied tabs are gone; the registry has category tabs and Links', async ({ page }) => {
     await open(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     expect(await tabs(page).allTextContents()).toEqual(REGISTRY_TABS);
     for (const old of OLD_TABS) await expect(tab(page, old)).toHaveCount(0);
     await expect(tab(page, 'Lines')).toHaveClass(/is-on/);
@@ -90,10 +90,10 @@ test.describe('Asset Registry', () => {
   test('health index badges use the Phase 2 scores: poor, moderate and normal towers all exist, each with a reason on hover', async ({ page }) => {
     await open(page);
     await openRegistry(page, 'Towers');
-    await expect(rows(page).locator('.tag.r', { hasText: 'poor' }).first()).toBeVisible();
-    await expect(rows(page).locator('.tag.a', { hasText: 'moderate' }).first()).toBeVisible();
-    await expect(rows(page).locator('.tag.g', { hasText: 'normal' }).first()).toBeVisible();
-    const poorRow = rows(page).filter({ has: page.locator('.tag.r', { hasText: 'poor' }) }).first();
+    await expect(rows(page).locator('.tag.cond-1', { hasText: 'poor' }).first()).toBeVisible();
+    await expect(rows(page).locator('.tag.cond-3', { hasText: 'moderate' }).first()).toBeVisible();
+    await expect(rows(page).locator('.tag.cond-5', { hasText: 'normal' }).first()).toBeVisible();
+    const poorRow = rows(page).filter({ has: page.locator('.tag.cond-1', { hasText: 'poor' }) }).first();
     expect(await poorRow.getAttribute('data-tip')).toMatch(/health index [\d.]+ \(poor\)\. A group at condition 1 \(.+\) limits it; without that it would be [\d.]+/);
     await poorRow.hover();
     await expect(page.locator('#tip')).toContainText('health index');
@@ -136,8 +136,8 @@ test.describe('Asset Registry', () => {
   test('components show their worst open condition; transformers show Duval zone and weakest input', async ({ page }) => {
     await open(page);
     await openRegistry(page, 'Components');
-    await expect(rows(page).locator('.tag.r').first()).toContainText('very poor');
-    await expect(rows(page).locator('.tag.g', { hasText: 'no open findings' }).first()).toBeVisible();
+    await expect(rows(page).locator('.tag.cond-1').first()).toContainText('very poor');
+    await expect(rows(page).locator('.tag.cond-5', { hasText: 'no open findings' }).first()).toBeVisible();
     await openRegistry(page, 'Transformers');
     const heads = await page.locator('#stage table.reg-table thead th').allTextContents();
     expect(heads).toEqual(expect.arrayContaining(['Health index', 'Risk', 'Duval zone', 'Weakest input']));
@@ -287,7 +287,7 @@ test.describe('Links tab (Link Review)', () => {
 test.describe('the other screens keep working', () => {
   test('every other screen and tab opens without errors', async ({ page }) => {
     const errors = await open(page);
-    for (const s of [0, 2, 3, 4, 5, 6]) {
+    for (const s of [0, 1, 3, 4, 5, 6]) {
       await rail(page).nth(s).click();
       const n = await tabs(page).count();
       for (let t = 0; t < n; t += 1) { await tabs(page).nth(t).click(); await expect(page.locator('#stage')).not.toBeEmpty(); }
@@ -301,14 +301,14 @@ test.describe('the other screens keep working', () => {
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto('/reliability');
     await expect(rail(page)).toHaveCount(7);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await expect(page.getByTestId('registry-unavailable')).toContainText('could not be loaded');
     await shot(page, 'registry-unavailable');
-    await rail(page).nth(2).click();
-    await expect(page.getByTestId('tower-health-unavailable')).toContainText('could not be loaded');
     await rail(page).nth(3).click();
-    await expect(page.getByTestId('line-health-unavailable')).toContainText('could not be loaded');
+    await expect(page.getByTestId('tower-health-unavailable')).toContainText('could not be loaded');
     await rail(page).nth(4).click();
+    await expect(page.getByTestId('line-health-unavailable')).toContainText('could not be loaded');
+    await rail(page).nth(5).click();
     await expect(page.locator('#stage')).not.toBeEmpty();
   });
 });

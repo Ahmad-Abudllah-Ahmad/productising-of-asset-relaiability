@@ -6,6 +6,8 @@ import { CONFIG } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { risk } from '../domain/risk.js';
 import { managedLabels } from '../domain/labels.js';
+import { matcher, hasFilters } from './scope.js';
+import { CATEGORIES } from './registryModel.js';
 
 /** The date the demo is "today". Scores use only evidence and repairs up to this date. */
 export const AS_OF = CONFIG.seed.referenceDate;
@@ -15,11 +17,21 @@ const OWNERS = new Set(['tower', 'span', 'power_transformer']);
 
 /**
  * @param {ReturnType<typeof import('../data/repository.js').createRepository>} repo
- * @param {string} [asOf]
+ * @param {string} [asOf]  every score, count and list is for this date
+ * @param {{label?: string|null, kv?: number|null, category?: string|null}} [filters]  the global filters (scope.js)
+ *
+ * snap.assets is the assets in scope (what lists, counts and maps show); snap.allAssets is every live asset, for looking
+ * things up (the parent of a tower, the components of a tower in Asset 360). Scores, findings and links are computed for
+ * all of them. snap.inScope(id) says whether an asset, or the tower, span or transformer that owns it, is in scope.
  */
-export async function loadSnapshot(repo, asOf = AS_OF) {
+export async function loadSnapshot(repo, asOf = AS_OF, filters = {}) {
   const [data, ctx, links, campaigns] = await Promise.all([repo.getAll(), repo.getContext(), repo.getLinks(), repo.getCampaigns()]);
   const assets = data.assets.filter((a) => !a.merged_into);
+  const scope = { label: filters.label ?? null, kv: filters.kv ?? null, category: filters.category ?? null };
+  const match = matcher(scope, (id) => CATEGORIES.find((c) => c.id === id)?.classes ?? []);
+  const inView = assets.filter(match);
+  const inViewIds = new Set(inView.map((a) => a.asset_id));
+  const inScope = (id) => !hasFilters(scope) || inViewIds.has(id) || inViewIds.has(ctx.ownerOf(id));
   const byId = new Map(data.assets.map((a) => [a.asset_id, a]));
 
   const scores = new Map();
@@ -65,5 +77,10 @@ export async function loadSnapshot(repo, asOf = AS_OF) {
   const dates = [...new Set([...campaigns.map((c) => c.end), asOf])].filter((d) => d <= asOf).sort();
 
   const findingsById = new Map(data.findings.map((f) => [f.finding_id, f]));
-  return { asOf, dates, ctx, assets, byId, scores, findingsById, workOrders: data.workOrders, repairs: data.repairs, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
+  const endInScope = (id, kind) => inScope(kind === 'finding' ? (findingsById.get(id)?.asset_id ?? id) : id);
+  /** A link is in scope when either end is (a finding counts through the asset it is recorded on). */
+  const linkInScope = (l) => !hasFilters(scope) || endInScope(l.from_asset, l.from_kind) || endInScope(l.to_asset, l.to_kind);
+  /** The name of a date in a chart: the campaign that ended on it, "Today" for the reference date, else the date. */
+  const endLabel = (d) => campaigns.find((c) => c.end === d)?.name ?? (d === AS_OF ? 'Today' : d);
+  return { asOf, endLabel, dates, ctx, assets: inView, allAssets: assets, scope, inScope, linkInScope, byId, scores, captures: new Map((await repo.getCaptures()).map((c) => [c.capture_id, c])), findingsById, workOrders: data.workOrders, repairs: data.repairs, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
 }

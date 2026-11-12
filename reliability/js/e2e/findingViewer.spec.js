@@ -60,7 +60,7 @@ test.describe('opening the viewer', () => {
 
   test('from a thumbnail in Link Review; the open function is exposed for other screens', async ({ page }) => {
     await open(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await tab(page, 'Links').click();
     await queue(page).filter({ hasText: 'same defect' }).first().click();
     await page.locator('.lr-thumb').first().click();
@@ -277,7 +277,7 @@ test.describe('reviewer actions', () => {
 
   test('a rejected finding no longer waits in the Link Review queue', async ({ page }) => {
     await open(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await tab(page, 'Links').click();
     await expect(queue(page)).toHaveCount(30);
     const link = queue(page).filter({ hasText: 'same defect' }).first();
@@ -456,13 +456,13 @@ test.describe('states', () => {
 test.describe('newly built towers', () => {
   test('four towers and four spans, built after the last campaign, are "not assessed" in the registry', async ({ page }) => {
     const errors = await open(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await tab(page, 'Towers').click();
     await expect(rows(page)).toHaveCount(159);
     await page.locator('#stage select[aria-label="Health band"]').selectOption('not assessed');
     const shown = page.locator('#stage table.reg-table tbody tr:not([hidden])');
     await expect(shown).toHaveCount(9); // 5 duplicate records and the 4 new towers
-    for (const n of [41, 42, 43, 44]) await expect(shown.filter({ hasText: `TWR-132-01-0${n}` }).locator('.tag.x')).toHaveText('not assessed');
+    for (const n of [41, 42, 43, 44]) await expect(shown.filter({ hasText: `TWR-132-01-0${n}` }).locator('.tag.cond-n')).toHaveText('not assessed');
     await expect(page.locator('#stage .kpi', { hasText: 'Towers' }).first()).toContainText('150 assessed');
     await page.screenshot({ path: `${SHOTS}/not-assessed-new-towers.png` });
     await tab(page, 'Spans').click();

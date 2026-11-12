@@ -77,6 +77,12 @@
 
   function reliability() {
     return [
+      // The Dashboard comes from reliability/js/app/dashboardScreen.js. This single tab only shows if that code could not load.
+      screen("home", "Reliability Dashboard", "pulse", [
+        tab("Overview", function () {
+          return '<div class="screen"><div class="card" data-testid="dashboard-unavailable" style="padding:16px"><b>The Reliability Dashboard could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
+        })
+      ]),
       drawingScreen([
         { tab: "SS-North", src: "/pids/nx-ari-sld-0104-corridor-north.svg", kicker: "SS-North · 220 kV", note: "Corridor North. Illustrative. Not for construction." },
         { tab: "SS-East", src: "/pids/nx-ari-sld-0132-ss-east.svg", kicker: "SS-East · 132 kV", note: "Same corridor. T-104 still has the two verified findings." },
@@ -112,12 +118,6 @@
       screen("history", "Maintenance History", "calendar", [
         tab("Timeline", function () {
           return '<div class="screen"><div class="card" data-testid="maintenance-history-unavailable" style="padding:16px"><b>Maintenance History could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
-        })
-      ]),
-      // The Dashboard comes from reliability/js/app/dashboardScreen.js. This single tab only shows if that code could not load.
-      screen("home", "Reliability Dashboard", "pulse", [
-        tab("Overview", function () {
-          return '<div class="screen"><div class="card" data-testid="dashboard-unavailable" style="padding:16px"><b>The Reliability Dashboard could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ])
     ];
@@ -657,6 +657,7 @@
       tipEl.style.top = y + "px";
     });
 
+    activeWhere = function () { return { screen: app.screens[current].id, tab: app.screens[current].tabs[tabIndex].name }; };
     activeGo = function (screenId, tabName) {
       var index = app.screens.findIndex(function (item) { return item.id === screenId; });
       if (index < 0) return false;
@@ -690,11 +691,14 @@
 
   // set by mount(): switches the page to another screen and tab, as if the person had clicked there
   var activeGo = null;
+  // set by mount(): which screen and tab is showing, so the app can keep the browser's Back button in step
+  var activeWhere = null;
 
   window.NexusReliability = {
     // the legacy rendering helpers, so new tabs keep the same look (KPI cards, tags, table markup)
     kit: { esc: esc, tip: tip, tag: tag, kpis: kpis, areaSpark: areaSpark, icon: icon },
     go: function (screenId, tabName) { return activeGo ? activeGo(screenId, tabName) : false; },
+    where: function () { return activeWhere ? activeWhere() : null; },
     open: function (id, options) {
       var app = APPS[id];
       if (!app) return;

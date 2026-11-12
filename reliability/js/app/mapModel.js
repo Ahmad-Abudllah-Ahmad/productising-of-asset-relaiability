@@ -11,6 +11,7 @@
 import { risk } from '../domain/risk.js';
 import { assetsWithLabel } from '../domain/labels.js';
 import { SEVERITY } from './assetModel.js';
+import { freshnessOf } from './freshness.js';
 
 export const LAYERS = Object.freeze(['spans', 'towers', 'stations', 'findings', 'tiles']);
 export const LAYER_LABEL = Object.freeze({ spans: 'Lines (spans)', towers: 'Towers', stations: 'Substations', findings: 'Finding clusters', tiles: 'Basemap tiles' });
@@ -48,18 +49,18 @@ export function loadMap(snap, { label = null } = {}) {
   const lineName = (id) => snap.byId.get(id)?.name ?? id;
   const spans = snap.assets.filter((a) => a.class === 'span' && a.location?.type === 'line').map((a) => {
     const s = score(a.asset_id);
-    return { id: a.asset_id, kind: 'span', name: a.name, lineId: a.parent_id, coords: a.location.coordinates, hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels, centre: mid(a.location.coordinates), clearance: a.ext?.min_clearance_m ?? null };
+    return { stale: freshnessOf(snap, a.asset_id).stale, evidence: freshnessOf(snap, a.asset_id).text, id: a.asset_id, kind: 'span', name: a.name, lineId: a.parent_id, coords: a.location.coordinates, hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels, centre: mid(a.location.coordinates), clearance: a.ext?.min_clearance_m ?? null };
   });
   const towers = snap.assets.filter((a) => a.class === 'tower' && point(a) && !snap.dupRecord.has(a.asset_id)).map((a) => {
     const s = score(a.asset_id);
-    return { id: a.asset_id, kind: 'tower', name: a.name, lineId: a.parent_id, ...point(a), hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels };
+    return { stale: freshnessOf(snap, a.asset_id).stale, evidence: freshnessOf(snap, a.asset_id).text, id: a.asset_id, kind: 'tower', name: a.name, lineId: a.parent_id, ...point(a), hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels };
   });
 
   // transformers sit in bays of a substation
   const bayStation = new Map(snap.assets.filter((a) => a.class === 'bay').map((a) => [a.asset_id, a.parent_id]));
   const transformers = snap.assets.filter((a) => a.class === 'power_transformer' && point(a)).map((a) => {
     const s = score(a.asset_id);
-    return { id: a.asset_id, kind: 'transformer', name: a.name, stationId: bayStation.get(a.parent_id) ?? a.parent_id, ...point(a), hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels };
+    return { stale: freshnessOf(snap, a.asset_id).stale, evidence: freshnessOf(snap, a.asset_id).text, id: a.asset_id, kind: 'transformer', name: a.name, stationId: bayStation.get(a.parent_id) ?? a.parent_id, ...point(a), hi: s?.hi.score ?? null, band: bandOf(s?.hi), risk: s?.risk?.score ?? null, riskBand: s?.risk?.band ?? null, open: open(a.asset_id), labels: a.labels };
   });
   const stations = snap.assets.filter((a) => a.class === 'substation' && point(a)).map((a) => {
     const t = transformers.filter((x) => x.stationId === a.asset_id);
@@ -71,7 +72,7 @@ export function loadMap(snap, { label = null } = {}) {
   const findings = [];
   for (const owner of snap.assets.filter((a) => ['tower', 'span', 'power_transformer'].includes(a.class))) {
     for (const f of snap.findingsByOwner.get(owner.asset_id) ?? []) {
-      if (f.location) findings.push({ id: f.finding_id, lat: f.location.lat, lng: f.location.lng, condition: f.condition_score, severity: SEVERITY[f.condition_score].word, defectClass: f.defect_class, ownerId: owner.asset_id, ownerName: owner.name, unreviewed: f.review_status !== 'confirmed' });
+      if (f.location) findings.push({ image: snap.captures.get(f.capture_id)?.image ?? null, id: f.finding_id, lat: f.location.lat, lng: f.location.lng, condition: f.condition_score, severity: SEVERITY[f.condition_score].word, defectClass: f.defect_class, ownerId: owner.asset_id, ownerName: owner.name, unreviewed: f.review_status !== 'confirmed' });
     }
   }
 
@@ -108,6 +109,7 @@ export function loadMap(snap, { label = null } = {}) {
 
   return {
     found: true, asOf: snap.asOf, lines, spans, towers, stations, transformers, findings, labels, label, highlighted, lineName, bounds,
+    staleCount: [...towers, ...spans, ...transformers].filter((x) => x.stale).length,
     counts: { towers: towers.length, poor: towers.filter((t) => t.band === 'poor').length, moderate: towers.filter((t) => t.band === 'moderate').length, none: towers.filter((t) => t.band === 'none').length },
     totalRisk: Math.round(totalRisk), scoredAssets: scored.length, riskSeries, top,
     unreviewedFindings: findings.filter((f) => f.unreviewed).length,

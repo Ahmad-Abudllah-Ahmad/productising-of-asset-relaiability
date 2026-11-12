@@ -211,8 +211,8 @@ export function dashboardTrendOption(trend, p) {
     ...base(p), grid: { left: 40, right: 12, top: 18, bottom: 26 },
     tooltip: { trigger: 'item', formatter: (x) => {
       const d = x.data; const i = x.dataIndex; const noun = d.cls;
-      const today = trend.labels[i] === 'Today';
-      return `<b>${trend.labels[i]}</b> (${trend.dates[i]})<br/>${d.value} ${noun}: ${WORD[d.band]}<br/><span style="opacity:.75">${today ? 'Click to open the registry on this band' : "Click opens today's registry on this band"}</span>`;
+      const today = trend.dates[i] === trend.asOf;
+      return `<b>${trend.labels[i]}</b> (${trend.dates[i]})<br/>${d.value} ${noun}: ${WORD[d.band]}<br/><span style="opacity:.75">${today ? 'Click to open the registry on this band' : `Click opens the registry on this band as of ${trend.asOf}`}</span>`;
     } },
     xAxis: { type: 'category', data: trend.labels, axisLine: { lineStyle: { color: p.line } }, axisTick: { show: false }, axisLabel: { color: p.muted } },
     yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },

@@ -13,14 +13,14 @@ export const TYPE_LABELS = Object.freeze({
 });
 
 /** Links for the queue, highest score first. */
-export async function loadItems(repo, { status = 'proposed', type = 'all' } = {}) {
+export async function loadItems(repo, { status = 'proposed', type = 'all', keep = () => true } = {}) {
   const links = await repo.getLinks({ status: status === 'all' ? undefined : status, type: type === 'all' ? undefined : type });
-  return links.filter((l) => REVIEW_SOURCES.includes(l.source)).sort((a, b) => b.confidence - a.confidence || a.link_id.localeCompare(b.link_id));
+  return links.filter((l) => REVIEW_SOURCES.includes(l.source) && keep(l)).sort((a, b) => b.confidence - a.confidence || a.link_id.localeCompare(b.link_id));
 }
 
 /** Counts for the filters: per status (ignoring the type filter) and per type (ignoring the status filter). */
-export async function loadCounts(repo) {
-  const links = (await repo.getLinks()).filter((l) => REVIEW_SOURCES.includes(l.source));
+export async function loadCounts(repo, keep = () => true) {
+  const links = (await repo.getLinks()).filter((l) => REVIEW_SOURCES.includes(l.source) && keep(l));
   const byStatus = { proposed: 0, confirmed: 0, rejected: 0, all: links.length };
   const byType = { all: links.length };
   for (const l of links) { byStatus[l.status] = (byStatus[l.status] ?? 0) + 1; byType[l.type] = (byType[l.type] ?? 0) + 1; }

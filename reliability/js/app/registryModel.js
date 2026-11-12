@@ -5,6 +5,7 @@
 // for plain text. sort is the value the column sorts by.
 
 import { healthIndex } from '../domain/health/healthIndex.js';
+import { BAND_TAG, RISK_TAG, COND_TAG } from './palette.js';
 import { CONFIG } from '../domain/config.js';
 
 const COMPONENT_CLASSES = ['insulator_string', 'damper', 'conductor', 'earthwire', 'foundation', 'span_corridor_segment'];
@@ -18,7 +19,7 @@ export const CATEGORIES = Object.freeze([
   { id: 'transformers', title: 'Transformers', classes: ['power_transformer'] },
 ]);
 
-const BAND_TONE = { normal: 'g', moderate: 'a', poor: 'r' };
+const BAND_TONE = BAND_TAG;
 const CONDITION = { 1: 'very poor', 2: 'poor', 3: 'fair', 4: 'good', 5: 'very good' };
 const round1 = (n) => Math.round(n * 10) / 10;
 const cell = (text, opts = {}) => ({ text: String(text), tone: opts.tone ?? null, sort: opts.sort ?? text });
@@ -56,12 +57,13 @@ const bandWord = (res) => (res && res.band ? res.band : 'not assessed');
 // ------------------------------------------------------------------ cells
 
 function hiCell(res) {
-  if (!res || res.score === null) return { text: 'not assessed', tone: 'x', sort: -1 };
-  return { text: `${res.score} ${res.band}`, tone: BAND_TONE[res.band], sort: res.score };
+  if (!res || res.score === null) return { text: 'not assessed', tone: BAND_TAG.none, sort: -1 };
+  const stale = Boolean(res.breakdown?.freshness?.stale);
+  return { text: `${res.score} ${res.band}${stale ? ' · stale' : ''}`, tone: BAND_TONE[res.band], sort: res.score, stale };
 }
 function riskCell(r) {
   if (!r || r.score === null) return none();
-  return { text: `${Math.round(r.score)} ${r.band}`, tone: { low: 'g', medium: 'b', high: 'a', critical: 'r' }[r.band], sort: r.score };
+  return { text: `${Math.round(r.score)} ${r.band}`, tone: RISK_TAG[r.band], sort: r.score };
 }
 function evidenceCell(res) {
   const f = res?.breakdown?.freshness;
@@ -150,7 +152,7 @@ function components(snap, assets) {
     const line = lineIdOf(snap, a);
     const corr = corridorsOf(snap, a);
     const parent = snap.byId.get(a.parent_id);
-    const condition = worst === null ? { text: 'no open findings', tone: 'g', sort: 6 } : { text: `${worst} ${CONDITION[worst]}`, tone: worst === 1 ? 'r' : worst === 2 ? 'a' : 'b', sort: worst };
+    const condition = worst === null ? { text: 'no open findings', tone: COND_TAG(5), sort: 6 } : { text: `${worst} ${CONDITION[worst]}`, tone: COND_TAG(worst), sort: worst };
     const unrev = f.filter((x) => x.review_status !== 'confirmed').length;
     return {
       id: a.asset_id,
@@ -165,7 +167,7 @@ function components(snap, assets) {
 }
 
 function substations(snap, assets) {
-  const live = snap.assets;
+  const live = snap.allAssets; // look transformers up in every asset, whatever the global filters list
   const rows = assets.map((a) => {
     const station = a.class === 'substation' ? a : snap.byId.get(a.parent_id);
     const transformers = a.class === 'substation' ? live.filter((x) => x.class === 'power_transformer' && stationOf(snap, x)?.asset_id === a.asset_id)
@@ -298,7 +300,7 @@ export function kpisFor(snap, categoryId) {
   if (categoryId === 'substations') {
     const subs = assets.filter((a) => a.class === 'substation');
     const bays = assets.filter((a) => a.class === 'bay');
-    const tx = snap.assets.filter((a) => a.class === 'power_transformer');
+    const tx = snap.allAssets.filter((a) => a.class === 'power_transformer');
     const mva = tx.reduce((n, t) => n + (t.ext.rating_mva ?? 0), 0);
     const terminations = snap.links.filter((l) => l.type === 'electrical' && l.relation === 'terminates_at' && l.to_asset.startsWith('SUB-')).length;
     const open = tx.reduce((n, t) => n + (snap.findingsByOwner.get(t.asset_id)?.length ?? 0), 0);
@@ -314,7 +316,7 @@ export function kpisFor(snap, categoryId) {
 
 /** KPI cards for the Links tab. They change as decisions are made. */
 export function linksKpis(snap) {
-  const reviewable = snap.links.filter((l) => ['resemblance', 'rule'].includes(l.source) && !l.obsolete);
+  const reviewable = snap.links.filter((l) => ['resemblance', 'rule'].includes(l.source) && !l.obsolete && snap.linkInScope(l));
   const proposed = reviewable.filter((l) => l.status === 'proposed');
   const auto = reviewable.filter((l) => l.status === 'confirmed' && l.confirmed_by === 'auto-link');
   const decided = reviewable.filter((l) => l.decided_at);

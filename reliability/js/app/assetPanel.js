@@ -6,6 +6,7 @@
 // wherever there is nothing to show.
 
 import { h, replace } from '../ui/dom.js';
+import { BAND_TAG, SEV_TAG, RISK_TAG, COND_TAG } from './palette.js';
 import { loadAssetDetail } from './assetModel.js';
 import { parseHash, hashFor } from './hashState.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
@@ -13,11 +14,11 @@ import { openLinkInReview } from './navigation.js';
 import { openFinding } from './findingViewer.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const SEV_TONE = { critical: 'r', serious: 'r', moderate: 'a', minor: 'b', none: 'g' };
-const BAND_TONE = { normal: 'g', moderate: 'a', poor: 'r' };
-const RISK_TONE = { low: 'g', medium: 'b', high: 'a', critical: 'r' };
+const SEV_TONE = SEV_TAG;
+const BAND_TONE = BAND_TAG;
+const RISK_TONE = RISK_TAG;
 const STATUS_TONE = { proposed: 'a', confirmed: 'g', rejected: 'r', open: 'a', in_progress: 'b', completed: 'g', cancelled: 'x' };
-const COND_TONE = { 1: 'r', 2: 'a', 3: 'a', 4: 'b', 5: 'g' };
+const COND_TONE = { 1: COND_TAG(1), 2: COND_TAG(2), 3: COND_TAG(3), 4: COND_TAG(4), 5: COND_TAG(5) };
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const ctl = { deps: null, root: null, panel: null, body: null, state: { open: false, id: null, token: 0, view: 'loading', detail: null, error: null, opener: null }, charts: [] };
@@ -219,7 +220,7 @@ function headerView(d) {
 
   return h('header', { class: 'a360-head' },
     h('div', { class: 'a360-titlerow' }, h('h2', { id: 'a360-title' }, hd.name), h('span', { class: 'a360-id', 'data-testid': 'asset-id' }, hd.id)),
-    meta, labels, ...banners, scoreRow(d), h('p', { class: 'a360-muted a360-asof' }, `Scores as of ${d.asOf}. ${d.evidence.newest ? `Newest evidence ${d.evidence.newest}.` : ''}`, d.evidence.freshness?.stale ? tag('stale', 'a', { title: 'Older than the inspection interval' }) : null));
+    meta, labels, ...banners, scoreRow(d), h('p', { class: 'a360-muted a360-asof' }, `Scores as of ${d.asOf}. ${d.evidence.newest ? `Newest evidence ${d.evidence.newest}${d.evidence.freshness?.ageDays != null ? ` (${d.evidence.freshness.ageDays === 0 ? 'today' : `${d.evidence.freshness.ageDays} days ago`})` : ''}.` : ''} `, d.evidence.freshness?.stale ? tag(`stale: older than the ${d.evidence.freshness.intervalDays}-day inspection interval`, 'x', { title: 'The scores are greyed out: no inspection has confirmed them within the interval', 'data-testid': 'stale-note' }) : null));
 }
 
 function scoreRow(d) {
@@ -234,10 +235,10 @@ function scoreRow(d) {
   } else hiCard = card('Health index', 'n/a', 'No health index is defined at this level yet.', null);
 
   const rf = d.riskFactors;
-  if (!rf) return h('div', { class: 'a360-scores' }, hiCard, h('div', { class: 'a360-card a360-wide' }, h('div', { class: 'a360-k' }, 'Risk'), h('div', { class: 'a360-sub' }, hi.score === null ? 'Risk needs a health index, so there is none here.' : 'Not available.')));
+  if (!rf) return h('div', { class: d.evidence.freshness?.stale ? 'a360-scores is-stale' : 'a360-scores' }, hiCard, h('div', { class: 'a360-card a360-wide' }, h('div', { class: 'a360-k' }, 'Risk'), h('div', { class: 'a360-sub' }, hi.score === null ? 'Risk needs a health index, so there is none here.' : 'Not available.')));
   const op = (t) => h('span', { class: 'a360-op', 'aria-hidden': 'true' }, t);
   const c = rf.consequence;
-  return h('div', { class: 'a360-scores' }, hiCard,
+  return h('div', { class: d.evidence.freshness?.stale ? 'a360-scores is-stale' : 'a360-scores' }, hiCard,
     h('div', { class: 'a360-risk', 'data-testid': 'risk-factors', role: 'group', 'aria-label': 'Risk factors' },
       card('Condition', rf.condition.points.toFixed(1), `100 − ${rf.condition.hi}`),
       op('×'), card('Criticality', String(rf.criticality), 'of 5'),
@@ -263,7 +264,7 @@ function breakdownView(d) {
       h('table', { class: 'a360-table', 'data-testid': 'breakdown-groups' }, th('Group', 'Weight', 'Condition (1–5)', 'Worst component', 'Findings'),
         h('tbody', {}, b.groups.map((g) => h('tr', {},
           h('th', { scope: 'row' }, humanize(g.group)), h('td', {}, String(g.weight)),
-          h('td', {}, tag(String(g.score), g.score <= 1.5 ? 'r' : g.score <= 2.5 ? 'a' : 'g'), g.capped ? tag('worst caps group', 'x') : null),
+          h('td', {}, tag(String(g.score), COND_TAG(g.score)), g.capped ? tag('worst caps group', 'x') : null),
           h('td', {}, g.components.length ? g.components.map((c) => `${names.get(c.componentId) ?? c.componentId} (${c.score})`).join(', ') : '-'),
           h('td', {}, g.findingIds.length ? String(g.findingIds.length) : '0')))),
       ),
@@ -405,7 +406,7 @@ function componentsView(d) {
   return section('components', `Components (${d.components.length})`,
     h('table', { class: 'a360-table', 'data-testid': 'components' }, th('Component', 'Class', 'Open findings', 'Worst condition'),
       h('tbody', {}, d.components.map((c) => h('tr', {}, h('th', { scope: 'row' }, assetLink(c.id, c.name)), h('td', {}, c.class), h('td', {}, String(c.open)),
-        h('td', {}, c.worst === null ? tag('none', 'g') : tag(String(c.worst), COND_TONE[c.worst])))))));
+        h('td', {}, c.worst === null ? tag('none', COND_TAG(5)) : tag(String(c.worst), COND_TONE[c.worst])))))));
 }
 
 // -------------------------------------------------------------------- links

@@ -101,7 +101,7 @@ export async function loadFindingDetail(repo, snap, id) {
     found: true, id, asOf, finding, original, owner, siblings, index,
     compare: { sightings, between },
     history: (await repo.getAuditLog()).filter((e) => e.finding_id === id).reverse(),
-    suggestions: suggestAssets(f, snap.assets, { exclude: new Set(snap.dupRecord.keys()) }),
+    suggestions: suggestAssets(f, snap.allAssets, { exclude: new Set(snap.dupRecord.keys()) }),
     classes: DEFECT_OPTIONS,
     imageKind: finding.image ? 'photo' : 'placeholder',
   };

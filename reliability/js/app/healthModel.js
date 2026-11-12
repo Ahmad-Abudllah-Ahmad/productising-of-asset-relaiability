@@ -7,6 +7,7 @@
 import { CONFIG } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { loadAssetDetail, SEVERITY } from './assetModel.js';
+import { freshnessOf } from './freshness.js';
 
 export const BAND_LABEL = Object.freeze({ normal: 'normal', moderate: 'moderate', poor: 'poor', none: 'not assessed' });
 export const BAND_ORDER = Object.freeze(['poor', 'moderate', 'normal', 'none']);
@@ -30,8 +31,7 @@ const bandOf = (hi) => (hi?.score === null || hi?.score === undefined ? 'none' :
 
 /** Campaign names for the snapshot dates, then "Today" for the as-of date when it is not a campaign end. */
 function dateLabels(snap) {
-  const byEnd = new Map(snap.campaigns.map((c) => [c.end, c.name]));
-  return snap.dates.map((d) => byEnd.get(d) ?? 'Today');
+  return snap.dates.map((d) => snap.endLabel(d));
 }
 
 // ---------------------------------------------------------------------------------------------- lists
@@ -98,7 +98,8 @@ export function loadLineHealth(snap, lineId) {
   const cell = (a) => {
     const s = snap.scores.get(a.asset_id)?.hi;
     const open = snap.findingsByOwner.get(a.asset_id)?.length ?? 0;
-    return { id: a.asset_id, name: a.name, hi: s?.score ?? null, band: bandOf(s), assessed: s?.score !== null && s?.score !== undefined, open, unreviewed: snap.unreviewedByOwner.get(a.asset_id) ?? 0,
+    const fr = freshnessOf(snap, a.asset_id);
+    return { stale: fr.stale, evidence: fr.text, ageDays: fr.ageDays, id: a.asset_id, name: a.name, hi: s?.score ?? null, band: bandOf(s), assessed: s?.score !== null && s?.score !== undefined, open, unreviewed: snap.unreviewedByOwner.get(a.asset_id) ?? 0,
       risk: snap.scores.get(a.asset_id)?.risk?.score ?? null, reason: s?.score === null || s?.score === undefined ? sentence(s?.breakdown?.reason ?? 'No evidence yet', snap.asOf) : null };
   };
   const units = [];
@@ -171,7 +172,7 @@ export async function loadTowerHealth(repo, snap, towerId) {
     const flown = h.score !== null;
     const prev = i ? snap.dates[i - 1] : null;
     return {
-      date, label: labels[i], today: labels[i] === 'Today', flown, hi: h.score, band: bandOf(h), reason: flown ? null : sentence(h.breakdown?.reason ?? 'Not assessed', date),
+      date, label: labels[i], today: date === snap.asOf, flown, hi: h.score, band: bandOf(h), reason: flown ? null : sentence(h.breakdown?.reason ?? 'Not assessed', date),
       scores: Object.fromEntries(TOWER_GROUPS.map((g) => [g.id, flown ? (h.breakdown.groups.find((y) => y.group === g.id)?.score ?? null) : null])),
       repairs: repairs.filter((r) => r.date <= date && (!prev || r.date > prev)).map((r) => ({ id: r.repair_id, date: r.date, action: r.action })),
     };
@@ -191,7 +192,7 @@ export async function loadTowerHealth(repo, snap, towerId) {
   const newest = hi.breakdown?.freshness ?? null;
   const worstFinding = d.findings.rows.length ? Math.min(...d.findings.rows.map((r) => r.condition)) : null;
   return {
-    found: true, id: towerId, asOf: snap.asOf,
+    found: true, id: towerId, asOf: snap.asOf, stale: freshnessOf(snap, towerId).stale, evidence: freshnessOf(snap, towerId).text, intervalDays: freshnessOf(snap, towerId).intervalDays,
     tower: { id: towerId, name: asset.name, lineId: asset.parent_id, lineName: snap.byId.get(asset.parent_id)?.name ?? asset.parent_id, kv: asset.voltage_kv, installed: asset.install_date, duplicate: snap.dupRecord.has(towerId), type: asset.ext?.tower_type ?? null, height: asset.ext?.height_m ?? null },
     assessed, hi: hi.score, band: bandOf(hi), reason: assessed ? null : sentence(b.reason ?? 'No evidence yet', snap.asOf),
     risk: d.riskFactors, cap: assessed ? b.cap : null,

@@ -9,6 +9,10 @@
 //   view=dashboard (no other keys)   sev=urgent|critical|serious|moderate|minor (history, Open findings tab)
 //   unit=<asset id> (history)  show=ineffective  status=<work order status>  layers=lines,towers,...  label=<label id> (map)
 // Opening or closing a panel keeps those keys, and changing them keeps the panel keys.
+// The global filters (flabel, fkv, fcat, asof; see scope.js) are in every hash: hashFor keeps them from the current hash unless the state
+// sets them (null removes one), and screen changes never clear them.
+
+import { SCOPE_KEYS } from './scope.js';
 
 const MODES = new Set(['rgb', 'thermal', 'compare']);
 
@@ -47,6 +51,11 @@ export function hashFor(state = {}, current = typeof location === 'undefined' ? 
   for (const k of VIEW_KEYS) {
     const v = k in state ? state[k] : kept[k];
     if (v) parts.push(`${k}=${encodeURIComponent(v).replace(/%2C/g, ',')}`); // commas stay readable (layers=spans,towers)
+  }
+  const keptScope = new URLSearchParams(String(current).replace(/^#/, ''));
+  for (const k of SCOPE_KEYS) {
+    const v = k in state ? state[k] : keptScope.get(k);
+    if (v) parts.push(`${k}=${encodeURIComponent(v)}`);
   }
   return parts.length ? `#${parts.join('&')}` : '';
 }

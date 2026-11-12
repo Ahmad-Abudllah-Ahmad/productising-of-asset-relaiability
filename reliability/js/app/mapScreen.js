@@ -11,7 +11,8 @@
 
 import { h, replace } from '../ui/dom.js';
 import { CONFIG } from '../domain/config.js';
-import { spark, tag, plural, humanize, BAND_TONE, RISK_SUB, writeView, field, emptyState, mountScreen } from './screenKit.js';
+import { openRegistryTab, openScreen } from './navigation.js';
+import { drillKpis, scopeNote, spark, tag, plural, humanize, BAND_TONE, RISK_SUB, writeView, field, emptyState, mountScreen } from './screenKit.js';
 import { loadMap, parseLayers, layersParam, LAYERS, LAYER_LABEL } from './mapModel.js';
 import { palette } from './charts.js';
 import { openAsset } from './assetPanel.js';
@@ -81,9 +82,9 @@ function mountMap(stage, deps) {
     },
     load: (snap, st) => loadMap(snap, { label: st.label || null }),
     draw(m, ctx) {
-      if (m.empty) return [emptyState('map-empty', 'Nothing to draw', 'No tower, span or substation has a position. Import assets with locations, then reload.')];
+      if (m.empty) return [emptyState('map-empty', 'Nothing to draw', `No tower, span or substation with a position is in view.${scopeNote(ctx.snap)}`)];
       kpiHost = h('div', { 'data-testid': 'hl-kpis' });
-      kpiHost.innerHTML = kpiCards(m, ctx.deps.kit);
+      setKpis(kpiHost, m, ctx.deps.kit);
       panelHost = h('aside', { class: 'card hl-card rm-side', 'data-testid': 'map-side' });
       const mapEl = h('div', { class: 'rm-map', 'data-testid': 'map', 'data-basemap': 'loading', role: 'application', 'aria-label': 'Risk map: lines, towers and substations coloured by health index band' });
       const banner = h('div', { class: 'rm-banner', 'data-testid': 'basemap-fallback', role: 'status', hidden: true }, 'Basemap tiles are not available. Showing lines and towers on a plain background.');
@@ -99,11 +100,21 @@ function mountMap(stage, deps) {
         kpiHost, h('div', { class: 'rm-grid' }, card, panelHost))];
     },
     redraw(m, ctx) {
-      if (kpiHost) kpiHost.innerHTML = kpiCards(m, ctx.deps.kit);
+      if (kpiHost) setKpis(kpiHost, m, ctx.deps.kit);
       controller?.update(m, ctx.state);
     },
   });
   return () => { cleanup(); controller?.destroy(); controller = null; };
+}
+
+function setKpis(host, m, kit) {
+  host.innerHTML = kpiCards(m, kit);
+  drillKpis(host, {
+    'Towers on the map': () => openRegistryTab('Towers', { 'Health band': 'poor' }),
+    'Highest risk': () => (m.top ? openAsset(m.top.id) : null),
+    'Total risk': () => openScreen('home'),
+    'Open findings': () => openScreen('history', 'Open findings', { sev: 'all' }),
+  });
 }
 
 function kpiCards(m, kit) {
@@ -136,6 +147,7 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
   let lassoOn = false;
   let drawing = null;
   let destroyed = false;
+  let resizer = null;
   const g = {};
   let tiles = null;
   let tileLoads = 0;
@@ -161,6 +173,8 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     if (mapEl.dataset.basemap !== 'tiles') setBasemap(tileLoads ? 'tiles' : 'loading');
   }
 
+  /** A mouse press on a marker must not focus it: focus scrolls the page, and the click then lands somewhere else. Keyboard focus is unchanged. */
+  const noFocusOnPress = (m) => m.on('mousedown', (e) => e.originalEvent.preventDefault());
   function tip(lines) { return h('div', { class: 'rm-tip' }, lines.map((l, i) => h(i ? 'div' : 'b', {}, l))); }
 
   function drawAll() {
@@ -172,8 +186,8 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     if (state.layers.has('spans')) {
       for (const s of model.spans) {
         const dim = NOT_ON(hl, s.id);
-        const line = L.polyline(s.coords, { color: p.band[s.band], weight: dim ? 2 : 5, opacity: dim ? 0.3 : 0.95, dashArray: s.band === 'none' ? '3 7' : null, lineCap: 'butt', bubblingMouseEvents: false, className: 'rm-span' });
-        line.bindTooltip(tip([`${s.name} · span`, s.hi === null ? 'not assessed' : `health index ${s.hi} (${s.band})`, `${model.lineName(s.lineId)}${s.clearance ? ` · clearance ${s.clearance} m` : ''}`, s.risk === null ? '' : `risk ${Math.round(s.risk)}`]), { sticky: true });
+        const line = L.polyline(s.coords, { color: p.band[s.band], weight: dim ? 2 : 5, opacity: dim ? 0.3 : s.stale ? 0.4 : 0.95, dashArray: s.band === 'none' ? '3 7' : s.stale ? '8 5' : null, lineCap: 'butt', bubblingMouseEvents: false, className: 'rm-span' });
+        line.bindTooltip(tip([`${s.name} · span`, s.hi === null ? 'not assessed' : `health index ${s.hi} (${s.band})`, `${model.lineName(s.lineId)}${s.clearance ? ` · clearance ${s.clearance} m` : ''}`, s.risk === null ? '' : `risk ${Math.round(s.risk)}`, s.band === 'none' ? '' : s.evidence]), { sticky: true });
         line.on('click', open(s.id));
         g.spans.addLayer(line);
         if (selected.has(s.id)) g.sel.addLayer(L.polyline(s.coords, { color: p.ink, weight: 9, opacity: 0.35, interactive: false }));
@@ -182,8 +196,8 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     if (state.layers.has('towers')) {
       for (const t of model.towers) {
         const dim = NOT_ON(hl, t.id);
-        const m = L.circleMarker([t.lat, t.lng], { radius: dim ? 3 : hl ? 5 : 6, color: p.stroke, weight: 1.5, fillColor: p.band[t.band], fillOpacity: dim ? 0.3 : 1, opacity: dim ? 0.4 : 1, bubblingMouseEvents: false, className: 'rm-tower' });
-        m.bindTooltip(tip([`${t.name} · tower`, t.hi === null ? 'not assessed' : `health index ${t.hi} (${t.band})`, `${model.lineName(t.lineId)}${t.open ? ` · ${plural(t.open, 'open finding')}` : ''}`, t.risk === null ? '' : `risk ${Math.round(t.risk)} (${t.riskBand})`]));
+        const m = L.circleMarker([t.lat, t.lng], { radius: dim ? 3 : hl ? 5 : 6, color: p.stroke, weight: 1.5, fillColor: p.band[t.band], fillOpacity: dim ? 0.3 : t.stale ? 0.4 : 1, opacity: dim ? 0.4 : 1, dashArray: t.stale ? '3 2' : null, bubblingMouseEvents: false, className: 'rm-tower' });
+        m.bindTooltip(tip([`${t.name} · tower`, t.hi === null ? 'not assessed' : `health index ${t.hi} (${t.band})`, `${model.lineName(t.lineId)}${t.open ? ` · ${plural(t.open, 'open finding')}` : ''}`, t.risk === null ? '' : `risk ${Math.round(t.risk)} (${t.riskBand})`, t.band === 'none' ? '' : t.evidence]));
         m.on('click', open(t.id));
         g.towers.addLayer(m);
         if (selected.has(t.id)) g.sel.addLayer(L.circleMarker([t.lat, t.lng], { radius: 11, color: p.ink, weight: 2, fill: false, interactive: false }));
@@ -196,6 +210,7 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
         const m = L.marker([s.lat, s.lng], { icon, keyboard: true, title: `${s.name}, ${s.band === 'none' ? 'not assessed' : s.band}`, bubblingMouseEvents: false });
         m.bindTooltip(tip([`${s.name} · substation`, `worst transformer: ${s.band === 'none' ? 'not assessed' : s.band}`, ...s.transformers.map((t) => `${t.name}: ${t.hi === null ? 'not assessed' : `${t.hi} (${t.band})`}`)]), { direction: 'top', offset: [0, -8] });
         m.on('click', open(s.id));
+        noFocusOnPress(m);
         m.on('keypress', (e) => { if (e.originalEvent.key === 'Enter') openAsset(s.id); });
         g.stations.addLayer(m);
         if (selected.has(s.id)) g.sel.addLayer(L.circleMarker([s.lat, s.lng], { radius: 16, color: p.ink, weight: 2, fill: false, interactive: false }));
@@ -224,7 +239,9 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
       if (members.length === 1) {
         const f = members[0];
         const m = L.circleMarker([f.lat, f.lng], { radius: 5, color: getComputedStyle(mapEl).getPropertyValue('--rel-shape-line').trim() || '#555', weight: 1.5, fillColor: getComputedStyle(mapEl).getPropertyValue(COND_VAR(worst)).trim(), fillOpacity: 1, bubblingMouseEvents: false, pane: 'markerPane', className: 'rm-finding' });
-        m.bindTooltip(tip([`${f.id} · ${humanize(f.defectClass)}`, `${f.severity}${f.unreviewed ? ' · unreviewed' : ''}`, f.ownerName]));
+        const tipNode = tip([`${f.id} · ${humanize(f.defectClass)}`, `${f.severity}${f.unreviewed ? ' · unreviewed' : ''}`, f.ownerName]);
+        if (f.image) tipNode.append(h('div', { class: 'rm-tipimg' }, h('img', { src: f.image, alt: '' }), h('span', {}, 'Demo image')));
+        m.bindTooltip(tipNode);
         m.on('click', (e) => { L.DomEvent.stopPropagation(e); if (!lassoOn) openFinding(f.id); });
         g.findings.addLayer(m);
         continue;
@@ -242,6 +259,7 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
         if (map.getZoom() === before && before >= 18) openFinding(members[0].id);
       };
       m.on('click', zoomIn);
+      noFocusOnPress(m);
       m.on('keypress', (e) => { if (e.originalEvent.key === 'Enter') zoomIn(); });
       g.findings.addLayer(m);
     }
@@ -302,6 +320,8 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     if (destroyed) return;
     L = Lf;
     map = L.map(mapEl, { zoomControl: true, attributionControl: true, minZoom: 5 });
+    // Leaflet focuses the map on a mouse press, and focus scrolls the page area the map sits in, so the click lands elsewhere. Focus without scrolling.
+    const box = map.getContainer(); const focus = box.focus.bind(box); box.focus = () => focus({ preventScroll: true });
     for (const k of ['spans', 'towers', 'stations', 'findings', 'sel', 'lasso']) g[k] = L.layerGroup().addTo(map);
     map.invalidateSize(false);
     if (model.bounds) map.fitBounds(model.bounds, { padding: [30, 30] });
@@ -311,6 +331,8 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     map.on('mousemove', (e) => { if (drawing) { drawing.pts.push(e.latlng); drawing.line.setLatLngs(drawing.pts); } });
     applyTiles();
     drawAll();
+    resizer = new ResizeObserver(() => map.invalidateSize(false)); // the page around the map can move (filter bar, window)
+    resizer.observe(mapEl);
     mapEl.__map = map; // for the tests and for debugging in the console
     mapEl.dataset.ready = 'true';
   }).catch((e) => { mapEl.replaceChildren(h('p', { class: 'a360-muted a360-note', role: 'status' }, `The map could not be drawn (${e.message}).`)); mapEl.dataset.ready = 'failed'; });
@@ -328,6 +350,7 @@ function createController({ mapEl, banner, lassoBtn, panelHost, flags, deps }) {
     clearSelection,
     destroy() {
       destroyed = true;
+      resizer?.disconnect();
       document.removeEventListener('keydown', onKey); document.removeEventListener('mouseup', onUp);
       ready.then(() => { try { map?.remove(); } catch { /* already gone */ } });
     },

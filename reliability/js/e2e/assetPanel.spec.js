@@ -21,7 +21,7 @@ async function open(page, url = '/reliability') {
   await expect(rail(page).first()).toBeVisible();
   return errors;
 }
-const openRegistry = async (page, name) => { await rail(page).nth(1).click(); await tab(page, name).click(); };
+const openRegistry = async (page, name) => { await rail(page).nth(2).click(); await tab(page, name).click(); };
 /** Whole-panel screenshot: the page is made tall enough that the panel does not scroll. */
 async function shotPanel(page, name) {
   await page.setViewportSize({ width: 1440, height: 2600 });
@@ -355,13 +355,14 @@ test.describe('Asset 360 panel', () => {
     await expect(page.getByTestId('history-table').locator('tbody tr')).toHaveCount(4);
   });
 
-  test('the page itself loads no chart library until a chart is needed', async ({ page }) => {
-    const seen = [];
-    page.on('request', (r) => { if (r.url().includes('echarts')) seen.push(r.url()); });
+  test('libraries load only when a screen needs them: the map library not at all until the map opens, the chart library once', async ({ page }) => {
+    const seen = []; const map = [];
+    page.on('request', (r) => { if (r.url().includes('echarts')) seen.push(r.url()); if (r.url().includes('leaflet')) map.push(r.url()); });
     await open(page);
     await openRegistry(page, 'Towers');
     await page.waitForTimeout(300);
-    expect(seen).toEqual([]);
+    expect(map).toEqual([]);
+    expect(seen.length).toBeLessThanOrEqual(1); // the dashboard (the landing screen) draws a chart; the registry draws none
     await rows(page).filter({ hasText: 'TWR-132-01-011' }).click();
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
     expect(seen.length).toBe(1);

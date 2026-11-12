@@ -15,10 +15,11 @@ const BAND_CLASS = { 'auto-link': 'is-auto', review: 'is-review', dropped: 'is-d
 /**
  * @param {HTMLElement} root
  * @param {{repo: any, flags?: {delay?: number, fail?: boolean}, select?: {id: string, status?: string}|null}} deps
+ *   keep: (link) => boolean, the global filters: only links that pass are listed and counted
  *   select: a link to show first (the Links tab is opened from a "possible duplicate" chip)
  * @returns {{destroy: () => void}}
  */
-export function mountLinkReview(root, { repo, flags = {}, select: first = null }) {
+export function mountLinkReview(root, { repo, flags = {}, select: first = null, keep = () => true }) {
   const state = {
     view: 'review', status: first?.status === 'confirmed' ? 'confirmed' : 'proposed', type: 'all', items: null, counts: null, labels: new Map(), selected: first?.id ?? null, detail: null,
     audit: [], loading: true, error: null, confirmReset: false, toast: '', help: false, busy: false, lastIndex: 0,
@@ -36,7 +37,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null }
     try {
       if (flags.delay) await sleep(flags.delay);
       if (flags.fail) throw new Error('The link service did not respond (simulated failure).');
-      const [counts, items, audit] = await Promise.all([loadCounts(repo), loadItems(repo, { status: state.status, type: state.type }), repo.getAuditLog()]);
+      const [counts, items, audit] = await Promise.all([loadCounts(repo, keep), loadItems(repo, { status: state.status, type: state.type, keep }), repo.getAuditLog()]);
       if (mine !== request || destroyed) return;
       state.counts = counts;
       state.items = items;

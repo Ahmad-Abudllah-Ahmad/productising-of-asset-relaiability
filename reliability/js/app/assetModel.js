@@ -46,7 +46,7 @@ const conditionOf = (v, [l1, l2, l3]) => (v <= l1 ? 1 : v <= l2 ? 2 : v <= l3 ? 
 
 function descendants(snap, id) {
   const children = new Map();
-  for (const a of snap.assets) if (a.parent_id) (children.get(a.parent_id) ?? children.set(a.parent_id, []).get(a.parent_id)).push(a.asset_id);
+  for (const a of snap.allAssets) if (a.parent_id) (children.get(a.parent_id) ?? children.set(a.parent_id, []).get(a.parent_id)).push(a.asset_id);
   const out = new Set([id]);
   const stack = [id];
   while (stack.length) for (const c of children.get(stack.pop()) ?? []) if (!out.has(c)) { out.add(c); stack.push(c); }
@@ -133,7 +133,7 @@ export async function loadAssetDetail(repo, snap, id) {
 
   // --------------------------------------------------------------- history
   const dates = snap.dates;
-  const dateLabel = (d) => snap.campaigns.find((c) => c.end === d)?.name ?? 'Today';
+  const dateLabel = (d) => snap.endLabel(d);
   const history = { dates, labels: dates.map(dateLabel), hi: [], open: [], hasHi: ['tower', 'span', 'line', 'transformer'].includes(kind) };
   for (const d of dates) {
     if (history.hasHi) {
@@ -199,7 +199,7 @@ export async function loadAssetDetail(repo, snap, id) {
   };
 
   // ------------------------------------------------------------ components
-  const children = snap.assets.filter((a) => a.parent_id === id);
+  const children = snap.allAssets.filter((a) => a.parent_id === id);
   const components = children.map((c) => {
     const f = snap.findingsByAsset.get(c.asset_id) ?? [];
     return { id: c.asset_id, name: c.name, class: humanize(c.class), open: f.length, worst: f.length ? Math.min(...f.map((x) => x.condition_score)) : null };

@@ -59,7 +59,7 @@ async function both(page, name, height = 1300, ready) {
 test.describe('Maintenance History', () => {
   test('opens from the rail with four tabs, KPI cards, "Scores as of" and its selection in the URL', async ({ page }) => {
     const errors = await open(page);
-    await rail(page).nth(5).click();
+    await rail(page).nth(6).click();
     await expect(page.locator('#app-title')).toContainText('Maintenance History');
     await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders', 'Open findings']);
     await expect(byId(page, 'findings-card')).toBeVisible();
@@ -359,7 +359,7 @@ test.describe('Maintenance History', () => {
 test.describe('Risk Map', () => {
   test('opens from the rail: KPI cards, "Scores as of", layers and the map', async ({ page }) => {
     const errors = await open(page);
-    await rail(page).nth(4).click();
+    await rail(page).nth(5).click();
     await expect(page.locator('#app-title')).toContainText('Risk Map');
     await expect(byId(page, 'map')).toHaveAttribute('data-ready', 'true');
     expect(await hash(page)).toBe('#view=map');
@@ -472,6 +472,7 @@ test.describe('Risk Map', () => {
     await page.keyboard.press('Escape');
     await expect(panel(page)).toBeHidden();
     await evalMap(page, (m) => m.setView([40.528047, 49.788384], 17, { animate: false }));
+    await byId(page, 'map').scrollIntoViewIfNeeded();
     const centre = await byId(page, 'map').boundingBox();
     await page.mouse.click(centre.x + centre.width / 2, centre.y + centre.height / 2);
     await expect(panel(page)).toContainText('TWR-132-01-');
@@ -514,6 +515,7 @@ test.describe('Risk Map', () => {
       const a = m.latLngToContainerPoint(ids[0]); const b = m.latLngToContainerPoint(ids[1]);
       return { x0: Math.min(a.x, b.x) - 25, y0: Math.min(a.y, b.y) - 25, x1: Math.max(a.x, b.x) + 25, y1: Math.max(a.y, b.y) + 25 };
     });
+    await byId(page, 'map').scrollIntoViewIfNeeded();
     const el = await byId(page, 'map').boundingBox();
     await byId(page, 'lasso').click();
     await expect(byId(page, 'lasso')).toHaveAttribute('aria-pressed', 'true');
@@ -604,6 +606,7 @@ test.describe('Risk Map', () => {
       const a = m.latLngToContainerPoint(ids[0]); const b = m.latLngToContainerPoint(ids[1]);
       return { x0: Math.min(a.x, b.x) - 30, y0: Math.min(a.y, b.y) - 30, x1: Math.max(a.x, b.x) + 30, y1: Math.max(a.y, b.y) + 30 };
     });
+    await byId(page, 'map').scrollIntoViewIfNeeded();
     const el = await byId(page, 'map').boundingBox();
     await byId(page, 'lasso').click();
     await page.mouse.move(el.x + box.x0, el.y + box.y0);
@@ -624,6 +627,7 @@ test.describe('Risk Map', () => {
     await both(page, 'map-error', 900);
     await mapPage(page, '&layers=towers,stations', { tiles: 'blocked' });
     await evalMap(page, (m) => m.setView([40.528047, 49.788384], 17, { animate: false }));
+    await byId(page, 'map').scrollIntoViewIfNeeded();
     const box = await byId(page, 'map').boundingBox();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(panel(page)).toBeVisible();

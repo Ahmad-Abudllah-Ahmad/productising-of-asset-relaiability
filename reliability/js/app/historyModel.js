@@ -51,7 +51,10 @@ function chains(snap) {
   };
 }
 
-const findingView = (snap, f) => ({
+/** What a thumbnail needs: the capture image and the box (a demo image, until there is a real one). */
+export const thumbOf = (snap, f) => ({ id: f.finding_id, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '), image: snap.captures.get(f.capture_id)?.image ?? null, bbox: f.bbox ?? null, sensor: f.sensor });
+
+const findingView = (snap, f) => ({ thumb: thumbOf(snap, f),
   id: f.finding_id, date: f.date, campaignId: f.campaign_id, defectClass: f.defect_class, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '),
   condition: f.condition_score, severity: SEVERITY[f.condition_score].word, status: f.review_status,
   assetId: f.asset_id, assetName: nameOf(snap, f.asset_id),
@@ -69,8 +72,8 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
   const inScope = (ownerId) => inLine(ownerId) && (!unit || ownerId === unit);
 
   const sameDefect = chains(snap);
-  const repairsAll = snap.repairs.filter((r) => r.date <= asOf);
-  const woAll = snap.workOrders.filter((w) => w.created_at <= asOf);
+  const repairsAll = snap.repairs.filter((r) => r.date <= asOf && snap.inScope(r.asset_id));
+  const woAll = snap.workOrders.filter((w) => w.created_at <= asOf && snap.inScope(w.asset_id));
   const ownerIds = snap.assets.filter((a) => OWNERS.has(a.class)).map((a) => a.asset_id);
 
   // ---- the units on the chosen line (for the asset selector), with how much history each has. Duplicate records are not offered.
@@ -109,7 +112,7 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     return {
       id: r.repair_id, date: r.date, action: r.action, assetId: r.asset_id, assetName: nameOf(snap, r.asset_id), ownerId: owner, ownerName: nameOf(snap, owner),
       workOrderId: r.work_order_id, priority: wo?.priority ?? null,
-      closes: closes.map((c) => ({ id: c.finding_id, label: LABEL[c.defect_class] ?? c.defect_class, date: c.date, days: daysBetween(c.date, r.date) })),
+      closes: closes.map((c) => ({ thumb: thumbOf(snap, c), id: c.finding_id, label: LABEL[c.defect_class] ?? c.defect_class, date: c.date, days: daysBetween(c.date, r.date) })),
       hiBefore: before, hiAfter: after, delta: before === null || after === null ? null : r1(after - before),
       effective: again.size === 0,
       seenAgain: [...again.values()].sort((a, b) => a.date.localeCompare(b.date)).map((x) => ({ id: x.finding_id, date: x.date, label: LABEL[x.defect_class] ?? x.defect_class, daysAfter: daysBetween(r.date, x.date) })),
@@ -125,7 +128,7 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     return {
       id: w.work_order_id, type: w.work_type, priority: w.priority, status, assetId: w.asset_id, assetName: nameOf(snap, w.asset_id), ownerId: ownerOf(w.asset_id),
       ownerName: nameOf(snap, ownerOf(w.asset_id)), created: w.created_at, planned: w.planned_date, completed: done ? w.completed_at : null,
-      daysOpen: daysBetween(w.created_at, end), overdue: !done && status !== 'cancelled' && w.planned_date < asOf, findingIds: w.finding_ids,
+      daysOpen: daysBetween(w.created_at, end), overdue: !done && status !== 'cancelled' && w.planned_date < asOf, findingIds: w.finding_ids, thumbs: w.finding_ids.map((id) => snap.findingsById.get(id)).filter(Boolean).map((f) => thumbOf(snap, f)),
       repairId: repairByWo.get(w.work_order_id)?.repair_id ?? null,
     };
   }).sort((a, b) => b.created.localeCompare(a.created) || a.id.localeCompare(b.id));

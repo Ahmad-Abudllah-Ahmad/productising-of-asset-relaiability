@@ -12,13 +12,14 @@
 // State is in the URL hash: #finding=<id>&mode=thermal. Every image is labelled "Demo image".
 
 import { h, replace } from '../ui/dom.js';
+import { SEV_TAG, COND_TAG } from './palette.js';
 import { loadFindingDetail, DEFECT_OPTIONS } from './findingModel.js';
 import { parseHash, hashFor } from './hashState.js';
 import { loadImage, drawPhoto, drawThermal, drawCrop, SCALE_GRADIENT, DEMO_LABEL, SIZE } from './demoImage.js';
 import { openAsset } from './assetPanel.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const SEV_TONE = { critical: 'r', serious: 'r', moderate: 'a', minor: 'b', none: 'g' };
+const SEV_TONE = SEV_TAG;
 const STATUS_TONE = { confirmed: 'g', pending: 'a', rejected: 'r' };
 const MODES = [['rgb', 'RGB', '1'], ['thermal', 'Thermal', '2'], ['compare', 'Compare', '3']];
 const SEVERITIES = [[1, 'critical', 'very poor'], [2, 'serious', 'poor'], [3, 'moderate', 'fair'], [4, 'minor', 'good']];
@@ -69,7 +70,7 @@ function sync() {
 /** Change what the viewer shows without adding a history entry. */
 function replaceHash(finding, mode) {
   const { asset } = parseHash(location.hash);
-  history.replaceState(null, '', location.pathname + location.search + hashFor({ asset, finding, mode }));
+  history.replaceState(history.state, '', location.pathname + location.search + hashFor({ asset, finding, mode }));
 }
 
 // -------------------------------------------------------------- open / close
@@ -392,7 +393,7 @@ function compareView(d) {
     const st = stage({ ...x, label: x.label }, 'rgb', { size: 's' });
     return h('div', { class: 'fv-pane', 'data-testid': `pane-${role}` },
       h('h4', {}, `${x.campaignName} `, h('span', { class: 'fv-muted' }, x.date)), st.el,
-      h('div', { class: 'fv-paneinfo' }, tag(`condition ${x.condition}`, x.condition <= 1 ? 'r' : x.condition === 2 ? 'a' : 'b', { 'data-testid': `cond-${role}` }), ' ', tag(x.severity, SEV_TONE[x.severity]), ' ',
+      h('div', { class: 'fv-paneinfo' }, tag(`condition ${x.condition}`, COND_TAG(x.condition), { 'data-testid': `cond-${role}` }), ' ', tag(x.severity, SEV_TONE[x.severity]), ' ',
         tag(x.reviewStatus === 'pending' ? 'unreviewed' : x.reviewStatus, STATUS_TONE[x.reviewStatus]),
         h('div', { class: 'fv-muted fv-small' }, `${x.id} · ${x.label} · confidence ${x.confidence}`),
         x.closedBy ? h('div', { class: 'fv-small' }, `Closed by repair ${x.closedBy.id} on ${x.closedBy.date}`) : null));

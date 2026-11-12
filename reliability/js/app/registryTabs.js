@@ -9,7 +9,8 @@
 import { CATEGORIES, tableFor, filtersFor, kpisFor, linksKpis } from './registryModel.js';
 import { mountLinkReview } from '../ui/linkReview.js';
 import { openAsset } from './assetPanel.js';
-import { pendingLink, pendingFilters, openLinkInReview } from './navigation.js';
+import { pendingLink, pendingFilters, openLinkInReview, openScreen } from './navigation.js';
+import { drillKpis } from './screenKit.js';
 
 /**
  * @param {{kit: any, repo: any, getSnapshot: () => any, subscribeSnapshot: (fn: () => void) => (() => void), flags?: object}} deps
@@ -19,7 +20,7 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
   const { esc, tip, kpis } = kit;
 
   const tag = (c) => {
-    const main = c.tone ? `<span class="tag ${esc(c.tone)}">${esc(c.text)}</span>` : esc(c.text);
+    const main = c.tone ? `<span class="tag ${esc(c.tone)}${c.stale ? ' is-stale' : ''}"${c.stale ? ' title="Older than the inspection interval: this score is stale"' : ''}>${esc(c.text)}</span>` : esc(c.text);
     const chips = (c.chips ?? []).map((x) => `<button type="button" class="tag ${esc(x.tone)} reg-chip" data-link="${esc(x.link)}" data-link-status="${esc(x.status)}" title="Open this link in the Links tab">${esc(x.text)}</button>`).join('');
     return chips ? `${main} ${chips}` : main;
   };
@@ -99,6 +100,12 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
         }
       }
       pendingFilters.tab = null; pendingFilters.filters = null;
+      const band = stage.querySelector('select[aria-label="Health band"]');
+      drillKpis(stage, {
+        'Average health index': () => openScreen('home'), 'Highest risk': () => openScreen('home'),
+        'Open findings': () => openScreen('history', 'Open findings', { sev: 'all' }),
+        'Needs attention': band ? () => { band.value = 'poor'; band.dispatchEvent(new Event('change', { bubbles: true })); } : null,
+      });
       const offSort = enableSorting(stage);
       const offRows = enableRows(stage);
       return () => { offSort?.(); offRows?.(); };
@@ -115,7 +122,7 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
       const kpiHost = stage.querySelector('[data-lr-kpis]');
       const select = pendingLink.id ? { id: pendingLink.id, status: pendingLink.status } : null;
       pendingLink.id = null;
-      const lr = mountLinkReview(host, { repo, flags, select, asOf: getSnapshot().asOf });
+      const lr = mountLinkReview(host, { repo, flags, select, asOf: getSnapshot().asOf, keep: (l) => getSnapshot().linkInScope(l) });
       // The KPI cards above the review screen follow every decision: boot.js rebuilds the snapshot after each
       // repository change and then tells its listeners.
       const off = subscribeSnapshot(() => { kpiHost.innerHTML = kpis(linksKpis(getSnapshot())); });

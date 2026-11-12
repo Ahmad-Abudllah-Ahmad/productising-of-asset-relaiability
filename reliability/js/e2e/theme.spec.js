@@ -68,7 +68,7 @@ test.describe('the toggle', () => {
 test.describe('every main view, both themes', () => {
   test('legacy screens', async ({ page }) => {
     await open(page);
-    for (const [go, name] of [[6, 'dashboard'], [2, 'tower-health'], [3, 'line-health'], [4, 'risk-map'], [5, 'maintenance-history'], [0, 'drawing']]) {
+    for (const [go, name] of [[0, 'dashboard'], [3, 'tower-health'], [4, 'line-health'], [5, 'risk-map'], [6, 'maintenance-history'], [1, 'drawing']]) {
       await rail(page).nth(go).click();
       await both(page, name);
     }
@@ -76,7 +76,7 @@ test.describe('every main view, both themes', () => {
 
   test('registry, links and Link Review', async ({ page }) => {
     await open(page);
-    await rail(page).nth(1).click();
+    await rail(page).nth(2).click();
     await tab(page, 'Towers').click();
     await both(page, 'registry-towers');
     await tab(page, 'Transformers').click();

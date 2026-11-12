@@ -65,6 +65,15 @@
 //  A22. RULE LINKS. A finding is linked to the nearest tower within 60 m, else the nearest span within
 //      60 m. A line is linked to a substation when its end tower is within 500 m (spatial) or the line
 //      lists it as an end substation (electrical). Rules only add links the data does not already have.
+//  A23. STALE SCORES. A score whose newest evidence is older than the inspection interval of its
+//      category (A9, config freshness.inspectionIntervalDays) is "stale": it is still shown, greyed
+//      out and marked "stale", and breakdowns carry freshness.stale. The age is measured as of the
+//      date the screens are showing (the global "as of" date), so moving that date back makes a
+//      score fresh again and moving it forward can make it stale. An asset with no evidence at all
+//      is "not assessed", never "stale".
+//  A24. GLOBAL FILTERS. A label, a voltage, a category and an "as of" date apply to every screen
+//      (app/scope.js). An asset is in scope when it passes every filter that is set. The score of a
+//      container (a line) is its own and is not recomputed from the part of it that is in scope.
 //
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 

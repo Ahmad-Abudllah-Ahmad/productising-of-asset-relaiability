@@ -4,20 +4,22 @@
 
 import { h, replace } from '../ui/dom.js';
 import { SEVERITY } from './assetModel.js';
+import { BAND_TAG, SEV_TAG } from './palette.js';
 import { parseHash, parseView, hashFor, VIEW_KEYS } from './hashState.js';
+import { describeScope, hasFilters } from './scope.js';
 
-export const BAND_TONE = { normal: 'g', moderate: 'a', poor: 'r', none: 'x' };
+export const BAND_TONE = BAND_TAG;
 /** What a KPI subtitle means, so a bad count is never green: ok, warn, bad or neutral. */
 export const BAND_SUB = { normal: 'ok', moderate: 'warn', poor: 'bad', none: 'neutral' };
 export const RISK_SUB = { low: 'ok', medium: 'warn', high: 'bad', critical: 'bad' };
-export const SEV_TONE = { critical: 'r', serious: 'r', moderate: 'a', minor: 'b', none: 'g' };
+export const SEV_TONE = SEV_TAG;
 export const STATUS_TONE = { open: 'a', in_progress: 'b', completed: 'g', cancelled: 'x' };
 export const COND_CLASS = (n) => (n === null || n === undefined ? 'hl-cn' : `hl-c${n}`);
 export const condWord = (n) => (n === null || n === undefined ? 'not assessed' : SEVERITY[n].condition);
 
 /** A sparkline needs two points; a single value is drawn flat. */
 export const spark = (values) => { const v = values.filter((x) => x !== null && x !== undefined); return v.length > 1 ? v : v.length ? [v[0], v[0]] : [0, 0]; };
-export const tag = (text, tone, extra = {}) => h('span', { class: `tag ${tone ?? 'x'}`, ...extra }, text);
+export const tag = (text, tone, { class: extraClass = '', ...extra } = {}) => h('span', { class: `tag ${tone ?? 'x'}${extraClass ? ` ${extraClass}` : ''}`, ...extra }, text);
 export const pct = (x) => `${Math.round(x * 1000) / 10}%`;
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 export const humanize = (s) => String(s ?? '').replace(/_/g, ' ');
@@ -25,7 +27,7 @@ export const humanize = (s) => String(s ?? '').replace(/_/g, ' ');
 /** Write the screen's keys into the hash without adding a history entry, keeping the overlay keys. */
 export function writeView(view) {
   const target = hashFor({ ...parseHash(location.hash), ...view });
-  if (target !== location.hash) history.replaceState(null, '', location.pathname + location.search + target);
+  if (target !== location.hash) history.replaceState(history.state, '', location.pathname + location.search + target); // keep history.state: it says which screen this entry shows
 }
 const clearAll = () => writeView(Object.fromEntries(VIEW_KEYS.map((k) => [k, null])));
 let pendingClear = null; // leaving a screen clears its keys, unless the next tab of the same screen mounts straight away
@@ -112,4 +114,28 @@ export function mountScreen(stage, deps, spec) {
     disposed = true; off(); window.removeEventListener('hashchange', onHash); window.removeEventListener('reliability-theme', onTheme); runCleanups();
     pendingClear = setTimeout(clearAll, 0); // leaving the screen: its keys leave the URL (an open panel stays), unless another tab of it mounts now
   };
+}
+
+/**
+ * Make KPI cards click through to the list behind them. `handlers` is { 'card title': () => ... }; a card whose title is not in
+ * it stays plain. Cards become keyboard buttons (Enter or Space) with a hover hint. Call it after the cards are in the page.
+ */
+export function drillKpis(root, handlers) {
+  for (const card of root.querySelectorAll('.kpi')) {
+    const fn = handlers[card.querySelector('.k')?.textContent?.trim()];
+    if (!fn) continue;
+    card.classList.add('is-drill');
+    card.setAttribute('role', 'button'); card.tabIndex = 0;
+    card.setAttribute('title', 'Open the list behind this number');
+    card.addEventListener('click', () => fn());
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
+  }
+}
+
+/** For an empty state: say that the global filters are on, and which, so an empty screen is never a mystery. */
+export function scopeNote(snap) {
+  const sc = snap?.scope;
+  if (!sc || !hasFilters(sc)) return '';
+  const text = describeScope(sc, (id) => snap.labelValue.get(id) ?? id);
+  return ` The filters in the bar above are on (${text}); change or reset them to see more.`;
 }
