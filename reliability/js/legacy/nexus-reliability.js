@@ -179,27 +179,11 @@
     }).join("");
   }
 
-  function heat(chart) {
-    var cols = chart.cols;
-    var head = '<div class="heat"><span></span>' + cols.map(function (col) { return '<span class="k">' + esc(col) + "</span>"; }).join("") + "</div>";
-    var body = chart.rows.map(function (label, rowIndex) {
-      var cells = chart.matrix[rowIndex].map(function (value, colIndex) {
-        var color = value >= 75 ? "#0f766e" : value >= 55 ? "#14b8a6" : value >= 35 ? "#5eead4" : "#ccfbf1";
-        var text = label + " · " + cols[colIndex] + " · " + value + (chart.unit ? " " + chart.unit : "");
-        return '<i class="cell" style="background:' + color + '"' + tip(text) + "></i>";
-      }).join("");
-      return '<div class="heat"><b>' + esc(label) + "</b>" + cells + "</div>";
-    }).join("");
-    return head + body;
-  }
-
   function chartBody(chart) {
     if (!chart) return "";
     var plot = "";
     if (chart.type === "area") plot = areaChart(chart.labels, chart.series);
     else if (chart.type === "bar" || chart.type === "grouped") plot = barChart(chart.labels, chart.series);
-    else if (chart.type === "hbar") plot = hbars(chart.items);
-    else if (chart.type === "heat") plot = heat(chart);
     return '<div class="k">' + esc(chart.title) + '</div><div class="chart-box">' + plot + "</div>" + legend(chart.series || chart.items);
   }
 
@@ -223,7 +207,6 @@
 
   function toRank(chart) {
     if (!chart) return [];
-    if (chart.type === "hbar" && chart.items) return chart.items;
     if (chart.labels && chart.series && chart.series[0]) {
       var series = chart.series[0];
       var max = 1;
@@ -301,7 +284,7 @@
     var leftTitle = (spec.chart && spec.chart.title) || "Distribution";
     var rightTitle = (spec.side && (spec.side.title || spec.side.kicker)) || "Comparison";
     var detail = "";
-    if (spec.chart && (spec.chart.type === "heat" || spec.chart.type === "area" || spec.chart.type === "grouped")) {
+    if (spec.chart && (spec.chart.type === "area" || spec.chart.type === "grouped")) {
       detail = '<div class="card chart-card">' + chartBody(spec.chart) + "</div>";
     }
     var summary = spec.side && spec.side.text ? '<div class="card side-card"><div class="sum"><strong>' + esc(spec.side.kicker || "CASE") + "</strong>" + esc(spec.side.text) + "</div></div>" : "";
@@ -432,124 +415,16 @@
           return '<div class="screen"><div class="card" data-testid="registry-unavailable" style="padding:16px"><b>The asset registry could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the data modules under reliability/js did not load.</div></div></div>';
         })
       ]),
+      // Tower Health and Line Health come from reliability/js/app/healthScreens.js and are passed to NexusReliability.open().
+      // These single tabs only show if that code could not load.
       screen("towers", "Tower Health", "tower", [
-        tab("Scores", function () {
-          return pack({
-            kpis: [
-              { l: "T-104 index", v: "61", s: "Lower is worse", tip: "Condition index after six cycles. Severity factor used in the score is 0.86.", spark: [78, 76, 74, 71, 66, 61], color: RED },
-              { l: "T-103 index", v: "74", s: "Foundation watch", tip: "Watch, not a verified defect.", spark: [80, 79, 78, 76, 75, 74], color: AMBER },
-              { l: "T-101 index", v: "88", s: "In band", tip: "No open finding.", spark: [86, 87, 88, 88, 87, 88], color: GREEN },
-              { l: "Overdue review", v: "1", s: "T-104", tip: "Only T-104 is past the review threshold of 0.60.", spark: [0, 0, 0, 1, 1, 1], color: RED }
-            ],
-            chart: { type: "hbar", title: "Priority = severity × criticality × consequence", items: [
-              { label: "T-104", pct: 69, value: "0.69", color: RED, tip: "0.86 × 0.91 × 0.88" },
-              { label: "T-103", pct: 41, value: "0.41", color: AMBER, tip: "Watch. Below the 0.60 review line." },
-              { label: "T-105", pct: 36, value: "0.36", color: AMBER, tip: "Adjacent to the unconfirmed damper." },
-              { label: "T-101", pct: 22, value: "0.22", color: TEAL, tip: "Stable" },
-              { label: "T-110", pct: 16, value: "0.16", color: TEAL, tip: "Stable" }
-            ] },
-            side: { kicker: "REVIEW", text: "Tower T-104 has two verified structural findings and requires engineering review.", gauge: { value: 69, label: "Priority", tip: "0.69 on a 0 to 1 scale. Review threshold is 0.60." } },
-            columns: ["Tower", "Index", "Findings", "State"],
-            rows: [
-              row(["T-104", "61", "Steel, cotter", tag("Review", "r")], "Both findings verified by engineering", kv),
-              row(["T-103", "74", "Foundation", tag("Watch", "a")], "Not verified as a defect", kv),
-              row(["T-101", "88", "None", tag("Stable", "g")], "Six cycles in band", kv),
-              row(["T-110", "91", "None", tag("Stable", "g")], "No open finding", kv)
-            ]
-          });
-        }),
-        tab("Heatmap", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "heat", title: "Severity by inspection cycle · higher is worse", unit: "severity", rows: ["T-104", "T-103", "T-105", "T-101", "T-110", "N-18"], cols: ["1", "2", "3", "4", "5", "6", "7", "8"], matrix: [
-              [28, 30, 34, 40, 52, 70, 78, 86],
-              [22, 24, 26, 30, 34, 38, 40, 44],
-              [18, 18, 20, 22, 30, 36, 40, 42],
-              [16, 16, 18, 18, 18, 20, 18, 18],
-              [12, 14, 14, 12, 14, 16, 14, 14],
-              [10, 12, 14, 20, 36, 55, 70, 74]
-            ] },
-            side: { type: "bars", title: "Latest cycle", items: [
-              { label: "T-104", pct: 86, value: "86", color: "#0f766e", tip: "Cycle 8 severity 86 · review" },
-              { label: "N-18", pct: 74, value: "74", color: "#14b8a6", tip: "Damper frames grouped from cycle 6" },
-              { label: "T-101", pct: 18, value: "18", color: "#99f6e4", tip: "Still in band" }
-            ] },
-            columns: ["Tower", "Cycle 6 index", "Cycle 8 severity", "State"],
-            rows: [
-              row(["T-104", "61", "86", tag("Review", "r")], "Index fell while severity rose", kv),
-              row(["N-18", "—", "74", tag("Confirm", "a")], "Component heat, not a tower index", kv)
-            ]
-          });
-        }),
-        tab("Trend", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "area", title: "Condition index · lower is worse", labels: ["Insp 1", "Insp 2", "Insp 3", "Insp 4", "Insp 5", "Insp 6"], series: [
-              { name: "T-104", color: RED, values: [78, 76, 74, 71, 66, 61] },
-              { name: "T-101", color: TEAL, values: [86, 87, 88, 88, 87, 88] }
-            ] },
-            side: { kicker: "HISTORY", text: "T-104 has been inspected six times. The last two cycles carry both verified structural findings.", gauge: { value: 61, label: "Index", tip: "Condition index 61. This is health, not the severity factor." } },
-            columns: ["Cycle", "T-104 index", "New evidence", "State"],
-            rows: [
-              row(["Insp 5", "66", "Steel noted", tag("Review", "r")], "First of the two verified findings", kv),
-              row(["Insp 6", "61", "Cotter verified", tag("Review", "r")], "Second verified finding", kv),
-              row(["Insp 6", "88", "T-101 clear", tag("Stable", "g")], "Comparison tower", kv)
-            ]
-          });
+        tab("Condition", function () {
+          return '<div class="screen"><div class="card" data-testid="tower-health-unavailable" style="padding:16px"><b>Tower Health could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
       screen("lines", "Line Health", "line", [
         tab("Overview", function () {
-          return pack({
-            filters: ["Line", "Voltage"],
-            kpis: [
-              { l: "Spans in section", v: "18", s: "SS-North east", tip: "Eighteen spans on the 220 kV section.", spark: [18, 18, 18, 18, 18, 18] },
-              { l: "Open on spans", v: "3", s: "Damper, ROW, watch", tip: "Span issues separate from the two tower findings.", spark: [1, 1, 1, 2, 2, 3], color: AMBER },
-              { l: "Review backlog", v: "1", s: "Tower T-104", tip: "One tower is overdue for engineering review.", spark: [0, 0, 0, 1, 1, 1], color: RED },
-              { l: "Loading context", v: "78%", s: "Of rating · historian", tip: "Latest historian sample. Not calculated from the image.", spark: [62, 66, 70, 74, 81, 78], color: PURPLE }
-            ],
-            chart: { type: "area", title: "Span condition index", labels: ["N-14", "N-15", "N-16", "N-17", "N-18", "N-19"], series: [{ name: "Index", color: BLUE, values: [90, 88, 86, 84, 70, 76] }] },
-            side: { type: "donut", title: "Span state", parts: [
-              { name: "Routine", value: 15, color: "#93c5fd", tip: "No open finding" },
-              { name: "Confirm", value: 1, color: AMBER, tip: "N-18 damper" },
-              { name: "Watch", value: 2, color: TEAL, tip: "N-19 ROW and T-103 foundation approach" }
-            ] },
-            columns: ["Span", "From – to", "Latest input", "State"],
-            rows: [
-              row(["N-17", "T-103 – T-104", "Insp 6", tag("Routine", "g")], "No verified defect", kv),
-              row(["N-18", "T-104 – T-105", "4 frames", tag("Confirm", "a")], "Displaced damper · score 0.93", kv),
-              row(["N-19", "T-105 – T-110", "ROW watch", tag("Watch", "a")], "Vegetation, not a steel defect", kv)
-            ]
-          });
-        }),
-        tab("Spans", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "grouped", title: "Finding pressure vs loading", labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], series: [
-              { name: "Loading %", color: BLUE, values: [61, 66, 92, 74, 78, 78] },
-              { name: "Open findings", color: AMBER, values: [6, 7, 8, 9, 11, 12] }
-            ] },
-            side: { kicker: "CONTEXT", text: "March loading reached 92% of rating on the same corridor as T-104. The image set does not calculate that loading.", items: [{ label: "March peak", pct: 92, value: "92%", color: RED, tip: "Historian · 12 Mar · 46 minutes" }] },
-            columns: ["Month", "Loading", "Findings", "Note"],
-            rows: [
-              row(["Mar", "92%", "8", tag("Event", "a")], "Thermal window beside the high-priority tower", kv),
-              row(["Jun", "78%", "12", tag("Now", "b")], "Current operating point", kv)
-            ]
-          });
-        }),
-        tab("Components", function () {
-          return pack({
-            kpis: k,
-            chart: { type: "bar", title: "Components with an open record", labels: ["Steel", "Cotter", "Damper", "Foundation", "ROW"], series: [{ name: "Records", color: TEAL, values: [1, 1, 1, 1, 1] }] },
-            side: { kicker: "CLASS", text: "An RGB frame can support a visual finding. It cannot, by itself, confirm an electrical short. Clearance may need a spatial measurement.", gauge: { value: 40, label: "Confirmed", tip: "Two of five open records are verified structural findings." } },
-            columns: ["Component", "Asset", "Evidence", "State"],
-            rows: [
-              row(["Leg B steel", "T-104", "Verified", tag("Review", "r")], "Structural finding one", kv),
-              row(["Cotter pin", "T-104", "Verified", tag("Review", "r")], "Structural finding two", kv),
-              row(["Damper VD-220", "N-18", "Score 0.93", tag("Confirm", "a")], "Confirm the asset location", kv),
-              row(["Foundation", "T-103", "Watch", tag("Watch", "a")], "Supplementary evidence still open", kv)
-            ]
-          });
+          return '<div class="screen"><div class="card" data-testid="line-health-unavailable" style="padding:16px"><b>Line Health could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
       ]),
       screen("map", "Risk Map", "map", [

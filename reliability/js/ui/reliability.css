@@ -5,6 +5,11 @@
   --rel-surface-2: #f8fafc; --rel-sunken: #f2f4f7; --rel-sunken-2: #e1e6ec;
   --rel-warn-bg: #fff6e5; --rel-warn-line: #f1d9a8; --rel-info-line: #b9d3f8; --rel-bad-bg: #fdecec; --rel-bad-line: #f3bcbc;
   --rel-overlay: rgba(16, 24, 40, 0.55);
+  /* The condition palette, shared by both themes (mid tones read on light and dark cards). Dark text sits on every fill (theme.test.js);
+     each shape also has a 1.5px outline, and a number or word, so colour is never the only signal. */
+  --rel-cond-1: #ef6a6a; --rel-cond-2: #f08a4b; --rel-cond-3: #efc24a; --rel-cond-4: #a5d66b; --rel-cond-5: #55c38a; --rel-cond-n: #aab4c3;
+  --rel-band-poor: var(--rel-cond-1); --rel-band-moderate: var(--rel-cond-3); --rel-band-normal: var(--rel-cond-5); --rel-band-none: var(--rel-cond-n);
+  --rel-on-fill: #12161d; --rel-shape-line: #5f6a7b;
   /* Reliability-only text colours for the condition chips: the legacy accents are 3.4-4.1:1 on their tinted chips, these are 4.8+ */
   --muted: #5f6a7b; --rel-text-green: #137a42; --rel-text-red: #b42f2f; --rel-text-amber: #8a5708; --rel-text-blue: #1a5fd0;
 }
@@ -16,6 +21,7 @@
   --rel-surface-2: #1c2330; --rel-sunken: #202938; --rel-sunken-2: #2b3546;
   --rel-warn-bg: #2d2411; --rel-warn-line: #5c4a1f; --rel-info-line: #2f4d7d; --rel-bad-bg: #351b1b; --rel-bad-line: #703333;
   --rel-overlay: rgba(0, 0, 0, 0.62);
+  --rel-shape-line: #9aa6b6;
   --rel-text-green: var(--green); --rel-text-red: var(--red); --rel-text-amber: var(--amber); --rel-text-blue: var(--blue);
 }
 /* the legacy page chrome has hard-coded light colours in nexus-apps.css; the dark theme overrides them here */
@@ -206,7 +212,7 @@
 .a360-links li { padding: 3px 0; }
 .a360-duvalrow { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; }
 .a360-duval { width: 220px; height: 190px; }
-.a360-tri { fill: #f8fafc; stroke: var(--muted); stroke-width: 1.2; }
+.a360-tri { fill: var(--rel-surface-2); stroke: var(--muted); stroke-width: 1.2; }
 .a360-tri-l { font-size: 10px; fill: var(--muted); }
 .a360-tri-p { fill: var(--red); stroke: #fff; stroke-width: 2; }
 .a360-empty, .a360-error { text-align: center; padding-top: 40px; }
@@ -318,3 +324,78 @@
 @media (max-width: 860px) { .fv-main, .fv-panes { grid-template-columns: 1fr; } }
 
 .fv-history { list-style: none; margin: 0; padding: 0; } .fv-history li { padding: 6px 0; border-top: 1px solid var(--line); } .fv-history li:first-child { border-top: 0; }
+
+.fv-nowrap { white-space: nowrap; }
+
+/* ==== Line Health and Tower Health. Namespaced hl-. */
+.screen.hl { overflow: hidden; }
+.hl-grid { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 10px; height: 100%; min-height: 0; align-items: stretch; }
+.hl-filter { position: static; align-self: stretch; overflow: auto; }
+.hl-filter select { width: 100%; }
+.hl-main-wrap { min-width: 0; min-height: 0; overflow: auto; }
+.hl-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-bottom: 12px; }
+.hl-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+.hl-head h2 { margin: 0; font-size: 18px; } .hl-head p { margin: 2px 0 0; }
+.hl-headact { display: flex; align-items: center; gap: 10px; }
+.hl-card { padding: 12px 14px; }
+.hl-card h3 { margin: 0 0 8px; font-size: 14px; } .hl-card h4 { margin: 10px 0 4px; font-size: 13px; }
+.hl-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.hl-two-wide { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; }
+.hl-state { padding: 28px 16px; text-align: center; }
+.hl-state h3 { margin: 0 0 6px; }
+.hl-skel-kpi { height: 92px; margin-bottom: 10px; } .hl-skel-block { height: 200px; margin-bottom: 10px; }
+.hl-stepper { display: flex; gap: 6px; margin: 4px 0 10px; } .hl-stepper .lr-btn { flex: 1; justify-content: center; }
+.hl-clear-filters { cursor: pointer; }
+.hl-filter .asof { margin-top: 14px; }
+
+/* the condition and band fills */
+.hl-band-poor { --fill: var(--rel-band-poor); } .hl-band-moderate { --fill: var(--rel-band-moderate); } .hl-band-normal { --fill: var(--rel-band-normal); } .hl-band-none { --fill: var(--rel-band-none); }
+.hl-tower, .hl-wire { background: var(--fill); }
+.hl-c1 { --fill: var(--rel-cond-1); } .hl-c2 { --fill: var(--rel-cond-2); } .hl-c3 { --fill: var(--rel-cond-3); } .hl-c4 { --fill: var(--rel-cond-4); } .hl-c5 { --fill: var(--rel-cond-5); } .hl-cn { --fill: var(--rel-cond-n); }
+.hl-swatch { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 5px; border: 1.5px solid var(--rel-shape-line); border-radius: 4px; background: var(--fill, transparent); color: var(--rel-on-fill); font-size: 11px; font-style: normal; font-weight: 700; vertical-align: middle; }
+.hl-swatch.hl-band-none, .hl-swatch.hl-cn { border-style: dashed; }
+.hl-cond { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 4px; border: 1.5px solid var(--rel-shape-line); border-radius: 5px; background: var(--fill); color: var(--rel-on-fill); font-weight: 700; font-size: 12px; }
+.hl-cn.hl-cond { border-style: dashed; }
+.hl-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 12px; margin: 0 0 10px; }
+.hl-legend > span { display: inline-flex; align-items: center; }
+
+/* the strip */
+.hl-strip { display: flex; flex-wrap: wrap; gap: 14px 0; }
+.hl-seg { display: flex; flex-direction: column; align-items: flex-start; }
+.hl-segrow { display: flex; align-items: flex-start; }
+.hl-name { font-size: 10px; color: var(--muted); margin-top: 3px; width: 36px; text-align: center; white-space: nowrap; }
+.hl-tower { position: relative; width: 36px; height: 36px; border: 1.5px solid var(--rel-shape-line); border-radius: 6px; color: var(--rel-on-fill); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; flex: 0 0 auto; }
+.hl-tower.hl-band-none { border-style: dashed; }
+.hl-tower:hover, .hl-span:hover .hl-wire { outline: 2px solid var(--blue); outline-offset: 1px; }
+.hl-tower:focus-visible, .hl-span:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.hl-count { position: absolute; top: -7px; right: -7px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--ink); color: var(--card); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; z-index: 1; }
+.hl-span { position: relative; display: flex; flex-direction: column; align-items: center; width: 44px; margin-top: 11px; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; flex: 0 0 auto; }
+.hl-wire { position: relative; display: block; width: 100%; height: 10px; border: 1.5px solid var(--rel-shape-line); border-left: 0; border-right: 0; }
+.hl-wire.hl-band-none { border-style: dashed; }
+.hl-wire .hl-count { top: -13px; right: 14px; }
+.hl-clear { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+
+.hl-chart { width: 100%; height: 300px; }
+.hl-breakdown .hl-two { align-items: start; }
+.hl-bands { width: auto; }
+.hl-worst { margin: 0; padding-left: 20px; } .hl-worst li { padding: 2px 0; }
+.hl-na { margin: 0; padding-left: 18px; columns: 2; font-size: 12px; } .hl-na li { padding: 1px 0; break-inside: avoid; }
+
+/* the schematic */
+.hl-svgwrap { max-width: 560px; margin: 0 auto; }
+.hl-svg { width: 100%; height: auto; display: block; }
+.hl-zone { fill: var(--fill); stroke: var(--rel-shape-line); stroke-width: 1.5; stroke-linejoin: round; }
+.hl-zone.hl-cn { stroke-dasharray: 5 3; }
+.hl-zone:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.hl-zone .hl-wirel { stroke: var(--rel-shape-line); stroke-width: 3; }
+.hl-brace line { stroke: var(--rel-shape-line); stroke-width: 1.2; opacity: 0.55; }
+.hl-ground { stroke: var(--muted); stroke-width: 2; }
+.hl-leader { stroke: var(--muted); stroke-width: 1; opacity: 0.7; }
+.hl-zlabel { font-size: 13px; fill: var(--ink); }
+.hl-zval { font-weight: 700; }
+.hl-arrow { margin-left: 4px; font-size: 10px; } .hl-better { color: var(--rel-text-green); } .hl-worse { color: var(--rel-text-red); }
+.hl-compare td, .hl-compare th, .hl-groups td, .hl-groups th { vertical-align: top; }
+.hl-groups td:nth-child(3) { white-space: nowrap; }
+.hl-compare td { white-space: nowrap; }
+.hl-na-banner { margin: 0; }
+@media (max-width: 900px) { .hl-grid, .hl-two, .hl-two-wide { grid-template-columns: 1fr; } }

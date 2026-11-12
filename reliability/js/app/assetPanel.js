@@ -46,7 +46,7 @@ export function openAsset(id, { opener } = {}) {
 
 export function closeAsset() {
   if (!ctl.state.open) return;
-  if (parseHash(location.hash).asset) history.pushState(null, '', location.pathname + location.search);
+  if (parseHash(location.hash).asset) history.pushState(null, '', location.pathname + location.search + hashFor({ asset: null, finding: null }));
   hide();
 }
 
@@ -349,7 +349,7 @@ function duvalView(dv) {
 
 // ----------------------------------------------------------------- findings
 
-function thumb(f) {
+export function thumb(f) {
   const open = (e) => openFinding(f.id, { opener: e.currentTarget });
   if (f.image) {
     return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (demo image)`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },

@@ -577,7 +577,7 @@ function linkSection(d) {
   return h('div', { class: 'fv-sec', 'data-testid': 'link-asset' }, h('h3', {}, 'Link to asset'), head,
     h('p', { class: 'fv-muted fv-small' }, 'Suggested by the matcher from the finding’s GPS point and where this kind of defect is recorded. Pick one to move the finding; both assets’ scores recompute.'),
     h('ul', { class: 'fv-suggest', 'data-testid': 'suggestions' }, d.suggestions.map((x) => h('li', { class: x.current ? 'is-current' : '', 'data-asset': x.assetId },
-      h('div', { class: 'fv-sugg-main' }, h('b', {}, x.name), h('span', { class: 'fv-muted fv-small' }, ` ${x.class} · ${x.assetId}${x.distance !== null ? ` · ${x.distance} m away` : ''}`)),
+      h('div', { class: 'fv-sugg-main' }, h('b', {}, x.name), h('span', { class: 'fv-muted fv-small' }, ` ${x.class} · ${x.assetId}`, x.distance !== null ? [' · ', h('span', { class: 'fv-nowrap' }, `${x.distance} m away`)] : null)),
       h('div', { class: 'fv-sugg-score' }, h('span', { class: 'fv-mini', 'aria-hidden': 'true' }, h('span', { style: { width: `${Math.round(x.score * 100)}%` } })), ` ${x.score.toFixed(2)}`),
       h('details', { class: 'fv-small' }, h('summary', {}, 'why'), h('ul', {}, x.reasons.map((r) => h('li', {}, `${r.signal} ${r.value.toFixed(2)} (+${r.contribution.toFixed(2)}): ${r.detail}`)))),
       x.current ? tag('current', 'b') : h('button', { class: 'lr-btn', type: 'button', 'data-testid': 'link-here', disabled: s.busy, onClick: () => act('relink', x.assetId) }, 'Link here')))));

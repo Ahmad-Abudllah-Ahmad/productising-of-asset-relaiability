@@ -8,7 +8,7 @@ import { loadFindingDetail, DEFECT_OPTIONS } from '../app/findingModel.js';
 import { suggestAssets } from '../domain/linking/suggest.js';
 import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { thermalModel, falseColour, hash, SCALE_GRADIENT, SIZE, DEMO_LABEL } from '../app/demoImage.js';
-import { parseHash, hashFor } from '../app/hashState.js';
+import { parseHash, parseView, hashFor } from '../app/hashState.js';
 
 const NOW = '2026-11-11';
 let tick = 0;
@@ -395,4 +395,29 @@ test('the new section: ids are unique, it follows T-040 on its line, and Line He
   assert.ok(snap.byId.has('SPN-132-01-040-041') && snap.byId.has('SPN-132-01-043-044'));
   const nots = new Set(snap.scores.get('L-132-01').hi.breakdown.notAssessed.map((n) => n.id ?? n.asset_id ?? n));
   for (const n of ['041', '042', '043', '044']) assert.ok(nots.has(`TWR-132-01-${n}`), n);
+});
+
+test('suggestions never offer a duplicate record that is waiting to be merged, but still list it when the finding is on it', async () => {
+  const repo = createRepository(generateSeed(), { storage: null });
+  const snap = await loadSnapshot(repo);
+  assert.ok(snap.dupRecord.size > 0);
+  const f = (await repo.getFinding('F-0308'));
+  const before = suggestAssets(f, snap.assets).map((x) => x.assetId);
+  assert.ok(before.includes('MX-TOW-1212'), 'the duplicate T-11 record was offered before the fix');
+  const d = await loadFindingDetail(repo, snap, 'F-0308');
+  const ids = d.suggestions.map((x) => x.assetId);
+  assert.ok(!ids.some((id) => snap.dupRecord.has(id)));
+  assert.ok(ids.includes('TWR-132-01-011') && ids.some((id) => id.startsWith('EW-')), 'real targets stay');
+  const cur = suggestAssets({ ...f, asset_id: 'MX-TOW-1212' }, snap.assets, { exclude: new Set(['MX-TOW-1212']) });
+  assert.ok(cur.some((x) => x.assetId === 'MX-TOW-1212' && x.current));
+});
+
+test('hash state: the screen keys (view, line, tower, band) sit next to the overlay keys and each survives the other', () => {
+  assert.deepEqual(parseView('#view=towers&line=L-132-01&tower=TWR-132-01-011&band=poor'), { view: 'towers', line: 'L-132-01', tower: 'TWR-132-01-011', band: 'poor' });
+  assert.deepEqual(parseView('#view=nonsense'), { view: null, line: null, tower: null, band: null });
+  const now = '#view=lines&line=L-220-03';
+  assert.equal(hashFor({ asset: 'X' }, now), '#asset=X&view=lines&line=L-220-03', 'opening a panel keeps the screen keys');
+  assert.equal(hashFor({ asset: null, finding: null }, '#asset=X&view=lines&line=L-220-03'), now, 'closing it keeps them too');
+  assert.equal(hashFor({ ...parseHash('#asset=X'), view: 'towers', tower: 'T', line: null }, '#asset=X&view=lines&line=L-1'), '#asset=X&view=towers&tower=T', 'changing the screen keys keeps the panel');
+  assert.equal(hashFor({ view: null, line: null, tower: null, band: null }, '#view=towers&tower=T&band=none'), '');
 });

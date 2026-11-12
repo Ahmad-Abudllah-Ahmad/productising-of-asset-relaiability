@@ -27,6 +27,8 @@ export function palette(el) {
   return {
     ink: v('--ink', '#1b2430'), muted: v('--muted', '#667085'), line: v('--line', '#e4e7ec'), card: v('--card', '#ffffff'),
     blue: v('--blue', '#1f6feb'), green: v('--green', '#178a4c'), red: v('--red', '#d14343'), amber: v('--amber', '#b7791f'),
+    band: { normal: v('--rel-band-normal', '#55c38a'), moderate: v('--rel-band-moderate', '#efc24a'), poor: v('--rel-band-poor', '#ef6a6a'), none: v('--rel-band-none', '#aab4c3') },
+    stroke: v('--rel-shape-line', '#5f6a7b'),
   };
 }
 
@@ -76,13 +78,47 @@ export function loadingOption(loading, p) {
 }
 
 /**
+ * Health index along a line (Line Health). x is the position along the line: towers at even positions, the span
+ * after a tower at the odd position after it, so units.index is the x value. Towers are joined by a thin line and
+ * each point takes its band's colour; spans are diamonds; units with no score sit on the baseline as grey rings.
+ * Each point carries { id } so a click can open that asset.
+ */
+export function profileOption(view, p) {
+  const n = view.units.length;
+  const towers = view.towers;
+  const step = Math.max(1, Math.ceil(towers.length / 14));
+  const names = new Map(view.units.map((u) => [u.index, u.name]));
+  const pt = (u) => ({ value: [u.index, u.hi], id: u.id, name: u.name, band: u.band, itemStyle: { color: p.band[u.band], borderColor: p.stroke, borderWidth: 1 } });
+  const tip = (x) => {
+    const d = x.data;
+    return `<b>${d.name}</b><br/>${d.band === 'none' ? 'not assessed' : `health index ${d.value[1]} (${d.band})`}`;
+  };
+  return {
+    ...base(p), grid: { left: 40, right: 16, top: 30, bottom: 30 }, tooltip: { trigger: 'item', formatter: tip },
+    legend: { top: 0, textStyle: { color: p.muted }, data: ['Towers', 'Spans', 'Not assessed'] },
+    xAxis: { type: 'value', min: 0, max: Math.max(n - 1, 1), interval: 2 * step, axisLine: { lineStyle: { color: p.line } }, axisTick: { show: false }, splitLine: { show: false },
+      axisLabel: { color: p.muted, hideOverlap: true, formatter: (v) => names.get(v) ?? '' } },
+    yAxis: { type: 'value', min: 0, max: 100, name: 'Health index', nameTextStyle: { color: p.muted, align: 'left' }, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series: [
+      { name: 'Towers', type: 'line', symbol: 'circle', symbolSize: 9, connectNulls: false, lineStyle: { width: 1.5, color: p.muted, opacity: 0.6 }, itemStyle: { color: p.band.normal },
+        data: towers.map((u) => (u.assessed ? pt(u) : { value: [u.index, null] })),
+        markLine: { silent: true, symbol: 'none', label: { color: p.muted, fontSize: 10, position: 'insideEndTop', formatter: ({ value }) => (value === 70 ? 'normal from 70' : 'poor below 40') }, lineStyle: { color: p.muted, type: 'dashed' }, data: [{ yAxis: 70 }, { yAxis: 40 }] } },
+      { name: 'Spans', type: 'scatter', symbol: 'diamond', symbolSize: 9, data: view.spans.filter((u) => u.assessed).map(pt) },
+      { name: 'Not assessed', type: 'scatter', symbol: 'circle', symbolSize: 9, itemStyle: { color: 'transparent', borderColor: p.band.none, borderWidth: 2 },
+        data: view.units.filter((u) => !u.assessed).map((u) => ({ value: [u.index, 1], id: u.id, name: u.name, band: 'none', itemStyle: { color: 'transparent', borderColor: p.stroke, borderWidth: 1.5 } })) },
+    ],
+  };
+}
+
+/**
  * Draw a chart into el. Returns { dispose } or throws if ECharts is unavailable.
  * The chart resizes with its container and is disposed with it.
  */
-export async function drawChart(el, buildOption) {
+export async function drawChart(el, buildOption, { onClick } = {}) {
   const echarts = await loadECharts();
   const chart = echarts.init(el, null, { renderer: 'canvas' });
   chart.setOption(buildOption(palette(el)));
+  if (onClick) chart.on('click', onClick);
   const observer = new ResizeObserver(() => chart.resize());
   observer.observe(el);
   return { dispose() { observer.disconnect(); chart.dispose(); } };
