@@ -454,6 +454,7 @@ function sideView(d) {
 
   out.push(s.editing ? editForm(d) : actions(d));
   out.push(linkSection(d));
+  out.push(historySection(d));
   return out;
 }
 
@@ -542,11 +543,27 @@ function editForm(d) {
       SEVERITIES.map(([n, word, cond]) => h('option', { value: String(n), selected: n === e.condition_score }, `${word} (condition ${n}, ${cond})`)))),
     e.bbox ? h('div', {}, h('p', { class: 'fv-muted fv-small' }, 'Drag the box or its corner on the image, or type the numbers (percent of the image). Arrow keys nudge the box when it has focus; Alt+arrows resize it.'),
       h('div', { class: 'fv-nums' }, num('x'), num('y'), num('w'), num('h'))) : h('p', { class: 'fv-muted fv-small' }, 'This finding has no box to adjust.'),
+    h('label', { class: 'fv-field' }, 'Reason (optional)', h('input', { type: 'text', maxlength: '200', 'data-testid': 'edit-reason', 'aria-label': 'Reason for the correction', value: e.reason ?? '', onInput: (ev) => { e.reason = ev.target.value; } })),
     h('p', { class: 'fv-small', 'data-testid': 'edit-summary' }, 'No change yet.'), h('p', { class: 'fv-problem fv-small', role: 'alert', 'data-testid': 'edit-problems' }),
     h('p', { class: 'fv-muted fv-small' }, `AI proposal: ${f.label}, condition ${f.condition}. Saving confirms the finding with your changes.`),
     h('div', { class: 'fv-actions' },
-      h('button', { class: 'lr-btn lr-primary', type: 'button', 'data-testid': 'save-correction', disabled: true, onClick: () => act('correct', changes()) }, 'Save correction'),
+      h('button', { class: 'lr-btn lr-primary', type: 'button', 'data-testid': 'save-correction', disabled: true, onClick: () => act('correct', changes(), ctl.state.editing.reason?.trim() || null) }, 'Save correction'),
       h('button', { class: 'lr-btn', type: 'button', 'data-testid': 'cancel-correction', onClick: () => { s.editing = null; draw(); focusMain(); } }, 'Cancel')));
+}
+
+// ---- review history (from the audit log)
+
+const ACTION_WORDS = { finding_confirm: 'Confirmed', finding_reject: 'Rejected', finding_correct: 'Corrected', finding_relink: 'Linked to another asset', finding_revert: 'Reverted to the AI proposal' };
+const stampText = (iso) => String(iso).replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+
+function historySection(d) {
+  const rows = d.history ?? [];
+  return h('div', { class: 'fv-sec', 'data-testid': 'history' }, h('h3', {}, 'Review history'),
+    rows.length ? h('ol', { class: 'fv-history' }, rows.map((e) => h('li', { 'data-action': e.action },
+      h('span', { class: 'fv-muted fv-small' }, h('time', { datetime: e.at }, stampText(e.at)), ` · ${e.actor}`), ' ',
+      h('b', {}, ACTION_WORDS[e.action] ?? e.action), e.detail && ['finding_correct', 'finding_relink'].includes(e.action) ? h('span', { class: 'fv-small' }, ` ${e.detail.replace(/^\w+ F-\d+:? ?/, '')}`) : null,
+      e.reason ? h('div', { class: 'fv-small', 'data-testid': 'history-reason' }, `Reason: ${e.reason}`) : null)))
+      : h('p', { class: 'fv-muted fv-small' }, 'No reviewer has acted on this finding yet.'));
 }
 
 // ---- link to asset
@@ -576,7 +593,7 @@ function toast(text) {
   ctl.toastTimer = setTimeout(() => { ctl.toastEl.classList.remove('is-show'); }, 5000);
 }
 
-async function act(kind, payload) {
+async function act(kind, payload, reason = null) {
   const s = ctl.state;
   const d = s.detail;
   if (!d || s.busy) return;
@@ -590,7 +607,7 @@ async function act(kind, payload) {
   try {
     if (kind === 'confirm') await repo.confirmFinding(d.id);
     else if (kind === 'reject') { await repo.rejectFinding(d.id, { reason: payload }); s.rejecting = false; }
-    else if (kind === 'correct') { await repo.correctFinding(d.id, payload); s.editing = null; }
+    else if (kind === 'correct') { await repo.correctFinding(d.id, payload, { reason }); s.editing = null; }
     else if (kind === 'relink') { await repo.relinkFinding(d.id, payload); s.linking = false; }
     else if (kind === 'revert') await repo.revertFinding(d.id);
     toast({ confirm: 'Finding confirmed.', reject: 'Finding rejected.', correct: 'Correction saved and the finding confirmed.', relink: 'Finding linked to the new asset.', revert: 'Reverted to the AI proposal.' }[kind]);

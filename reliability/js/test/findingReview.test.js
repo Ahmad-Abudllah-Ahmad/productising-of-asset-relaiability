@@ -365,3 +365,34 @@ test('demo images: the false-colour palette runs dark to bright and stays in ran
   assert.deepEqual(falseColour(7), falseColour(1));
   assert.match(SCALE_GRADIENT, /^linear-gradient\(to top, rgb\(4,4,24\) 0%.*rgb\(252,253,191\) 100%\)$/);
 });
+
+test('audit log: every reviewer action is recorded with actor, timestamp, reason and the change', async () => {
+  const repo = createRepository(generateSeed(), { storage: null, clock: () => '2026-11-12T09:00:00.000Z' });
+  await repo.rejectFinding('F-0090', { reason: 'Wrong location', by: 'sam' });
+  await repo.revertFinding('F-0090', { by: 'sam', reason: 'Rejected by mistake' });
+  await repo.correctFinding('F-0090', { condition_score: 4 }, { by: 'sam', reason: 'Looks minor' });
+  await repo.confirmFinding('F-0023', { by: 'sam' });
+  await repo.relinkFinding('F-0002', 'TWR-132-01-012', { by: 'sam', reason: 'Closer tower' });
+  const log = (await repo.getAuditLog()).filter((e) => e.finding_id);
+  const by = (a, id) => log.find((e) => e.action === a && e.finding_id === id);
+  assert.equal(by('finding_reject', 'F-0090').reason, 'Wrong location');
+  assert.equal(by('finding_revert', 'F-0090').reason, 'Rejected by mistake');
+  const c = by('finding_correct', 'F-0090');
+  assert.deepEqual([c.reason, c.changes.condition_score.to], ['Looks minor', 4]);
+  assert.ok(by('finding_confirm', 'F-0023') && by('finding_relink', 'F-0002').reason === 'Closer tower');
+  for (const e of log) assert.ok(e.at === '2026-11-12T09:00:00.000Z' && e.actor === 'sam' && e.detail && 'reason' in e, e.action);
+  const d = await loadFindingDetail(repo, await loadSnapshot(repo), 'F-0090');
+  assert.deepEqual(d.history.map((e) => e.action), ['finding_reject', 'finding_revert', 'finding_correct'], 'oldest first');
+});
+
+test('the new section: ids are unique, it follows T-040 on its line, and Line Health counts it as not assessed', async () => {
+  const repo = createRepository(generateSeed(), { storage: null });
+  const snap = await loadSnapshot(repo);
+  const ids = snap.assets.map((a) => a.asset_id);
+  assert.equal(new Set(ids).size, ids.length);
+  const line = snap.assets.filter((a) => a.class === 'tower' && a.parent_id === 'L-132-01' && /^TWR-/.test(a.asset_id)).map((a) => a.asset_id);
+  assert.deepEqual(line.slice(-5), ['TWR-132-01-040', 'TWR-132-01-041', 'TWR-132-01-042', 'TWR-132-01-043', 'TWR-132-01-044']);
+  assert.ok(snap.byId.has('SPN-132-01-040-041') && snap.byId.has('SPN-132-01-043-044'));
+  const nots = new Set(snap.scores.get('L-132-01').hi.breakdown.notAssessed.map((n) => n.id ?? n.asset_id ?? n));
+  for (const n of ['041', '042', '043', '044']) assert.ok(nots.has(`TWR-132-01-${n}`), n);
+});

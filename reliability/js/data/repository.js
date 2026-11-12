@@ -174,7 +174,7 @@ export function createRepository(data, options = {}) {
 
   function audit(entry) {
     overlay.seq += 1;
-    overlay.audit.push({ id: `AUD-U-${String(overlay.seq).padStart(4, '0')}`, at: clock(), actor: entry.by ?? 'reviewer', action: entry.action, link_id: entry.link_id ?? null, ...(entry.finding_id ? { finding_id: entry.finding_id } : {}), detail: entry.detail });
+    overlay.audit.push({ id: `AUD-U-${String(overlay.seq).padStart(4, '0')}`, at: clock(), actor: entry.by ?? 'reviewer', action: entry.action, link_id: entry.link_id ?? null, ...(entry.finding_id ? { finding_id: entry.finding_id, reason: entry.reason ?? null, changes: entry.changes ?? null } : {}), detail: entry.detail });
   }
 
   function decide(link_id, status, by) {
@@ -389,13 +389,13 @@ export function createRepository(data, options = {}) {
     },
 
     /** Confirm a finding as a real defect. Idempotent on a finding that is already confirmed. */
-    async confirmFinding(id, { by = 'reviewer' } = {}) {
+    async confirmFinding(id, { by = 'reviewer', reason = null } = {}) {
       baseFinding(id);
       const now = v().findingById.get(id);
       if (now.review_status === 'confirmed') return now;
       const e = editOf(id);
       e.review_status = 'confirmed'; stamp(e, by);
-      audit({ by, action: 'finding_confirm', finding_id: id, detail: `Confirmed ${id} (${now.defect_class.replace(/_/g, ' ')})` });
+      audit({ by, action: 'finding_confirm', finding_id: id, reason, detail: `Confirmed ${id} (${now.defect_class.replace(/_/g, ' ')})` });
       changed();
       return v().findingById.get(id);
     },
@@ -407,7 +407,7 @@ export function createRepository(data, options = {}) {
       if (now.review_status === 'rejected') return now;
       const e = editOf(id);
       e.review_status = 'rejected'; e.reason = reason; stamp(e, by);
-      audit({ by, action: 'finding_reject', finding_id: id, detail: `Rejected ${id}${reason ? `: ${reason}` : ''}` });
+      audit({ by, action: 'finding_reject', finding_id: id, reason, detail: `Rejected ${id}${reason ? `: ${reason}` : ''}` });
       changed();
       return v().findingById.get(id);
     },
@@ -416,7 +416,7 @@ export function createRepository(data, options = {}) {
      * Correct what the AI proposed: its class, severity (condition 1-4) or box. A correction also confirms the finding.
      * @param {{defect_class?: string, condition_score?: number, bbox?: {x:number,y:number,w:number,h:number}}} changes
      */
-    async correctFinding(id, changes, { by = 'reviewer' } = {}) {
+    async correctFinding(id, changes, { by = 'reviewer', reason = null } = {}) {
       baseFinding(id);
       const now = v().findingById.get(id);
       const c = {};
@@ -441,13 +441,13 @@ export function createRepository(data, options = {}) {
       if (c.defect_class) parts.push(`class ${now.defect_class.replace(/_/g, ' ')} to ${c.defect_class.replace(/_/g, ' ')}`);
       if (c.condition_score) parts.push(`severity ${now.condition_score} to ${c.condition_score}`);
       if (c.bbox) parts.push('box adjusted');
-      audit({ by, action: 'finding_correct', finding_id: id, detail: `Corrected ${id}: ${parts.join(', ')}` });
+      audit({ by, action: 'finding_correct', finding_id: id, reason, changes: Object.fromEntries(Object.keys(c).map((k) => [k, { from: now[k] ?? null, to: c[k] }])), detail: `Corrected ${id}: ${parts.join(', ')}` });
       changed();
       return v().findingById.get(id);
     },
 
     /** Link a finding to a different asset. The scores of both assets recompute. */
-    async relinkFinding(id, assetId, { by = 'reviewer' } = {}) {
+    async relinkFinding(id, assetId, { by = 'reviewer', reason = null } = {}) {
       baseFinding(id);
       const now = v().findingById.get(id);
       const target = v().byId.get(assetId);
@@ -458,17 +458,17 @@ export function createRepository(data, options = {}) {
       e.asset_id = assetId; e.tower_id = towerOf(assetId); e.relinked = true;
       if (now.review_status === 'pending') e.review_status = 'confirmed';
       stamp(e, by);
-      audit({ by, action: 'finding_relink', finding_id: id, detail: `Linked ${id} to ${assetId} (was ${now.asset_id})` });
+      audit({ by, action: 'finding_relink', finding_id: id, reason, detail: `Linked ${id} to ${assetId} (was ${now.asset_id})` });
       changed();
       return v().findingById.get(id);
     },
 
     /** Put a finding back exactly as the AI proposed it. */
-    async revertFinding(id, { by = 'reviewer' } = {}) {
+    async revertFinding(id, { by = 'reviewer', reason = null } = {}) {
       baseFinding(id);
       if (!overlay.findingEdits[id]) return v().findingById.get(id);
       delete overlay.findingEdits[id];
-      audit({ by, action: 'finding_revert', finding_id: id, detail: `Reverted ${id} to the AI proposal` });
+      audit({ by, action: 'finding_revert', finding_id: id, reason, detail: `Reverted ${id} to the AI proposal` });
       changed();
       return v().findingById.get(id);
     },

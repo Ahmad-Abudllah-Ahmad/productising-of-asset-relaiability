@@ -291,6 +291,34 @@ test.describe('reviewer actions', () => {
     await expect(queue(page)).toHaveCount(29);
   });
 
+  test('review history: every action shows in the viewer with time, who and the reason, newest last', async ({ page }) => {
+    await open(page, '/reliability#finding=F-0090');
+    await ready(page);
+    await expect(t(page, 'history')).toContainText('No reviewer has acted');
+    await page.keyboard.press('r');
+    await t(page, 'reject-reason').selectOption('Wrong location');
+    await t(page, 'reject-yes').click();
+    await expect(t(page, 'rejected-banner')).toBeVisible();
+    await t(page, 'revert').click();
+    await expect(t(page, 'rejected-banner')).toHaveCount(0);
+    await page.keyboard.press('e');
+    await t(page, 'edit-severity').selectOption('4');
+    await t(page, 'edit-reason').fill('Looks minor on the close-up');
+    await t(page, 'save-correction').click();
+    await expect(t(page, 'corrected-banner')).toBeVisible();
+    const items = t(page, 'history').locator('li');
+    await expect(items).toHaveCount(3);
+    await expect(items.nth(0)).toContainText('Rejected');
+    await expect(items.nth(0)).toContainText('Reason: Wrong location');
+    await expect(items.nth(1)).toContainText('Reverted to the AI proposal');
+    await expect(items.nth(2)).toContainText('Corrected');
+    await expect(items.nth(2)).toContainText('Reason: Looks minor on the close-up');
+    await expect(items.nth(0).locator('time')).toHaveAttribute('datetime', /^\d{4}-\d\d-\d\dT/);
+    await expect(items.nth(0)).toContainText('reviewer');
+    await t(page, 'history').scrollIntoViewIfNeeded();
+    await shot(page, 'review-history');
+  });
+
   test('correct: change class, severity and box; typing keeps focus; invalid boxes are refused; the score recomputes', async ({ page }) => {
     await open(page, '/reliability#finding=F-0090');
     await ready(page);

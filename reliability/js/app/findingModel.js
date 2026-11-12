@@ -100,6 +100,7 @@ export async function loadFindingDetail(repo, snap, id) {
   return {
     found: true, id, asOf, finding, original, owner, siblings, index,
     compare: { sightings, between },
+    history: (await repo.getAuditLog()).filter((e) => e.finding_id === id).reverse(),
     suggestions: suggestAssets(f, snap.assets),
     classes: DEFECT_OPTIONS,
     imageKind: finding.image ? 'photo' : 'placeholder',
