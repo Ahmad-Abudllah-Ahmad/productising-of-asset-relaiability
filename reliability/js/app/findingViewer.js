@@ -407,11 +407,11 @@ function creditsSection() {
   const rows = c.images.filter((e) => e.provenance === 'reference').map((e) => h('li', {}, h('b', {}, (DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class)), ` · ${e.author}, `,
     h('a', { href: e.pageUrl, target: '_blank', rel: 'noopener noreferrer' }, e.source), `, `, h('a', { href: e.licenceUrl, target: '_blank', rel: 'noopener noreferrer' }, e.licence)));
   return h('details', { class: 'fv-credits', 'data-testid': 'credits' },
-    h('summary', {}, `Image credits: ${c.images.length - c.own.length} reference photos, ${c.own.length} own inspection images, ${c.placeholders.length} of ${c.coverage.length} defect classes still on placeholder`),
+    h('summary', {}, `Image credits: ${c.images.length - c.own.length} reference photos, ${c.own.length} own inspection images, ${c.placeholders.length} of ${c.coverage.length} defect classes have no real photo yet (generic demo image)`),
     h('p', { class: 'fv-muted fv-small' }, 'Reference photos are real photographs of the same kind of defect from other sources. None is from the asset named in the finding. Replace one by editing its entry in reliability/assets/inspection/manifest.json.'),
     h('ul', { class: 'fv-credit-list', 'data-testid': 'credit-list' }, rows),
     h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-own' }, `Inspection image (own, no external credit): ${c.own.map((e) => DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class).join(', ') || 'none'}.`),
-    h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-placeholders' }, `${PLACEHOLDER_TEXT}: `, c.placeholders.map((x) => x.label).join(', ') || 'none'));
+    h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-placeholders' }, `No real photo yet (shows a generic demo image): `, c.placeholders.map((x) => x.label).join(', ') || 'none'));
 }
 
 // ---- compare

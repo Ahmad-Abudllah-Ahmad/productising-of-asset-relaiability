@@ -13,6 +13,7 @@
 
 export const MANIFEST_URL = '/reliability/assets/inspection/manifest.json';
 export const HEALTHY_CLASS = 'healthy_example';
+export const DEMO_CAPTION = 'Demo image · a generic site photo, not a picture of this defect';
 export const PLACEHOLDER_TEXT = 'Placeholder – no real image yet';
 
 let manifest = null;
@@ -67,6 +68,8 @@ export function evidenceOf(f, cap = null) {
   // LiDAR findings have no picture unless the class has a photo (vegetation does: the photo shows it, the scan measures it)
   if (f.sensor === 'lidar' && !list.length) return { image: null, bbox: null, kind: 'none', entry: null, caption: '', short: '' };
   const entry = list.length ? list[hash(f.finding_id) % list.length] : null;
+  // no real photo for this class: show the generic demo image the seed gave the capture (not a picture of this defect) and say so
+  if ((!entry || entry.provenance === 'placeholder') && cap?.image) return { image: cap.image, bbox: f.bbox ?? null, kind: 'demo', entry: null, caption: DEMO_CAPTION, short: 'Demo' };
   if (!entry) return { image: null, bbox: f.bbox ?? null, kind: 'placeholder', entry: null, caption: `${PLACEHOLDER_TEXT} · not from this asset`, short: 'Placeholder' };
   const moved = f.edit?.original?.bbox && f.bbox && !same(f.edit.original.bbox, f.bbox);
   const own = entry.provenance === 'own-inspection';

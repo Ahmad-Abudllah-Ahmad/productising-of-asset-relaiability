@@ -47,13 +47,13 @@ test.describe('reference photos and placeholders', () => {
     });
   }
 
-  test('a class with no real image: "Placeholder – no real image yet", no box drawn, honest caption, both themes', async ({ page }) => {
+  test('a class with no real photo shows the generic demo image with its box, labelled "Demo image" and captioned honestly, both themes', async ({ page }) => {
     for (const th of ['light', 'dark']) {
       await visit(page, `/reliability#asset=${PLACEHOLDER[1]}&finding=${PLACEHOLDER[0]}`, th);
       await expect(t(page, 'stage-rgb')).toHaveAttribute('data-ready', 'true');
-      await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Placeholder – no real image yet');
-      await expect(t(page, 'credit')).toHaveText('Placeholder – no real image yet · not from this asset');
-      await expect(t(page, 'box-label')).toBeHidden(); // nothing to mark on a placeholder
+      await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Demo image');
+      await expect(t(page, 'credit')).toHaveText('Demo image · a generic site photo, not a picture of this defect');
+      await expect(t(page, 'box-label')).toBeVisible();
       await page.waitForTimeout(700); await page.screenshot({ path: `${SHOTS}/placeholder-${th}.png` });
     }
   });
@@ -65,7 +65,7 @@ test.describe('reference photos and placeholders', () => {
     await expect(real.locator('.a360-demo')).toHaveText('Ref');
     for (const th of ['light', 'dark']) {
       await visit(page, '/reliability#asset=TWR-132-01-011', th);
-      await expect(page.getByTestId('asset-panel').locator('.a360-thumb-ph').first()).toHaveText('Placeholder');
+      await expect(page.getByTestId('asset-panel').locator('.a360-thumb:not(.a360-thumb-empty) .a360-demo').first()).toHaveText('Demo');
       await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/thumbs-${th}.png` });
     }
   });

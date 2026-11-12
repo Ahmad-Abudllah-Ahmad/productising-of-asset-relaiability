@@ -294,10 +294,10 @@ test.describe('Tower Health', () => {
     const rows = byId(page, 'findings').locator('li');
     await expect(rows).toHaveCount(3);
     const thumb = rows.first().locator('.a360-thumb');
-    await expect(thumb).toContainText(/Ref|Placeholder/);
+    await expect(thumb).toContainText(/Ref|Demo|Insp/);
     await thumb.click();
     await expect(viewer(page)).toBeVisible();
-    await expect(viewer(page).getByTestId('demo-label').first()).toHaveText(/Reference photo|Placeholder – no real image yet/);
+    await expect(viewer(page).getByTestId('demo-label').first()).toHaveText(/Reference photo|Demo image|Inspection image/);
     expect(await hash(page)).toMatch(/^#finding=F-\d+&view=towers&line=L-132-01&tower=TWR-132-01-011$/);
     await page.keyboard.press('Escape');
     await expect(viewer(page)).toBeHidden();
