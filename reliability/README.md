@@ -73,6 +73,7 @@ reliability/js/
     freshness.js  palette.js  charts.js  hashState.js  navigation.js  screenKit.js  demoImage.js  theme.js
   ui/                             reliability.css (tokens, both themes, every screen), reliability-dark.css (generated), linkReview.js, dom.js
   legacy/nexus-reliability.js     the page shell, the rail, tooltips, KPI-card and tag helpers, and the Drawing screen
+  ../assets/inspection/           reference photos and manifest.json (the only place the viewer gets pictures from)
   vendor/                         echarts 5.6.0 and leaflet 1.9.4, copied unchanged with their licences (no CDN)
   test/                           unit tests (node --test)          e2e/   browser tests (Playwright)
 scripts/build-reliability-dark.py regenerates ui/reliability-dark.css from assets/custom/nexus-apps.css
@@ -91,7 +92,7 @@ the theme is under `nexus.reliability.theme`.
 | In the demo | What a real deployment needs |
 | --- | --- |
 | **Seed** (`data/seed.js`): 3 lines (132, 220, 500 kV), 159 towers, 151 spans, 2 substations, 7 transformers, 3 campaigns, about 400 findings, work orders and repairs, deliberate duplicates and repeat sightings, a newly built never-inspected section | Asset master (SAP, Maximo, GIS), inspection campaigns and findings from the detector, work orders and repairs from the maintenance system, a repository that reads an API instead of the seed |
-| **Images** (`/assets/...` site photos) | Real captures. Every image says "Demo image". Boxes are stored as fractions of the image, so any resolution works |
+| **Images** (`assets/inspection/manifest.json`): real reference photographs of the same kind of defect from other sources (BGI dataset, Wikimedia Commons; CC BY / CC BY-SA), none from the asset shown; 20 defect classes are still "Placeholder – no real image yet"; vegetation, structure encroachment and sag are LiDAR-only | Real captures: replace a manifest entry's file, box and credit (see `assets/inspection/README.md`). Boxes are fractions of the image, so any resolution works |
 | **Thermal view** (`app/demoImage.js`) | Real radiometric data. The false-colour picture and the temperatures are generated from the photo and the finding id; they mean nothing |
 | **DGA, oil tests, loading** (generated per transformer) | The real DGA, oil and electrical test results and a loading feed |
 | **Health-index weights and bands** (`config.js`: equal weights, 70 / 40 cut-offs) | The client's engineering weights (AHP or their own) and cut-offs. Open question in the plan |

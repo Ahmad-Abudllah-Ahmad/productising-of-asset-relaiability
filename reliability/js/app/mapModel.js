@@ -8,6 +8,7 @@
 //   labels     the managed labels that at least one drawn asset carries, for the highlight
 //   select()   the assets inside a polygon, with the total risk of the ones that have a risk score
 
+import { evidenceOf } from './evidence.js';
 import { risk } from '../domain/risk.js';
 import { assetsWithLabel } from '../domain/labels.js';
 import { SEVERITY } from './assetModel.js';
@@ -72,7 +73,7 @@ export function loadMap(snap, { label = null } = {}) {
   const findings = [];
   for (const owner of snap.assets.filter((a) => ['tower', 'span', 'power_transformer'].includes(a.class))) {
     for (const f of snap.findingsByOwner.get(owner.asset_id) ?? []) {
-      if (f.location) findings.push({ image: snap.captures.get(f.capture_id)?.image ?? null, id: f.finding_id, lat: f.location.lat, lng: f.location.lng, condition: f.condition_score, severity: SEVERITY[f.condition_score].word, defectClass: f.defect_class, ownerId: owner.asset_id, ownerName: owner.name, unreviewed: f.review_status !== 'confirmed' });
+      if (f.location) findings.push({ image: evidenceOf(f, snap.captures.get(f.capture_id)).image, evidence: evidenceOf(f, snap.captures.get(f.capture_id)).short, id: f.finding_id, lat: f.location.lat, lng: f.location.lng, condition: f.condition_score, severity: SEVERITY[f.condition_score].word, defectClass: f.defect_class, ownerId: owner.asset_id, ownerName: owner.name, unreviewed: f.review_status !== 'confirmed' });
     }
   }
 

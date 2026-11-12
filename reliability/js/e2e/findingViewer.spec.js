@@ -33,11 +33,25 @@ async function shot(page, name) {
 const num = async (loc) => Number((await loc.innerText()).replace(/[^\d.\-]/g, ''));
 
 test.describe('opening the viewer', () => {
-  test('from a thumbnail in Asset 360: the AI box, class, confidence and severity, and a "Demo image" label on every image', async ({ page }) => {
+  test('a real reference photo: labelled, credited, with the dataset box; the credits section lists every image and the placeholder classes', async ({ page }) => {
+    const errors = await open(page, '/reliability#asset=TWR-132-01-007&finding=F-0067');
+    await ready(page);
+    await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Reference photo');
+    await expect(t(page, 'credit')).toContainText(/^Reference photo · .+, BGI dataset.+, CC BY 4\.0 · not from this asset/);
+    await expect(t(page, 'box-label')).toBeVisible();
+    const credits = t(page, 'credits');
+    await credits.locator('summary').click();
+    await expect(t(page, 'credit-list').locator('li').first()).toContainText('CC BY');
+    await expect(t(page, 'credit-placeholders')).toContainText('Placeholder – no real image yet');
+    await shot(page, 'reference-photo');
+    expect(errors).toEqual([]);
+  });
+
+  test('from a thumbnail in Asset 360: the AI box, class, confidence and severity; a class with no real photo says "Placeholder – no real image yet" on every image', async ({ page }) => {
     const errors = await open(page, '/reliability#asset=TWR-132-01-011');
     await expect(panel(page)).toBeVisible();
     const thumb = panel(page).locator('[data-finding="F-0308"]');
-    await expect(thumb.locator('.a360-demo')).toHaveText('Demo');
+    await expect(thumb).toContainText('Placeholder');
     await thumb.click();
     await ready(page);
     await expect(page).toHaveURL(/#asset=TWR-132-01-011&finding=F-0308$/);
@@ -51,8 +65,9 @@ test.describe('opening the viewer', () => {
     await expect(t(page, 'fact-confidence')).toHaveText('0.89');
     await expect(t(page, 'owner-hi')).toContainText('34.6');
     // every image carries the label
-    await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Demo image');
-    await expect(t(page, 'demo-label-crop')).toHaveText('Demo image');
+    await expect(t(page, 'stage-rgb').getByTestId('demo-label')).toHaveText('Placeholder – no real image yet');
+    await expect(t(page, 'demo-label-crop')).toHaveCount(0); // nothing is marked, so there is nothing to enlarge
+    await expect(t(page, 'credit')).toContainText('Placeholder – no real image yet · not from this asset');
     for (const el of await viewer(page).locator('[data-demo="true"]').all()) await expect(el.locator('.fv-demo')).toBeVisible();
     await shot(page, 'rgb');
     expect(errors).toEqual([]);
@@ -117,7 +132,7 @@ test.describe('RGB and thermal', () => {
     await expect(t(page, 'scale-min')).toHaveText(`${min}°`);
     await expect(t(page, 'stage-thermal').getByTestId('demo-label')).toHaveText('Demo image');
     await expect(t(page, 'demo-label-scale')).toHaveText('Demo image');
-    await expect(t(page, 'demo-label-crop')).toHaveText('Demo image');
+    await expect(t(page, 'demo-label-crop')).toHaveCount(0); // a placeholder has no picture to enlarge
     await expect(t(page, 'box-label')).toBeVisible();
     await shot(page, 'thermal');
     // it really is a different picture, and the same every time

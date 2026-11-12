@@ -76,7 +76,8 @@ export function drawPlaceholder(canvas, finding, { w, h } = SIZE) {
   for (let x = 0; x <= w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
   for (let y = 0; y <= h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
   ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '16px system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(finding.sensor === 'lidar' ? 'LiDAR scan: no photograph for this finding' : 'No photograph for this finding', w / 2, h / 2);
+  ctx.fillText(finding.sensor === 'lidar' ? 'LiDAR scan: no photograph for this finding' : 'Placeholder – no real image yet', w / 2, h / 2);
+  if (finding.sensor !== 'lidar') { ctx.font = '12px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('No inspection photo of this defect type has been added to the manifest', w / 2, h / 2 + 24); }
 }
 
 /** The photograph, scaled to cover the canvas. Falls back to the placeholder tile when there is none. */

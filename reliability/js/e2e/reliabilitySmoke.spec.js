@@ -170,7 +170,7 @@ test.describe('Links tab (Link Review)', () => {
     const finding = queue(page).filter({ hasText: 'same defect' }).first();
     await finding.click();
     await expect(page.getByTestId('compare').locator('tr.lr-diff').first()).toBeVisible();
-    await expect(page.locator('.lr-thumb img').first()).toBeVisible();
+    await expect(page.locator('.lr-thumb').first()).toBeVisible();
     for (const s of ['identifier', 'attribute', 'spatial', 'visual']) await expect(page.getByTestId('reasons').getByRole('rowheader', { name: new RegExp(s) })).toBeVisible();
     await expect(page.getByTestId('reasons').locator('.lr-stub')).toBeVisible();
     await page.locator('.lr-detail').screenshot({ path: `${SHOTS}/registry-links-detail.png` });

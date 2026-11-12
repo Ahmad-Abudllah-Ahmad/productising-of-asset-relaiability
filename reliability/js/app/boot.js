@@ -20,6 +20,7 @@ import { createDashboardScreen } from './dashboardScreen.js';
 import { parseView } from './hashState.js';
 import { installBackSupport } from './navigation.js';
 import { parseScope } from './scope.js';
+import { loadManifest } from './evidence.js';
 import { createFilterBar, SCOPE_EVENT } from './filterBar.js';
 import { managedLabels } from '../domain/labels.js';
 import { AS_OF } from './snapshot.js';
@@ -50,6 +51,7 @@ async function refresh() {
 }
 
 try {
+  await loadManifest();
   await refresh();
   repository.subscribe(refresh);
   const screenDeps = {

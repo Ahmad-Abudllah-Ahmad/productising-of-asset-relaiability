@@ -289,15 +289,15 @@ test.describe('Tower Health', () => {
     expect(errors).toEqual([]);
   });
 
-  test('findings: thumbnails with a Demo label open the finding viewer, which opens over this screen', async ({ page }) => {
+  test('findings: thumbnails labelled Ref or Placeholder open the finding viewer, which opens over this screen', async ({ page }) => {
     await tower(page);
     const rows = byId(page, 'findings').locator('li');
     await expect(rows).toHaveCount(3);
     const thumb = rows.first().locator('.a360-thumb');
-    await expect(thumb.locator('.a360-demo')).toHaveText('Demo');
+    await expect(thumb).toContainText(/Ref|Placeholder/);
     await thumb.click();
     await expect(viewer(page)).toBeVisible();
-    await expect(viewer(page).getByTestId('demo-label').first()).toHaveText('Demo image');
+    await expect(viewer(page).getByTestId('demo-label').first()).toHaveText(/Reference photo|Placeholder – no real image yet/);
     expect(await hash(page)).toMatch(/^#finding=F-\d+&view=towers&line=L-132-01&tower=TWR-132-01-011$/);
     await page.keyboard.press('Escape');
     await expect(viewer(page)).toBeHidden();

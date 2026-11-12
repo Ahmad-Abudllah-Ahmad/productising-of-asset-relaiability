@@ -4,6 +4,7 @@
 // States: loading (skeleton rows), error (message and Retry), empty queue, empty filter result.
 // All classes are prefixed lr- so nothing here collides with the legacy page styles (see reliability.css).
 
+import { evidenceOf } from '../app/evidence.js';
 import { h, replace, fmt } from './dom.js';
 import { loadItems, loadCounts, resolveEnd, sideBySide, reasonsOf, mergeCheck, scoreBand, thresholds, STATUS_OPTIONS, TYPE_LABELS } from './linkReviewModel.js';
 
@@ -203,11 +204,12 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null, 
 
   function endCard(end, title) {
     const r = end.record;
-    const img = end.kind === 'finding' && end.capture?.image
-      ? h('button', { class: 'lr-thumb', type: 'button', 'data-finding': r.finding_id, title: 'Open the finding viewer (demo image)', 'aria-label': `Open finding ${r.finding_id}`, onClick: (ev) => window.NexusReliability?.openFinding?.(r.finding_id, { opener: ev.currentTarget }) },
-        h('img', { src: end.capture.image, alt: `Capture ${end.capture.capture_id}, ${r.defect_class.replace(/_/g, ' ')}`, loading: 'lazy' }),
-        r.bbox ? h('span', { class: 'lr-box', style: { left: `${r.bbox.x * 100}%`, top: `${r.bbox.y * 100}%`, width: `${r.bbox.w * 100}%`, height: `${r.bbox.h * 100}%` }, title: `confidence ${r.confidence}` }) : null,
-        h('span', { class: 'lr-demo' }, 'Demo'))
+    const ev = end.kind === 'finding' ? evidenceOf(r, end.capture) : null;
+    const img = ev && (ev.image || ev.kind === 'placeholder')
+      ? h('button', { class: 'lr-thumb', type: 'button', 'data-finding': r.finding_id, title: `Open the finding viewer (${ev.kind === 'reference' ? 'reference photo, not from this asset' : 'demo image'})`, 'aria-label': `Open finding ${r.finding_id}`, onClick: (ev) => window.NexusReliability?.openFinding?.(r.finding_id, { opener: ev.currentTarget }) },
+        ev.image ? h('img', { src: ev.image, alt: `Capture ${end.capture.capture_id}, ${r.defect_class.replace(/_/g, ' ')}`, loading: 'lazy' }) : h('span', { class: 'lr-ph' }, 'Placeholder – no real image yet'),
+        ev.bbox && ev.image ? h('span', { class: 'lr-box', style: { left: `${ev.bbox.x * 100}%`, top: `${ev.bbox.y * 100}%`, width: `${ev.bbox.w * 100}%`, height: `${ev.bbox.h * 100}%` }, title: `confidence ${r.confidence}` }) : null,
+        h('span', { class: 'lr-demo' }, ev.short))
       : null;
     return h('div', { class: 'lr-card' }, h('h4', {}, title), img);
   }

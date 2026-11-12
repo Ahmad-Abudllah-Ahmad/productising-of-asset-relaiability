@@ -5,6 +5,7 @@
 // what a reviewer has confirmed, corrected, rejected or relinked is already applied. The AI's original proposal
 // stays available as `original` so the viewer can show what changed.
 
+import { evidenceOf } from './evidence.js';
 import { DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { suggestAssets } from '../domain/linking/suggest.js';
@@ -16,14 +17,15 @@ const humanize = (s) => String(s).replace(/_/g, ' ');
 
 function view(snap, f, capturesById, { current = false } = {}) {
   const cap = capturesById.get(f.capture_id);
+  const ev = evidenceOf(f, cap);
   const campaign = snap.campaigns.find((c) => c.campaign_id === f.campaign_id);
   const asset = snap.byId.get(f.asset_id);
   return {
     id: f.finding_id, defectClass: f.defect_class, label: LABEL[f.defect_class] ?? humanize(f.defect_class), group: f.group,
     condition: f.condition_score, severity: SEVERITY[f.condition_score].word, conditionLabel: SEVERITY[f.condition_score].condition,
     confidence: f.confidence, reviewStatus: f.review_status, unreviewed: f.review_status === 'pending', rejected: f.review_status === 'rejected',
-    sensor: f.sensor, date: f.date, campaignId: f.campaign_id, campaignName: campaign?.name ?? f.campaign_id, bbox: f.bbox,
-    captureId: f.capture_id, image: cap?.image ?? null, captureType: cap?.type ?? f.sensor, location: f.location,
+    sensor: f.sensor, date: f.date, campaignId: f.campaign_id, campaignName: campaign?.name ?? f.campaign_id, bbox: ev.bbox,
+    captureId: f.capture_id, image: ev.image, evidence: { kind: ev.kind, caption: ev.caption, short: ev.short, entry: ev.entry }, captureType: cap?.type ?? f.sensor, location: f.location,
     assetId: f.asset_id, assetName: asset?.name ?? f.asset_id, assetClass: asset ? humanize(asset.class) : '', towerId: f.tower_id, componentHint: f.component_hint,
     edit: f.edit ?? null, current,
   };

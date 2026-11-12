@@ -3,6 +3,7 @@
 //
 // All scores are as of the snapshot's date (snap.asOf). Evidence, repairs and links after it are ignored.
 
+import { evidenceOf } from './evidence.js';
 import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { risk } from '../domain/risk.js';
@@ -58,12 +59,13 @@ function findingRow(snap, f, capturesById) {
   const a = snap.byId.get(f.asset_id);
   const campaign = snap.campaigns.find((c) => c.campaign_id === f.campaign_id);
   const unreviewed = f.review_status !== 'confirmed';
+  const ev = evidenceOf(f, cap);
   return {
     id: f.finding_id, defectClass: f.defect_class, label: DEFECT_LABEL[f.defect_class] ?? humanize(f.defect_class), group: f.group,
     condition: f.condition_score, severity: SEVERITY[f.condition_score].word, conditionLabel: SEVERITY[f.condition_score].condition,
     date: f.date, campaignId: f.campaign_id, campaignName: campaign?.name ?? f.campaign_id, sensor: f.sensor, confidence: f.confidence,
     reviewStatus: f.review_status, unreviewed, assetId: f.asset_id, assetName: a?.name ?? f.asset_id, towerId: f.tower_id, componentHint: f.component_hint,
-    image: cap?.image ?? null, captureId: f.capture_id, bbox: f.bbox,
+    image: ev.image, evidence: { kind: ev.kind, caption: ev.caption, short: ev.short }, captureId: f.capture_id, bbox: ev.bbox,
   };
 }
 

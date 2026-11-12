@@ -5,6 +5,7 @@
 // found through the confirmed same-defect links between findings (the repeat-sighting links of Phase 3). The seed's
 // ground truth says which repairs are ineffective; the tests compare the two, the screen never reads it.
 
+import { evidenceOf } from './evidence.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { SEVERITY } from './assetModel.js';
@@ -52,7 +53,7 @@ function chains(snap) {
 }
 
 /** What a thumbnail needs: the capture image and the box (a demo image, until there is a real one). */
-export const thumbOf = (snap, f) => ({ id: f.finding_id, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '), image: snap.captures.get(f.capture_id)?.image ?? null, bbox: f.bbox ?? null, sensor: f.sensor });
+export const thumbOf = (snap, f) => ({ id: f.finding_id, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '), ...(({ image, bbox, kind, short, caption }) => ({ image, bbox, kind, short, caption }))(evidenceOf(f, snap.captures.get(f.capture_id))), sensor: f.sensor });
 
 const findingView = (snap, f) => ({ thumb: thumbOf(snap, f),
   id: f.finding_id, date: f.date, campaignId: f.campaign_id, defectClass: f.defect_class, label: LABEL[f.defect_class] ?? f.defect_class.replace(/_/g, ' '),

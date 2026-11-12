@@ -539,3 +539,7 @@ button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible
 .mh-thumbcell { width: 100px; }
 .rm-tipimg { position: relative; margin-top: 4px; width: 120px; } .rm-tipimg img { display: block; width: 120px; height: 84px; object-fit: cover; border-radius: 4px; }
 .rm-tipimg span { position: absolute; left: 3px; bottom: 3px; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(16, 24, 40, 0.72); color: #fff; }
+.a360-thumb-ph { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10px; line-height: 1.2; background: repeating-linear-gradient(45deg, var(--rel-sunken), var(--rel-sunken) 6px, var(--rel-surface-2) 6px, var(--rel-surface-2) 12px); }
+.fv-credits { margin-top: 10px; font-size: 12px; } .fv-credits summary { cursor: pointer; color: var(--muted); } .fv-credit-list { margin: 6px 0; padding-left: 18px; } .fv-credit-list li { margin: 2px 0; }
+.fv-credit { margin-top: 6px; }
+.lr-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; font-size: 12px; color: var(--muted); background: repeating-linear-gradient(45deg, var(--rel-sunken), var(--rel-sunken) 8px, var(--rel-surface-2) 8px, var(--rel-surface-2) 16px); }

@@ -1,0 +1,374 @@
+{
+ "base": "/reliability/assets/inspection/",
+ "entries": [
+  {
+   "id": "placeholder-arrester_damaged",
+   "class": "arrester_damaged",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-bent_member",
+   "class": "bent_member",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "commons-eagle-nest",
+   "class": "bird_nest",
+   "file": "bird_nest/commons-eagle-nest.jpg",
+   "width": 900,
+   "height": 676,
+   "bbox": {
+    "x": 0.356,
+    "y": 0.381,
+    "w": 0.289,
+    "h": 0.237
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:Skagit_River_-_Eagle%27s_nest_on_power_pylon.jpg",
+   "author": "Joe Mabel",
+   "licence": "CC BY-SA 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "title": "Skagit River - Eagle's nest on power pylon.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "commons-magpie-nest",
+   "class": "bird_nest",
+   "file": "bird_nest/commons-magpie-nest.jpg",
+   "width": 1024,
+   "height": 768,
+   "bbox": {
+    "x": 0.12,
+    "y": 0.049,
+    "w": 0.766,
+    "h": 0.785
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:Pica_serica_%28Oriental_Magpie%29_nest_uses_metal_wire_in_Chiyoda%2C_Saga.jpg",
+   "author": "Peka",
+   "licence": "CC BY-SA 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "title": "Pica serica (Oriental Magpie) nest uses metal wire in Chiyoda, Saga.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "commons-stork-nest",
+   "class": "bird_nest",
+   "file": "bird_nest/commons-stork-nest.jpg",
+   "width": 1024,
+   "height": 768,
+   "bbox": {
+    "x": 0.25,
+    "y": 0.258,
+    "w": 0.543,
+    "h": 0.453
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:Stork_nest_on_power_mast.jpg",
+   "author": "kainet/Germán",
+   "licence": "CC BY-SA 2.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+   "title": "Stork nest on power mast.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "placeholder-broken_strand",
+   "class": "broken_strand",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-bushing_hotspot",
+   "class": "bushing_hotspot",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-clamp_loose",
+   "class": "clamp_loose",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-conductor_corrosion",
+   "class": "conductor_corrosion",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-cotter_pin_missing",
+   "class": "cotter_pin_missing",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-damper_damaged",
+   "class": "damper_damaged",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-damper_displaced",
+   "class": "damper_displaced",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-earthwire_damaged",
+   "class": "earthwire_damaged",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-foundation_cracked",
+   "class": "foundation_cracked",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-foundation_erosion",
+   "class": "foundation_erosion",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-insulator_contaminated",
+   "class": "insulator_contaminated",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-insulator_cracked",
+   "class": "insulator_cracked",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-insulator_flashover_mark",
+   "class": "insulator_flashover_mark",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "bgi-121",
+   "class": "insulator_missing_disc",
+   "file": "insulator_missing_disc/bgi-121.jpg",
+   "width": 614,
+   "height": 461,
+   "bbox": {
+    "x": 0.284,
+    "y": 0.223,
+    "w": 0.562,
+    "h": 0.554
+   },
+   "bboxSource": "dataset",
+   "source": "BGI dataset (Broken Glass Insulator, UAV inspection of power lines)",
+   "pageUrl": "https://github.com/phd-benel/BGI",
+   "author": "phd-benel (BGI); images from the Su110kV_Broken dataset (hieulc@cpc.vn)",
+   "licence": "CC BY 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+   "title": "su110kv_vo--21-_jpg.rf.34e5109a0a77566acf64610ba2ac28ac.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "bgi-201",
+   "class": "insulator_missing_disc",
+   "file": "insulator_missing_disc/bgi-201.jpg",
+   "width": 614,
+   "height": 460,
+   "bbox": {
+    "x": 0.039,
+    "y": 0.162,
+    "w": 0.466,
+    "h": 0.675
+   },
+   "bboxSource": "dataset",
+   "source": "BGI dataset (Broken Glass Insulator, UAV inspection of power lines)",
+   "pageUrl": "https://github.com/phd-benel/BGI",
+   "author": "phd-benel (BGI); images from the Su110kV_Broken dataset (hieulc@cpc.vn)",
+   "licence": "CC BY 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+   "title": "su110kv_vo--42-_jpg.rf.09d31a092092933d864d41bdc7838ae2.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "bgi-406",
+   "class": "insulator_missing_disc",
+   "file": "insulator_missing_disc/bgi-406.jpg",
+   "width": 614,
+   "height": 460,
+   "bbox": {
+    "x": 0.125,
+    "y": 0.226,
+    "w": 0.829,
+    "h": 0.547
+   },
+   "bboxSource": "dataset",
+   "source": "BGI dataset (Broken Glass Insulator, UAV inspection of power lines)",
+   "pageUrl": "https://github.com/phd-benel/BGI",
+   "author": "phd-benel (BGI); images from the Su110kV_Broken dataset (hieulc@cpc.vn)",
+   "licence": "CC BY 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+   "title": "su110kv_vo--732-_jpg.rf.93b60c41f91d6a550b26cf2bc8819964.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "placeholder-missing_bolt",
+   "class": "missing_bolt",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-oil_leak",
+   "class": "oil_leak",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "commons-crown-loke",
+   "class": "radiator_corrosion",
+   "file": "radiator_corrosion/commons-crown-loke.jpg",
+   "width": 1024,
+   "height": 768,
+   "bbox": {
+    "x": 0.51,
+    "y": 0.281,
+    "w": 0.224,
+    "h": 0.438
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:-2022-02-08_Transformer%2C_Crown_Loke%2C_Southrepps%2C_Norfolk.JPG",
+   "author": "Kolforn",
+   "licence": "CC BY-SA 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "title": "-2022-02-08 Transformer, Crown Loke, Southrepps, Norfolk.JPG",
+   "provenance": "reference"
+  },
+  {
+   "id": "placeholder-sign_missing",
+   "class": "sign_missing",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "placeholder-spacer_damaged",
+   "class": "spacer_damaged",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  },
+  {
+   "id": "commons-rusty-pylon",
+   "class": "steel_corrosion",
+   "file": "steel_corrosion/commons-rusty-pylon.jpg",
+   "width": 1024,
+   "height": 768,
+   "bbox": {
+    "x": 0.175,
+    "y": 0.258,
+    "w": 0.65,
+    "h": 0.391
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:Rusty_Pylon_%2814594880583%29.jpg",
+   "author": "John Hoey from Framingham, MA, United States",
+   "licence": "CC BY 2.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/2.0/",
+   "title": "Rusty Pylon (14594880583).jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "commons-sax18",
+   "class": "steel_corrosion",
+   "file": "steel_corrosion/commons-sax18.jpg",
+   "width": 1024,
+   "height": 768,
+   "bbox": {
+    "x": 0.323,
+    "y": 0,
+    "w": 0.13,
+    "h": 0.688
+   },
+   "bboxSource": "drawn",
+   "source": "Wikimedia Commons",
+   "pageUrl": "https://commons.wikimedia.org/wiki/File:Powerline_sax18.jpg",
+   "author": "HighVoltage 5576",
+   "licence": "CC BY-SA 4.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "title": "Powerline sax18.jpg",
+   "provenance": "reference"
+  },
+  {
+   "id": "placeholder-tank_damage",
+   "class": "tank_damage",
+   "file": null,
+   "bbox": null,
+   "bboxSource": null,
+   "provenance": "placeholder",
+   "note": "Placeholder – no real image yet"
+  }
+ ]
+}

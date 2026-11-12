@@ -350,14 +350,16 @@ function duvalView(dv) {
 
 // ----------------------------------------------------------------- findings
 
-export function thumb(f) {
+export function thumb(row) {
+  const f = { ...row, kind: row.kind ?? row.evidence?.kind, short: row.short ?? row.evidence?.short };
   const open = (e) => openFinding(f.id, { opener: e.currentTarget });
   if (f.image) {
-    return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (demo image)`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },
+    return h('button', { class: 'a360-thumb', type: 'button', 'data-finding': f.id, title: `Open ${f.label} (${f.kind === 'reference' ? 'reference photo, not from this asset' : 'demo image'})`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open },
       h('img', { src: f.image, alt: '', loading: 'lazy' }),
       f.bbox ? h('span', { class: 'a360-box', style: { left: `${f.bbox.x * 100}%`, top: `${f.bbox.y * 100}%`, width: `${f.bbox.w * 100}%`, height: `${f.bbox.h * 100}%` } }) : null,
-      h('span', { class: 'a360-demo' }, 'Demo'));
+      h('span', { class: 'a360-demo' }, f.short ?? 'Demo'));
   }
+  if (f.kind === 'placeholder') return h('button', { class: 'a360-thumb a360-thumb-empty a360-thumb-ph', type: 'button', 'data-finding': f.id, title: `Open ${f.label}: placeholder, no real image yet`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open }, 'Placeholder');
   return h('button', { class: 'a360-thumb a360-thumb-empty', type: 'button', 'data-finding': f.id, title: `Open ${f.label}`, 'aria-label': `Open ${f.label}, ${f.id}`, onClick: open }, f.sensor === 'lidar' ? 'LiDAR' : 'no image');
 }
 

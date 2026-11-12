@@ -9,12 +9,13 @@
 // Reviewer actions: confirm, correct (class, severity, box), reject, and "link to asset" with the matcher's
 // suggestions. They go through the repository, so they persist in the browser overlay and scores recompute.
 // Keyboard: arrows move between findings of the same asset, Escape closes, focus stays inside while it is open.
-// State is in the URL hash: #finding=<id>&mode=thermal. Every image is labelled "Demo image".
+// State is in the URL hash: #finding=<id>&mode=thermal. Every image says what it is: a reference photo (with its credit), a placeholder, or a generated demo view.
 
 import { h, replace } from '../ui/dom.js';
 import { SEV_TAG, COND_TAG } from './palette.js';
 import { loadFindingDetail, DEFECT_OPTIONS } from './findingModel.js';
 import { parseHash, hashFor } from './hashState.js';
+import { PLACEHOLDER_TEXT, creditsOf } from './evidence.js';
 import { loadImage, drawPhoto, drawThermal, drawCrop, SCALE_GRADIENT, DEMO_LABEL, SIZE } from './demoImage.js';
 import { openAsset } from './assetPanel.js';
 
@@ -235,8 +236,16 @@ const svgEl = (name, attrs = {}) => { const n = document.createElementNS('http:/
  * One image with the box over it. `kind` is 'rgb' or 'thermal'. Returns { el, setBox, readout }.
  * The box is an SVG rectangle; while editing, a transparent hit area and a corner handle let it be dragged.
  */
+/** The overlay on an image: what kind of picture it is. A generated thermal view is always a demo. */
+function stageLabel(f, kind) {
+  if (kind === 'thermal') return DEMO_LABEL;
+  if (f.evidence?.kind === 'reference') return 'Reference photo';
+  if (f.evidence?.kind === 'placeholder') return PLACEHOLDER_TEXT;
+  return DEMO_LABEL;
+}
+
 function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {}) {
-  const canvas = h('canvas', { class: 'fv-canvas', width: SIZE.w, height: SIZE.h, role: 'img', 'aria-label': `${kind === 'thermal' ? 'Generated thermal view' : 'Photograph'} of ${f.label}, demo image` });
+  const canvas = h('canvas', { class: 'fv-canvas', width: SIZE.w, height: SIZE.h, role: 'img', 'aria-label': `${kind === 'thermal' ? 'Generated thermal view' : f.evidence?.kind === 'reference' ? 'Reference photograph' : 'Photograph'} of ${f.label}` });
   const svg = svgEl('svg', { class: 'fv-overlay', viewBox: '0 0 1 1', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
   const rect = svgEl('rect', { class: 'fv-bbox', 'vector-effect': 'non-scaling-stroke' });
   svg.append(rect);
@@ -244,7 +253,7 @@ function stage(f, kind, { editable = false, onBox = () => {}, size = 'l' } = {})
   const hit = h('div', { class: 'fv-hit', tabindex: '0', role: 'group', 'aria-label': 'Box. Drag to move; arrow keys nudge it.', hidden: !editable });
   const handle = h('span', { class: 'fv-handle', hidden: !editable, 'aria-hidden': 'true' });
   const readout = { value: null };
-  const wrap = h('div', { class: `fv-stage fv-stage-${size}`, 'data-testid': `stage-${kind}`, 'data-demo': 'true' }, canvas, svg, label, hit, handle, h('span', { class: 'fv-demo', 'data-testid': 'demo-label' }, DEMO_LABEL));
+  const wrap = h('div', { class: `fv-stage fv-stage-${size}`, 'data-testid': `stage-${kind}`, 'data-demo': 'true' }, canvas, svg, label, hit, handle, h('span', { class: 'fv-demo', 'data-testid': 'demo-label' }, stageLabel(f, kind)));
 
   let box = f.bbox ? { ...f.bbox } : null;
   const place = () => {
@@ -347,7 +356,7 @@ function singleView(d, mode) {
   const root = h('div', { class: 'fv-view' }, st.el);
 
   const crop = h('canvas', { class: 'fv-crop', role: 'img', 'aria-label': 'Marked area, enlarged, demo image' });
-  const cropBox = h('div', { class: 'fv-cropbox', 'data-demo': 'true' }, crop, h('span', { class: 'fv-demo', 'data-testid': 'demo-label-crop' }, DEMO_LABEL), h('p', { class: 'fv-muted fv-small' }, 'The marked area, enlarged.'));
+  const cropBox = h('div', { class: 'fv-cropbox', 'data-demo': 'true' }, crop, h('span', { class: 'fv-demo', 'data-testid': 'demo-label-crop' }, stageLabel(f, 'rgb')), h('p', { class: 'fv-muted fv-small' }, 'The marked area, enlarged.'));
   photo(f.image).then((img) => drawCrop(crop, img, view));
 
   if (kind === 'thermal') {
@@ -366,9 +375,23 @@ function singleView(d, mode) {
     });
     root.append(h('div', { class: 'fv-thermal-row' }, scale, h('div', {}, read, h('p', { class: 'fv-muted fv-small' }, 'A generated false-colour view with made-up temperatures. It shows where a thermal image would be.'))));
   }
-  root.append(cropBox);
+  if (view.bbox && f.evidence?.kind !== 'placeholder') root.append(cropBox);
+  if (f.evidence?.caption) root.append(h('p', { class: 'fv-muted fv-small fv-credit', 'data-testid': 'credit' }, f.evidence.caption, f.evidence.entry?.pageUrl ? h('span', {}, ' · ', h('a', { href: f.evidence.entry.pageUrl, target: '_blank', rel: 'noopener noreferrer' }, 'source page')) : null));
   if (!f.bbox) root.append(h('p', { class: 'fv-muted fv-small' }, 'This finding has no box (LiDAR findings are positions, not pictures).'));
+  if (f.evidence && f.evidence.kind !== 'legacy') root.append(creditsSection());
   return root;
+}
+
+/** Every reference photo with its credit, and the defect classes that still have no real image. */
+function creditsSection() {
+  const c = creditsOf(DEFECT_OPTIONS.map((o) => ({ id: o.id, label: o.label })));
+  const rows = c.images.map((e) => h('li', {}, h('b', {}, (DEFECT_OPTIONS.find((o) => o.id === e.class)?.label ?? e.class)), ` · ${e.author}, `,
+    h('a', { href: e.pageUrl, target: '_blank', rel: 'noopener noreferrer' }, e.source), `, `, h('a', { href: e.licenceUrl, target: '_blank', rel: 'noopener noreferrer' }, e.licence)));
+  return h('details', { class: 'fv-credits', 'data-testid': 'credits' },
+    h('summary', {}, `Image credits: ${c.images.length} reference photos, ${c.placeholders.length} of ${c.coverage.length} defect classes still on placeholder`),
+    h('p', { class: 'fv-muted fv-small' }, 'Reference photos are real photographs of the same kind of defect from other sources. None is from the asset named in the finding. Replace one by editing its entry in reliability/assets/inspection/manifest.json.'),
+    h('ul', { class: 'fv-credit-list', 'data-testid': 'credit-list' }, rows),
+    h('p', { class: 'fv-muted fv-small', 'data-testid': 'credit-placeholders' }, `${PLACEHOLDER_TEXT}: `, c.placeholders.map((x) => x.label).join(', ') || 'none'));
 }
 
 // ---- compare
