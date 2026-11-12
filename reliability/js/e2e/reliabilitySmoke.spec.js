@@ -305,6 +305,10 @@ test.describe('the other screens keep working', () => {
     await expect(page.getByTestId('registry-unavailable')).toContainText('could not be loaded');
     await shot(page, 'registry-unavailable');
     await rail(page).nth(2).click();
+    await expect(page.getByTestId('tower-health-unavailable')).toContainText('could not be loaded');
+    await rail(page).nth(3).click();
+    await expect(page.getByTestId('line-health-unavailable')).toContainText('could not be loaded');
+    await rail(page).nth(4).click();
     await expect(page.locator('#stage')).not.toBeEmpty();
   });
 });
