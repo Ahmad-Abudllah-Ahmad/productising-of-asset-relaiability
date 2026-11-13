@@ -1,17 +1,47 @@
 // Module 05 — Supply Chain & Inventory.
 // Maps verified defect classes to approved catalogue items, builds a bill of materials for every open work order,
 // allocates warehouse stock depot by depot (home depot first, then transfer), flags shortfalls before dispatch and
-// turns them into reservations and purchase requests. Lead times and supplier performance drive reorder points.
+// turns them into reservation and requisition REQUESTS to SAP MM. Lead times and supplier performance drive reorder points.
+// Materials, stock, reservations, suppliers and purchasing documents are ERP records (SAP MM) and work orders are SAP PM
+// records: all are read through the integration layer (erp.js) and none is created or edited here. Forecasts, reorder
+// parameters, days of cover and supplier risk are unvalidated model outputs (models.js) and are labelled Experimental.
 // The Depot Schematics screen is a live ISA-5.1 P&ID of the Eastern Grid Warehouse oil plant and SF6 store.
 
 import { mountApp, ui, ch, live, esc, fmt, icon, drawer, toast, addDays, daysBetween, rng, nav, clamp } from '../console.js';
 import * as sx from '../schematics.js';
 import { loadNetwork, networkLayers, DEFECT_LABEL, SEV_TONE } from '../network.js';
 import { drawingTabs } from '../drawings.js';
+import { models } from '../models.js';
+import { erp, erpRequest } from '../erp.js';
 
 const net = await loadNetwork();
 const AS_OF = net.asOf;
 const R = rng(505);
+
+// Predictive models and heuristics of this module, for the model validation register. None is validated: they run on
+// simulated demo data, and every output is labelled / Simulated in the interface until tested on real data.
+models.register([
+  { id: 'inv-demand', name: 'Spare-part demand forecast', module: '05 · Supply Chain & Inventory',
+    predicts: 'Monthly consumption per SKU for the next 6 months with an 80 % band; forecast demand value by category; the campaign uplift',
+    method: '12-month mean plus a half-year linear trend, multiplied by fixed seasonal campaign factors; 50 % and 30 % of the open work-order pipeline are added to the first two months. Band = 1.28 × σ × √horizon.',
+    needs: 'Two or more years of goods-issue history from SAP MM (MSEG, movement 261) per material, and the inspection campaign calendar.' },
+  { id: 'inv-reorder', name: 'Reorder point, safety stock and reorder suggestions', module: '05 · Supply Chain & Inventory',
+    predicts: 'Safety stock, reorder point and EOQ per SKU; the items to reorder and the suggested requisition quantities',
+    method: 'Safety stock = 1.65 × σ(daily demand) × √quoted lead time (95 % cycle service). ROP = mean daily demand × quoted lead time + safety stock. EOQ with an assumed $85 order cost and 22 %/yr holding cost. Suggested quantity = max(EOQ, gap to ROP + safety stock).',
+    needs: 'Goods-issue history and actual replenishment lead times from SAP MM purchase-order history (EKKO · EKBE); agreed ordering and holding costs and target service levels.' },
+  { id: 'inv-cover', name: 'Days of cover and projected stock-out date', module: '05 · Supply Chain & Inventory',
+    predicts: 'Days of cover per SKU and per depot, the projected stock-out date, the stock-out and watch flags, and the excess-stock suggestions',
+    method: 'Free stock after allocation to open work ÷ mean daily use of the last 12 months. Depot cover apportions demand by each depot’s share of open jobs. No trend or seasonality in the run-out date.',
+    needs: 'Stock-level and goods-issue history per storage location from SAP MM (MARD · MSEG), with recorded stock-out and backorder events to back-test against.' },
+  { id: 'inv-supplier-risk', name: 'Supplier risk score and late-delivery probability', module: '05 · Supply Chain & Inventory',
+    predicts: 'Risk score 0–100 per supplier, and the supply-risk matrix',
+    method: '(100 − OTD %) × 1.6 + lead-time variability (IQR ÷ quoted lead) × 40 + critical items × 6 + logistics distance class × 6, capped at 100. Late-delivery probability is taken as 100 − OTD %. The weights are assumptions.',
+    needs: 'Several years of promised vs actual delivery dates per supplier from SAP MM (EKET · EKBE), and recorded supply disruptions.' },
+  { id: 'inv-dispatch-risk', name: 'Material at risk on dispatch day', module: '05 · Supply Chain & Inventory',
+    predicts: 'Jobs whose hardware is expected to arrive after the planned dispatch date; the estimated earliest delivery date of a shortfall',
+    method: 'Assumes the missing items are ordered today and delivered on the quoted lead time. A job is at risk when the longest quoted lead time among its short items exceeds the days left to dispatch.',
+    needs: 'Promised vs actual delivery dates from SAP MM purchase orders (EKET · EKBE), and the dispatch outcomes of past SAP PM work orders.' },
+]);
 
 // Open orders whose planned date has already passed are re-baselined into the forward plan (the material plan only
 // looks ahead); the original date is kept as origPlanned.
@@ -70,19 +100,17 @@ const STAGE_TONE = { requested: 'muted', approved: 'accent', planned: 'info', sc
 
 /* ---------------------------------------------------------------- BOM: defect -> approved catalogue item */
 // Primary part per defect class; insulators are chosen by line voltage (disc strings at 132 kV, long-rods above).
-const QTY = { 'VD-4R-ACSR': 2, 'SP-QUAD-450': 2, 'INS-CL-120': 9, 'INS-LR-220': 1, 'INS-LR-500': 1, 'RS-ACSR-400': 2, 'CND-ACSR-400': 1, 'OPGW-48F': 1, 'STL-L90': 4, 'BLT-M20-HDG': 1, 'CP-SS-8': 1, 'SC-SUS-400': 1, 'ZRP-PAINT-20': 2, 'GRT-FND-25': 12, 'GAB-2X1': 6, 'SA-ZNO-220': 3, 'DS-SIGN-HV': 1, 'BD-DIVERT': 2, 'TX-GSK-KIT': 1, 'TX-BSH-245': 1, 'TX-OIL-IEC': 2, 'TX-RAD-PNL': 2 };
-function partFor(defect, kv) {
-  if (/^insulator_/.test(defect)) {
-    if (kv >= 500) return 'INS-LR-500';
-    if (kv >= 220) return defect === 'insulator_missing_disc' ? 'INS-LR-220' : 'INS-LR-220';
-    return 'INS-CL-120';
-  }
-  const p = net.parts.find((x) => x.defects.includes(defect) && x.uom !== 'drum') || net.parts.find((x) => x.defects.includes(defect));
-  return p?.sku || null;
-}
+// The bill-of-materials rule lives in network.js, shared with Asset 360 · Inventory & Parts in Module 01.
+const QTY = net.partQty;
+const partFor = net.partFor;
 
-/* ---------------------------------------------------------------- mutable in-memory state (reservations, PRs, POs) */
-const state = { reserved: new Set(), issued: new Set(), prs: [], pos: [], seqPR: 10041, seqPO: 4500212 };
+/* ---------------------------------------------------------------- ERP documents on this workspace, and requests sent to the ERP */
+// pos / prs: purchase orders and requisitions read from SAP MM (a seeded demo extract, ingested through the ERP layer
+// below). The dashboard never creates or edits one. A requisition a planner asks for is SENT to SAP MM (erpRequest):
+// SAP MM creates the document, and the request is listed under its ERP reference (`requested`) until the next sync.
+// reserved / issued: work order id → ERP reference of the reservation / goods-issue request sent to SAP MM this session.
+// prRelease: requisition id → ERP reference of a release request. poReq: purchase order id → { ref, label } of a request.
+const state = { reserved: new Map(), issued: new Map(), prRelease: new Map(), poReq: new Map(), prs: [], pos: [], seqPR: 10041, seqPO: 4500212 };
 
 /** Allocate stock to every open work order, depot by depot. Recomputed after each action. */
 function allocate() {
@@ -158,7 +186,7 @@ function forecastOf(p) {
 const deliveries = net.suppliers.map((s) => ({ s, d: Array.from({ length: 24 }, () => Math.max(2, Math.round(s.lead * Math.exp((R() - 0.42) * 0.7)))) }));
 const quart = (arr) => { const a = [...arr].sort((x, y) => x - y); const q = (p) => { const i = (a.length - 1) * p; const lo = Math.floor(i); return a[lo] + (a[Math.ceil(i)] - a[lo]) * (i - lo); }; return [a[0], q(0.25), q(0.5), q(0.75), a[a.length - 1]]; };
 
-/* ---------------------------------------------------------------- seed open POs and PRs from the shortfall picture */
+/* ---------------------------------------------------------------- purchasing documents: demo extract of SAP MM purchase orders and requisitions */
 (function seedProcurement() {
   const stages = ['rfq', 'po', 'po', 'shipped', 'shipped', 'received'];
   net.parts.forEach((p, i) => {
@@ -174,6 +202,7 @@ const quart = (arr) => { const a = [...arr].sort((x, y) => x - y); const q = (p)
     const p = partBySku.get(sku); const sup = supplierById.get(p.supplier);
     state.prs.push({ id: `PR-${state.seqPR++}`, sku, name: p.name, qty: q, uom: p.uom, value: q * p.unitCost, supplier: sup.id, supplierName: sup.name, wo: null, created: addDays(AS_OF, -2), need: addDays(AS_OF, p.lead), stage: 'pr', reason: 'Shortfall on open work (MRP run 09 Nov)' });
   }
+  erp.ingest('purchasing', [...state.prs, ...state.pos]); // SAP MM purchase requisitions (EBAN) and purchase orders (EKKO · EKPO)
 })();
 
 const kvTone = (v) => (v >= 60 ? 'ok' : v >= 30 ? 'warn' : 'crit');
@@ -182,6 +211,10 @@ const coverBadge = (c) => `<span class="inv-cover" style="background:${coverTone
 const COVER_TONE = { covered: 'ok', transfer: 'info', short: 'crit', service: 'muted' };
 const COVER_LABEL = { covered: 'Covered at home depot', transfer: 'Covered with transfer', short: 'Shortfall', service: 'Service only' };
 const MR_TONE = { issued: 'ok', reserved: 'accent', 'ready to reserve': 'info', backorder: 'crit', 'awaiting approval': 'muted', 'no material': 'muted' };
+// A reservation or goods issue asked for from this workspace is a request to SAP MM: it shows its ERP reference until the next sync.
+const mrRef = (j) => (j.mrStatus === 'issued' ? state.issued.get(j.wo.id) : j.mrStatus === 'reserved' ? state.reserved.get(j.wo.id) : null) || null;
+const mrText = (j) => (!mrRef(j) ? fmt.title(j.mrStatus) : j.mrStatus === 'issued' ? 'Goods issue requested in SAP MM' : 'Reserved (requested in SAP MM)');
+const prStatus = (x) => (state.prRelease.has(x.id) ? ['Release requested in SAP MM', 'accent'] : x.requested ? ['Requested · arrives with next sync', 'warn'] : ['Open in SAP MM · awaiting release', 'muted']);
 const stockOf = (p) => depots.reduce((s, d) => s + p.stock[d.id], 0);
 const depotHealth = (d) => { const below = net.parts.filter((p) => A.left[p.sku][d.id] < p.min / 3).length; return { below, pct: 1 - below / net.parts.length }; };
 
@@ -200,7 +233,7 @@ function partHistory(p) {
     if (n) ev.push({ date: w.completed_at, title: `Goods issue · ${n * (QTY[p.sku] || 1)} ${p.uom}`, text: `${esc(w.id)} ${esc(fmt.title(w.work_type))} at ${esc(w.towerName || w.asset)} · SAP mvt 261 from ${esc(nearestDepot(w).short)}`, tone: 'info' });
   }
   for (const po of state.pos.filter((x) => x.sku === p.sku)) ev.push({ date: po.created, title: `${po.id} · ${po.qty} ${p.uom}`, text: `${esc(po.supplierName)} · ${esc(STAGES.find(([k]) => k === po.stage)[1])} · ETA ${fmt.short(po.eta)}`, tone: po.stage === 'received' ? 'ok' : po.late ? 'warn' : 'accent' });
-  for (const pr of state.prs.filter((x) => x.sku === p.sku)) ev.push({ date: pr.created, title: `${pr.id} raised · ${pr.qty} ${p.uom}`, text: esc(pr.reason), tone: 'warn' });
+  for (const pr of state.prs.filter((x) => x.sku === p.sku)) ev.push({ date: pr.created, title: `${pr.id} · ${pr.requested ? 'requisition requested in SAP MM' : 'purchase requisition'} · ${pr.qty} ${p.uom}`, text: esc(pr.reason), tone: 'warn' });
   ev.push({ date: addDays(AS_OF, -3), title: 'Cycle count', text: `Counted at ${depots.map((d) => d.short).join(', ')} · book stock confirmed`, tone: 'ok' });
   return ev.sort((x, y) => y.date.localeCompare(x.date)).slice(0, 14).map((e) => ({ ...e, when: fmt.date(e.date) }));
 }
@@ -213,27 +246,28 @@ function openPart(sku) {
   const pos = state.pos.filter((x) => x.sku === sku); const prs = state.prs.filter((x) => x.sku === sku);
   const inbound = pos.filter((x) => x.stage !== 'received').reduce((a, x) => a + x.qty, 0);
   const abc = abcOf(sku);
-  const coverWord = fc.cover < p.lead ? ['Stock-out before resupply', 'crit'] : fc.cover < p.lead * 2 ? ['Watch cover', 'warn'] : ['Cover healthy', 'ok'];
+  const coverWord = fc.cover < p.lead ? ['Projected stock-out before resupply', 'crit'] : fc.cover < p.lead * 2 ? ['Watch cover', 'warn'] : ['Cover healthy', 'ok'];
   const dl = deliveries.find((d) => d.s.id === sup.id).d;
-  const overview = `${ui.stats([{ label: 'On hand', value: fmt.n(onHand) }, { label: 'Free after allocation', value: fmt.n(fc.onHandNow), color: fc.onHandNow < fc.rop ? '#dc2626' : undefined }, { label: 'Inbound on PO', value: fmt.n(inbound) }, { label: 'Reorder point', value: fmt.n(fc.rop, 1) }, { label: 'Days of cover', value: fc.cover >= 999 ? '∞' : `${fmt.n(fc.cover)} d`, color: coverTone(fc.cover) }, { label: 'Unit cost', value: money(p.unitCost) }])}
-    <div class="nx-drawer-grid">${sec('Stock position by depot', `<div class="nx-chart" data-chart="pstk" style="height:190px"></div><p class="nx-note">Bars: reserved for open work and free stock. Dashed line = depot minimum (network min ${p.min} split by depot).</p>`)}
-    ${sec('Item master', ui.kv([['SKU', `<span class="inv-sku">${esc(p.sku)}</span>`], ['Category / UoM', `${esc(p.cat)} · ${esc(p.uom)}`], ['ABC class', ui.badge(`Class ${abc}`, { A: 'crit', B: 'warn', C: 'ok' }[abc], { dot: false })], ['Criticality', p.critical ? ui.badge('Critical spare', 'high') : 'Standard'], ['Min / max (network)', `${p.min} / ${p.max}`], ['Safety stock (95 %)', fmt.n(fc.ss, 1)], ['EOQ', `${fmt.n(fc.eoq)} ${esc(p.uom)}`], ['Stock value', money(onHand * p.unitCost)], ['Preferred supplier', esc(sup.name)], ['Quoted lead time', `${p.lead} days`]]))}</div>
+  const overview = `${ui.stats([{ label: 'On hand', value: fmt.n(onHand) }, { label: 'Free after allocation', value: fmt.n(fc.onHandNow), color: fc.onHandNow < fc.rop ? '#dc2626' : undefined }, { label: 'Inbound on PO', value: fmt.n(inbound) }, { label: 'Reorder point (est.)', value: fmt.n(fc.rop, 1) }, { label: 'Days of cover (est.)', value: fc.cover >= 999 ? '∞' : `${fmt.n(fc.cover)} d`, color: coverTone(fc.cover) }, { label: 'Unit cost', value: money(p.unitCost) }])}
+    <p class="nx-note" style="margin:8px 0 12px">${ui.exp()} Reorder point, days of cover, safety stock and EOQ are estimates from an unvalidated demand model. Stock, reservations and orders are records read from SAP MM.</p>
+    <div class="nx-drawer-grid">${sec(`Stock position by depot ${ui.erp('SAP MM', 'inventory')}`, `<div class="nx-chart" data-chart="pstk" style="height:190px"></div><p class="nx-note">Bars: reserved for open work and free stock. Dashed line = depot minimum (network min ${p.min} split by depot).</p>`)}
+    ${sec(`Item master ${ui.erp('SAP MM', 'inventory')}`, ui.kv([['SKU', `<span class="inv-sku">${esc(p.sku)}</span>`], ['Category / UoM', `${esc(p.cat)} · ${esc(p.uom)}`], ['ABC class', ui.badge(`Class ${abc}`, { A: 'crit', B: 'warn', C: 'ok' }[abc], { dot: false })], ['Criticality', p.critical ? ui.badge('Critical spare', 'high') : 'Standard'], ['Min / max (network)', `${p.min} / ${p.max}`], ['Safety stock (95 %)', `${fmt.n(fc.ss, 1)} ${ui.exp()}`], ['EOQ', `${fmt.n(fc.eoq)} ${esc(p.uom)} ${ui.exp()}`], ['Stock value', money(onHand * p.unitCost)], ['Preferred supplier', esc(sup.name)], ['Quoted lead time', `${p.lead} days`]]))}</div>
     ${sec('Approved for defect classes', `<div class="nx-list">${demand.map((x) => `<div class="nx-li" style="padding:7px 0"><div class="nx-li-main"><b>${esc(DEFECT_LABEL[x.d] || x.d)}</b><span>${x.n} verified / pending findings · ${x.sev[0] + x.sev[1]} critical or high</span></div><div class="nx-li-end" style="width:140px"><div class="nx-bar" style="display:flex;height:8px">${x.sev.map((v, i) => `<i style="width:${x.n ? (v / x.n) * 100 : 0}%;background:${Object.values(SEV_C)[i]};border-radius:0"></i>`).join('')}</div></div></div>`).join('')}</div>`)}`;
-  const demandTab = `${sec('Consumption and 6-month forecast', `<div class="nx-chart" data-chart="pfc" style="height:250px"></div>`)}
-    <div class="nx-drawer-grid">${sec('Where the demand comes from', '<div class="nx-chart" data-chart="pline" style="height:200px"></div>')}${sec('Replenishment parameters', ui.kv([['Mean monthly use', `${fmt.n(fc.mean, 1)} ${esc(p.uom)}`], ['Std. deviation', fmt.n(fc.sd, 1)], ['Daily demand', fmt.n(fc.daily, 2)], ['Lead-time demand', fmt.n(fc.daily * p.lead, 1)], ['Safety stock', fmt.n(fc.ss, 1)], ['Reorder point', fmt.n(fc.rop, 1)], ['Projected stock-out', fc.stockout ? fmt.date(fc.stockout) : 'not in horizon'], ['Programme shortfall', short ? ui.badge(`${short} ${p.uom}`, 'crit') : 'none']]))}</div>`;
-  const woTab = `<div class="nx-drawer-grid">${sec('Allocation of demand', '<div class="nx-chart" data-chart="pwo" style="height:190px"></div>')}${sec('Readiness', `${chk(!short, short ? `${short} ${p.uom} short across the programme` : 'All open work covered', short ? `Earliest resupply ${fmt.date(addDays(AS_OF, p.lead))}` : 'From home depots and transfers')}${chk(fc.onHandNow >= fc.rop, fc.onHandNow >= fc.rop ? 'Above reorder point after reservations' : 'Below reorder point after reservations', `Free ${fmt.n(fc.onHandNow)} vs ROP ${fmt.n(fc.rop, 1)}`, true)}${chk(inbound > 0 || fc.onHandNow >= fc.rop, inbound ? `${inbound} ${p.uom} inbound on ${pos.filter((x) => x.stage !== 'received').length} PO(s)` : 'No inbound order', inbound ? `Next ETA ${fmt.date(pos.filter((x) => x.stage !== 'received').map((x) => x.eta).sort()[0])}` : 'Raise a purchase request if the position falls further', true)}`)}</div>
-    ${sec(`Open work orders using this item (${jobs.length})`, jobs.length ? `<table class="inv-mini"><thead><tr><th>WO</th><th>Asset</th><th>Planned</th><th>Stage</th><th class="r">Qty</th><th>Source</th></tr></thead><tbody>${jobs.slice(0, 14).map((j) => { const l = j.lines.find((x) => x.sku === sku); return `<tr><td class="inv-sku">${esc(j.wo.id)}</td><td>${esc(j.wo.towerName || j.wo.asset)}<span class="nx-sub">${esc(j.wo.line || 'Substation')}</span></td><td>${fmt.short(j.wo.planned_date)}</td><td>${ui.badge(STAGE_LABEL[j.wo.stage], STAGE_TONE[j.wo.stage])}</td><td class="r">${l.qty}</td><td>${l.short ? ui.badge(`short ${l.short}`, 'crit') : l.transfers.length ? ui.badge(`transfer ${l.transfers.map((t) => depotName[t.depot]).join(', ')}`, 'info') : ui.badge(depotName[j.home.id], 'ok')}</td></tr>`; }).join('')}</tbody></table>` : ui.empty('No open work order needs this item.'))}`;
+  const demandTab = `${sec(`Consumption and 6-month forecast ${ui.exp()}`, `<div class="nx-chart" data-chart="pfc" style="height:250px"></div><p class="nx-note">Bars are goods issues read from SAP MM. The dashed line and the band are an on simulated data, not validated against real consumption.</p>`)}
+    <div class="nx-drawer-grid">${sec('Where the demand comes from', '<div class="nx-chart" data-chart="pline" style="height:200px"></div>')}${sec(`Replenishment parameters ${ui.exp()}`, ui.kv([['Mean monthly use', `${fmt.n(fc.mean, 1)} ${esc(p.uom)}`], ['Std. deviation', fmt.n(fc.sd, 1)], ['Daily demand', fmt.n(fc.daily, 2)], ['Lead-time demand', fmt.n(fc.daily * p.lead, 1)], ['Safety stock', fmt.n(fc.ss, 1)], ['Reorder point', fmt.n(fc.rop, 1)], ['Projected stock-out', fc.stockout ? fmt.date(fc.stockout) : 'not in horizon'], ['Programme shortfall', short ? ui.badge(`${short} ${p.uom}`, 'crit') : 'none']]))}</div>`;
+  const woTab = `<div class="nx-drawer-grid">${sec('Allocation of demand', '<div class="nx-chart" data-chart="pwo" style="height:190px"></div>')}${sec('Readiness', `${chk(!short, short ? `${short} ${p.uom} short across the programme` : 'All open work covered', short ? `Earliest resupply ${fmt.date(addDays(AS_OF, p.lead))}` : 'From home depots and transfers')}${chk(fc.onHandNow >= fc.rop, fc.onHandNow >= fc.rop ? 'Above reorder point after reservations' : 'Below reorder point after reservations', `Free ${fmt.n(fc.onHandNow)} vs estimated ROP ${fmt.n(fc.rop, 1)}`, true)}${chk(inbound > 0 || fc.onHandNow >= fc.rop, inbound ? `${inbound} ${p.uom} inbound on ${pos.filter((x) => x.stage !== 'received').length} PO(s)` : 'No inbound order', inbound ? `Next ETA ${fmt.date(pos.filter((x) => x.stage !== 'received').map((x) => x.eta).sort()[0])}` : 'Request a purchase requisition in SAP MM if the position falls further', true)}`)}</div>
+    ${sec(`Open work orders using this item (${jobs.length}) ${ui.erp('SAP PM', 'workOrders')}`, jobs.length ? `<table class="inv-mini"><thead><tr><th>WO</th><th>Asset</th><th>Planned</th><th>Stage</th><th class="r">Qty</th><th>Source</th></tr></thead><tbody>${jobs.slice(0, 14).map((j) => { const l = j.lines.find((x) => x.sku === sku); return `<tr><td class="inv-sku">${esc(j.wo.id)}</td><td>${esc(j.wo.towerName || j.wo.asset)}<span class="nx-sub">${esc(j.wo.line || 'Substation')}</span></td><td>${fmt.short(j.wo.planned_date)}</td><td>${ui.badge(STAGE_LABEL[j.wo.stage], STAGE_TONE[j.wo.stage])}</td><td class="r">${l.qty}</td><td>${l.short ? ui.badge(`short ${l.short}`, 'crit') : l.transfers.length ? ui.badge(`transfer ${l.transfers.map((t) => depotName[t.depot]).join(', ')}`, 'info') : ui.badge(depotName[j.home.id], 'ok')}</td></tr>`; }).join('')}</tbody></table>` : ui.empty('No open work order needs this item.'))}`;
   const supplyTab = `${ui.stats([{ label: 'Supplier OTD', value: `${sup.otd}%`, color: sup.otd < 85 ? '#dc2626' : sup.otd < 92 ? '#d97706' : '#16a34a' }, { label: 'Quoted lead', value: `${sup.lead} d` }, { label: 'Median actual', value: `${fmt.n(quart(dl)[2])} d` }, { label: 'Quality', value: `${sup.quality}%` }])}
-    ${sec(`${esc(sup.name)} — last 24 deliveries`, '<div class="nx-chart" data-chart="psd" style="height:170px"></div>')}
-    ${sec(`Purchase orders and requests (${pos.length + prs.length})`, pos.length + prs.length ? `<table class="inv-mini"><thead><tr><th>Document</th><th class="r">Qty</th><th class="r">Value</th><th>Deliver to</th><th>ETA / need</th><th>Status</th></tr></thead><tbody>${[...prs.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>—</td><td>${fmt.short(x.need)}</td><td>${ui.badge('Purchase request', 'muted')}</td></tr>`), ...pos.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>${esc(depotName[x.depot])}</td><td>${fmt.short(x.eta)}${x.late ? ` ${ui.badge('late', 'crit')}` : ''}</td><td>${ui.badge(STAGES.find(([k]) => k === x.stage)[1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[x.stage])}</td></tr>`)].join('')}</tbody></table>` : ui.empty('No open purchasing documents for this item.'))}`;
-  const historyTab = `${sec('Stock movements and documents', ui.timeline(partHistory(p)))}`;
+    ${sec(`${esc(sup.name)} — last 24 deliveries ${ui.erp('SAP MM', 'suppliers')}`, '<div class="nx-chart" data-chart="psd" style="height:170px"></div>')}
+    ${sec(`Purchase orders and requisitions (${pos.length + prs.length}) ${ui.erp('SAP MM', 'purchasing')}`, pos.length + prs.length ? `<table class="inv-mini"><thead><tr><th>Document</th><th class="r">Qty</th><th class="r">Value</th><th>Deliver to</th><th>ETA / need</th><th>Status</th></tr></thead><tbody>${[...prs.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>—</td><td>${fmt.short(x.need)}</td><td>${ui.badge(x.requested ? 'Requested in SAP MM' : 'Purchase requisition', x.requested ? 'warn' : 'muted')}</td></tr>`), ...pos.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>${esc(depotName[x.depot])}</td><td>${fmt.short(x.eta)}${x.late ? ` ${ui.badge('late', 'crit')}` : ''}</td><td>${ui.badge(STAGES.find(([k]) => k === x.stage)[1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[x.stage])}</td></tr>`)].join('')}</tbody></table>` : ui.empty('No open purchasing documents for this item.'))}`;
+  const historyTab = `${sec(`Stock movements and documents ${ui.erp('SAP MM', 'inventory')}`, ui.timeline(partHistory(p)))}`;
   const stockChart = (el, ctx) => {
     const res = depots.map((d) => Math.max(0, p.stock[d.id] - A.left[sku][d.id])); const free = depots.map((d) => Math.max(0, A.left[sku][d.id]));
     ctx.chart('pstk', { grid: ch.grid({ top: 26, right: 16 }), legend: { top: 0, right: 0 }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps) => `<b>${esc(ps[0].name)}</b><br/>${ps.map((x) => `${x.marker}${esc(x.seriesName)}: <b>${x.value} ${esc(p.uom)}</b>`).join('<br/>')}<br/>Depot minimum: ${fmt.n(p.min / 3, 1)}` }, xAxis: { type: 'value' }, yAxis: { type: 'category', data: depots.map((d) => d.short), inverse: true }, series: [{ type: 'bar', name: 'Reserved for work', stack: 's', data: res, itemStyle: { color: '#94a3b8' }, barWidth: 16 }, { type: 'bar', name: 'Free', stack: 's', data: free.map((v) => ({ value: v, itemStyle: { color: v < p.min / 3 ? '#dc2626' : '#2563eb', borderRadius: [0, 4, 4, 0] } })), markLine: { symbol: 'none', silent: true, lineStyle: { type: 'dashed', color: '#0f172a' }, label: { formatter: 'min', color: '#475569' }, data: [{ xAxis: +(p.min / 3).toFixed(1) }] } }] });
   };
   drawer.open({
     kicker: `${p.cat} · ${p.uom} · approved catalogue item`, title: p.name, sub: `<span class="inv-sku">${esc(p.sku)}</span> · ${esc(sup.name)} · ${p.defects.length} defect class${p.defects.length > 1 ? 'es' : ''}`, icon: 'box', wide: true,
-    badges: [[`Class ${abc}`, { A: 'crit', B: 'warn', C: 'ok' }[abc]], ...(p.critical ? [['Critical spare', 'high']] : []), coverWord, ...(short ? [[`${short} ${p.uom} short`, 'crit']] : []), [`Lead ${p.lead} d`, 'info']],
+    badges: [[`Class ${abc}`, { A: 'crit', B: 'warn', C: 'ok' }[abc]], ...(p.critical ? [['Critical spare', 'high']] : []), coverWord, ['cover estimate', 'warn'], ...(short ? [[`${short} ${p.uom} short`, 'crit']] : []), [`Lead ${p.lead} d`, 'info'], ['ERP · SAP MM', 'info']],
     meta: `SAP MM material ${p.sku} · plant AZ01 · as of ${fmt.date(AS_OF)}`,
     tabs: [
       { name: 'Overview', body: overview, mount: stockChart },
@@ -250,7 +284,7 @@ function openPart(sku) {
       { name: 'Supply', body: supplyTab, mount: (el, ctx) => ctx.chart('psd', deliveryChart(sup, dl)) },
       { name: 'History', body: historyTab },
     ],
-    actions: [{ label: 'Raise purchase request', icon: 'cart', onClick: (close) => { raisePR(sku, Math.max(fc.eoq, Math.ceil(short + fc.rop - fc.onHandNow))); close(); } }, { label: 'Open in forecast', icon: 'forecast', onClick: (close) => { close(); nav.go('forecast', 0); setTimeout(() => { const s2 = document.getElementById('inv-fsku'); if (s2) { s2.value = sku; s2.dispatchEvent(new Event('change')); } }, 50); } }],
+    actions: [{ label: 'Request PR in SAP MM', icon: 'cart', onClick: (close) => { raisePR(sku, Math.max(fc.eoq, Math.ceil(short + fc.rop - fc.onHandNow))); close(); } }, { label: 'Open in forecast', icon: 'forecast', onClick: (close) => { close(); nav.go('forecast', 0); setTimeout(() => { const s2 = document.getElementById('inv-fsku'); if (s2) { s2.value = sku; s2.dispatchEvent(new Event('change')); } }, 50); } }],
   });
 }
 function deliveryChart(sup, dl) {
@@ -263,37 +297,38 @@ function openJob(woId) {
   const late = j.short && j.dispatchIn != null && maxLead > j.dispatchIn;
   const km = w.lat ? kmBetween(w, j.home) : null;
   const xferDepots = [...new Set(j.lines.flatMap((l) => l.transfers.map((t) => depotName[t.depot])))];
+  const resRef = j.mrStatus === 'reserved' || j.mrStatus === 'issued' ? state.reserved.get(w.id) : null; const giRef = j.mrStatus === 'issued' ? state.issued.get(w.id) : null; // ERP references of requests sent to SAP MM
   const bom = `${ui.stats([{ label: 'Home depot', value: j.home.short }, { label: 'Planned', value: fmt.short(w.planned_date) }, { label: 'Dispatch in', value: j.dispatchIn == null ? '—' : `${j.dispatchIn} d`, color: late ? '#dc2626' : undefined }, { label: 'Material value', value: money(j.value) }, { label: 'BOM lines', value: j.lines.length }])}
     ${j.lines.length ? sec('Allocation by line', `<div class="nx-chart" data-chart="jalloc" style="height:${Math.max(120, j.lines.length * 34 + 50)}px"></div>`) : ''}
     ${sec('Bill of materials — derived from the verified findings', j.lines.length ? `<table class="inv-mini"><thead><tr><th>SKU</th><th>Item</th><th>For defect</th><th class="r">Qty</th><th class="r">Value</th><th>Allocation</th></tr></thead><tbody>${j.lines.map((l) => `<tr><td class="inv-sku">${esc(l.sku)}</td><td>${esc(l.name)}</td><td>${l.defects.map((d) => esc(DEFECT_LABEL[d] || d)).join(', ')}</td><td class="r">${l.qty} ${esc(l.uom)}</td><td class="r">${money(l.value)}</td><td>${l.fromHome ? ui.badge(`${l.fromHome} @ ${j.home.short}`, 'ok') : ''} ${l.transfers.map((t) => ui.badge(`${t.qty} from ${depotName[t.depot]}`, 'info')).join(' ')} ${l.short ? ui.badge(`${l.short} short · ${l.lead} d lead`, 'crit') : ''}</td></tr>`).join('')}</tbody></table>` : ui.callout('This job is service-only (no stock material). Labour and equipment only.', 'info'))}
-    ${j.short ? ui.callout(`<b>${j.short} unit(s) short.</b> Earliest delivery ${fmt.date(addDays(AS_OF, maxLead))}. Planned date ${fmt.date(w.planned_date)} is ${late ? '<b>at risk</b> — expedite, substitute or re-sequence' : 'still achievable'}.`, late ? 'crit' : 'warn', 'alert') : ''}`;
+    ${j.short ? ui.callout(`<b>${j.short} unit(s) short.</b> Estimated earliest delivery ${fmt.date(addDays(AS_OF, maxLead))} (ordered today, quoted lead time). Planned date ${fmt.date(w.planned_date)} is ${late ? '<b>at risk</b> — expedite, substitute or re-sequence' : 'still achievable'}. ${ui.exp()}`, late ? 'crit' : 'warn', 'alert') : ''}`;
   const assetTab = `<div class="nx-drawer-grid">${sec('Work order', ui.kv([['Work type', esc(fmt.title(w.work_type))], ['Asset', esc(w.towerName || w.asset)], ['Line / voltage', `${esc(w.line || 'Substation')}${w.kv ? ` · ${w.kv} kV` : ''}`], ['Corridor', esc(w.corridor || '—')], ['Crew', esc(w.crewName)], ['Priority', ui.badge(w.priority, w.priority === 'high' ? 'high' : 'muted')], ['SAP PM / Maximo', `${esc(w.sap)} · ${esc(w.maximo)}`], ['Outage needed', w.outage ? 'Yes — planned outage window' : 'No (live-line / off-circuit)']]))}
     ${sec('Severity of findings', '<div class="nx-chart" data-chart="jsev" style="height:200px"></div>')}</div>
     ${sec(`Findings behind this work order (${w.findings.length})`, `<div class="nx-list">${w.findings.map((f) => ui.li({ ic: 'camera', color: SEV_C[f.severity], title: `${f.finding_id} · ${f.label}`, sub: `${esc(f.towerName || f.assetName || '')} · ${f.sensor.toUpperCase()} · conf ${fmt.n(f.confidence * 100)}% · ${f.review_status} · ${fmt.short(f.date)}`, end: ui.badge(f.severity, SEV_TONE[f.severity]) })).join('') || ui.empty()}</div>`)}`;
   const steps = [
-    { when: fmt.date(w.created_at), title: `${j.mr} created from ${w.id}`, text: `${j.lines.length} BOM lines generated from ${w.findings.length} finding(s)`, tone: 'ok' },
+    { when: fmt.date(w.created_at), title: `${j.mr} derived from ${w.id}`, text: `${j.lines.length} BOM lines generated from ${w.findings.length} finding(s)`, tone: 'ok' },
     { when: w.stage === 'requested' ? 'Pending' : 'Done', title: 'Work order approved', text: 'Maintenance planner · SAP PM release', tone: w.stage === 'requested' ? 'muted' : 'ok' },
-    { when: ['reserved', 'issued'].includes(j.mrStatus) ? 'Done' : j.short ? 'Blocked' : 'Next', title: `Stock reserved at ${j.home.short}`, text: 'SAP MM reservation (RESB), picking list printed', tone: ['reserved', 'issued'].includes(j.mrStatus) ? 'ok' : j.short ? 'crit' : 'warn' },
+    { when: resRef ? 'Requested' : ['reserved', 'issued'].includes(j.mrStatus) ? 'Done' : j.short ? 'Blocked' : 'Next', title: `Stock reserved at ${j.home.short}`, text: resRef ? `Reservation requested in SAP MM as <span class="inv-sku">${esc(resRef)}</span> · the RESB document arrives with the next sync` : 'SAP MM reservation (RESB), picking list printed', tone: ['reserved', 'issued'].includes(j.mrStatus) ? 'ok' : j.short ? 'crit' : 'warn' },
     ...(xferDepots.length ? [{ when: 'Transfer · 1–2 days', title: `Transfer from ${xferDepots.join(', ')}`, text: 'Stock transport order to the home depot', tone: 'info' }] : []),
     ...(j.short ? [{ when: fmt.date(addDays(AS_OF, maxLead)), title: 'Supplier delivery for shortfall', text: `Longest lead ${maxLead} d`, tone: late ? 'crit' : 'warn' }] : []),
-    { when: fmt.date(w.planned_date), title: `Kit issued to ${w.crewName}`, text: `Goods issue mvt 261 · ${km != null ? `${fmt.n(km, 1)} km depot → site` : 'site distance n/a'}`, tone: j.mrStatus === 'issued' ? 'ok' : 'muted' },
+    { when: fmt.date(w.planned_date), title: `Kit issued to ${w.crewName}`, text: `Goods issue mvt 261 · ${km != null ? `${fmt.n(km, 1)} km depot → site` : 'site distance n/a'}${giRef ? ` · requested in SAP MM (ERP request reference <span class="inv-sku">${esc(giRef)}</span>), posted by SAP MM and synced back` : ''}`, tone: j.mrStatus === 'issued' ? 'ok' : 'muted' },
   ];
-  const logistics = `<div class="nx-drawer-grid">${sec('Dispatch readiness', `${chk(w.stage !== 'requested', 'Work order approved', STAGE_LABEL[w.stage])}${chk(!j.short, j.short ? `${j.short} unit(s) short` : 'All material available', j.short ? `Waiting on ${j.lines.filter((l) => l.short).map((l) => l.sku).join(', ')}` : `${j.cover === 'transfer' ? 'Includes depot transfer' : 'At home depot'}`)}${chk(['reserved', 'issued'].includes(j.mrStatus), ['reserved', 'issued'].includes(j.mrStatus) ? 'Material reserved' : 'Not yet reserved', fmt.title(j.mrStatus), true)}${chk(!late, late ? 'Supply arrives after dispatch' : 'Supply in time for dispatch', j.dispatchIn != null ? `Dispatch in ${j.dispatchIn} d · longest lead ${maxLead} d` : '')}${chk(true, `Crew assigned · ${w.crewName}`, w.crew)}`)}
+  const logistics = `<div class="nx-drawer-grid">${sec('Dispatch readiness', `${chk(w.stage !== 'requested', 'Work order approved', STAGE_LABEL[w.stage])}${chk(!j.short, j.short ? `${j.short} unit(s) short` : 'All material available', j.short ? `Waiting on ${j.lines.filter((l) => l.short).map((l) => l.sku).join(', ')}` : `${j.cover === 'transfer' ? 'Includes depot transfer' : 'At home depot'}`)}${chk(['reserved', 'issued'].includes(j.mrStatus), ['reserved', 'issued'].includes(j.mrStatus) ? 'Material reserved' : 'Not yet reserved', mrText(j), true)}${chk(!late, late ? 'Supply arrives after dispatch' : 'Supply in time for dispatch', j.dispatchIn != null ? `Dispatch in ${j.dispatchIn} d · longest lead ${maxLead} d` : '')}${chk(true, `Crew assigned · ${w.crewName}`, w.crew)}`)}
     ${sec('Logistics', ui.kv([['Home depot', esc(j.home.name)], ['Depot → site', km != null ? `${fmt.n(km, 1)} km` : '—'], ['Transfers', xferDepots.length ? esc(xferDepots.join(', ')) : 'none'], ['Vehicle', esc(net.crews.find((c) => c.id === w.crew)?.vehicle || '—')], ['Material weight (est.)', `${fmt.n(j.lines.reduce((a, l) => a + l.qty * (l.unitCost > 5000 ? 800 : l.unitCost > 1000 ? 120 : 4), 0))} kg`]]))}</div>
     ${sec('Material request timeline', ui.timeline(steps))}`;
   drawer.open({
     kicker: `Material request ${j.mr} · SAP PM ${w.sap}`, title: `${w.id} · ${fmt.title(w.work_type)}`, sub: `${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')} · ${esc(w.crewName)}`, icon: 'clipboard', wide: true,
-    badges: [[STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], [COVER_LABEL[j.cover], COVER_TONE[j.cover]], [fmt.title(j.mrStatus), MR_TONE[j.mrStatus]], [`${w.priority} priority`, w.priority === 'high' ? 'high' : 'muted'], ...(late ? [['Dispatch at risk', 'crit']] : [])],
-    meta: `Synchronised with SAP MM (RESB) and Maximo inventory usage · ${fmt.date(AS_OF)}`,
+    badges: [[STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], [COVER_LABEL[j.cover], COVER_TONE[j.cover]], [mrText(j), MR_TONE[j.mrStatus]], [`${w.priority} priority`, w.priority === 'high' ? 'high' : 'muted'], ...(late ? [['Dispatch at risk (est.)', 'crit']] : []), ['ERP · SAP PM', 'info']],
+    meta: `Work order from SAP PM · reservations read from SAP MM (RESB) and Maximo inventory usage · ${fmt.date(AS_OF)}`,
     tabs: [
       { name: 'Bill of materials', body: bom, mount: (el, ctx) => { if (!j.lines.length) return; ctx.chart('jalloc', { grid: ch.grid({ top: 26, right: 16 }), legend: { top: 0, right: 0 }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } }, xAxis: { type: 'value', name: 'qty' }, yAxis: { type: 'category', inverse: true, data: j.lines.map((l) => l.sku) }, series: [['From home depot', (l) => l.fromHome, '#16a34a'], ['Transfer', (l) => l.transfers.reduce((a, t) => a + t.qty, 0), '#0284c7'], ['Short', (l) => l.short, '#dc2626']].map(([n, f, c]) => ({ type: 'bar', stack: 'a', name: n, data: j.lines.map(f), itemStyle: { color: c }, barWidth: 14 })) }); } },
       { name: 'Findings & asset', body: assetTab, mount: (el, ctx) => ctx.chart('jsev', ch.donut({ data: ['critical', 'high', 'medium', 'low'].map((v) => ({ name: fmt.title(v), value: w.findings.filter((f) => f.severity === v).length, color: SEV_C[v] })).filter((x) => x.value), center: 'findings', legend: 'right' })) },
       { name: 'Logistics & readiness', body: logistics },
     ],
     actions: [
-      ...(j.short ? [{ label: 'Raise PR for shortfall', icon: 'cart', onClick: (close) => { j.lines.filter((l) => l.short).forEach((l) => raisePR(l.sku, l.short, w.id)); close(); } }] : []),
-      ...(j.mrStatus === 'ready to reserve' ? [{ label: 'Reserve material', icon: 'lock', primary: true, onClick: (close) => { reserve([w.id]); close(); } }] : []),
-      ...(j.mrStatus === 'reserved' ? [{ label: 'Issue to crew', icon: 'truck', primary: true, onClick: (close) => { state.issued.add(w.id); refresh(); toast(`${j.mr} issued to ${w.crewName} from ${j.home.short}. Goods issue posted to SAP MM (mvt 261).`); close(); nav.rerender(); } }] : []),
+      ...(j.short ? [{ label: 'Request PR for shortfall in SAP MM', icon: 'cart', onClick: (close) => { j.lines.filter((l) => l.short).forEach((l) => raisePR(l.sku, l.short, w.id)); close(); } }] : []),
+      ...(j.mrStatus === 'ready to reserve' ? [{ label: 'Request reservation in SAP MM', icon: 'lock', primary: true, onClick: (close) => { reserve([w.id]); close(); } }] : []),
+      ...(j.mrStatus === 'reserved' ? [{ label: 'Request goods issue in SAP MM', icon: 'truck', primary: true, onClick: (close) => { state.issued.set(w.id, erpRequest('inventory', `Goods issue (mvt 261) · ${j.mr} to ${w.crewName} from ${j.home.short}`, { wo: w.id, sap: w.sap, depot: j.home.id, lines: j.lines.map((l) => ({ sku: l.sku, qty: l.qty })) }).ref); refresh(); close(); nav.rerender(); } }] : []),
     ],
   });
 }
@@ -307,67 +342,88 @@ function openSupplier(id) {
   const perf = `${ui.stats([{ label: 'On-time delivery', value: `${s.otd}%`, color: s.otd < 85 ? '#dc2626' : s.otd < 92 ? '#d97706' : '#16a34a' }, { label: 'Quoted lead', value: `${s.lead} d` }, { label: 'Median actual', value: `${fmt.n(quart(dl)[2])} d` }, { label: 'Quality (accept)', value: `${s.quality}%` }, { label: '12-mo spend', value: money(s.spend) }])}
     ${sec('Last 24 deliveries — actual lead time (days)', '<div class="nx-chart" data-chart="sdl" style="height:180px"></div>')}
     <div class="nx-drawer-grid">${sec('On-time delivery, last 12 months', '<div class="nx-chart" data-chart="sotd" style="height:180px"></div>')}${sec('Lead-time spread', ui.kv([['Fastest', `${quart(dl)[0]} d`], ['Lower quartile', `${fmt.n(quart(dl)[1])} d`], ['Median', `${fmt.n(quart(dl)[2])} d`], ['Upper quartile', `${fmt.n(quart(dl)[3])} d`], ['Slowest', `${quart(dl)[4]} d`], ['Late deliveries', `${dl.filter((v) => v > s.lead * 1.15).length} of ${dl.length}`]]))}</div>`;
-  const items = `${sec(`Approved items (${parts.length})`, `<table class="inv-mini"><thead><tr><th>SKU</th><th>Item</th><th class="r">Unit</th><th class="r">Lead</th><th class="r">On hand</th><th class="r">Shortfall</th></tr></thead><tbody>${parts.map((p) => `<tr><td class="inv-sku">${esc(p.sku)}</td><td>${esc(p.name)}</td><td class="r">${money(p.unitCost)}</td><td class="r">${p.lead} d</td><td class="r">${fmt.n(stockOf(p))}</td><td class="r">${A.shortBySku[p.sku] ? ui.badge(String(A.shortBySku[p.sku]), 'crit') : '—'}</td></tr>`).join('')}</tbody></table>`)}
-    ${sec(`Purchase orders (${pos.length})`, pos.length ? `<table class="inv-mini"><thead><tr><th>PO</th><th>SKU</th><th class="r">Qty</th><th class="r">Value</th><th>ETA</th><th>Status</th></tr></thead><tbody>${pos.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="inv-sku">${esc(x.sku)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>${fmt.short(x.eta)}${x.late ? ` ${ui.badge('late', 'crit')}` : ''}</td><td>${ui.badge(STAGES.find(([k]) => k === x.stage)[1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[x.stage])}</td></tr>`).join('')}</tbody></table>` : ui.empty('No purchase orders with this supplier.'))}`;
+  const items = `${sec(`Approved items (${parts.length}) ${ui.erp('SAP MM', 'inventory')}`, `<table class="inv-mini"><thead><tr><th>SKU</th><th>Item</th><th class="r">Unit</th><th class="r">Lead</th><th class="r">On hand</th><th class="r">Shortfall</th></tr></thead><tbody>${parts.map((p) => `<tr><td class="inv-sku">${esc(p.sku)}</td><td>${esc(p.name)}</td><td class="r">${money(p.unitCost)}</td><td class="r">${p.lead} d</td><td class="r">${fmt.n(stockOf(p))}</td><td class="r">${A.shortBySku[p.sku] ? ui.badge(String(A.shortBySku[p.sku]), 'crit') : '—'}</td></tr>`).join('')}</tbody></table>`)}
+    ${sec(`Purchase orders (${pos.length}) ${ui.erp('SAP MM', 'purchasing')}`, pos.length ? `<table class="inv-mini"><thead><tr><th>PO</th><th>SKU</th><th class="r">Qty</th><th class="r">Value</th><th>ETA</th><th>Status</th></tr></thead><tbody>${pos.map((x) => `<tr><td class="inv-sku">${esc(x.id)}</td><td class="inv-sku">${esc(x.sku)}</td><td class="r">${x.qty}</td><td class="r">${money(x.value)}</td><td>${fmt.short(x.eta)}${x.late ? ` ${ui.badge('late', 'crit')}` : ''}</td><td>${ui.badge(STAGES.find(([k]) => k === x.stage)[1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[x.stage])}</td></tr>`).join('')}</tbody></table>` : ui.empty('No purchase orders with this supplier.'))}`;
   const contract = `<div class="nx-drawer-grid">${sec('Commercial terms', ui.kv([['Agreement', esc(ctype)], ['Reference', esc(ref)], ['Incoterms / payment', esc(terms)], ['Category', esc(s.cat)], ['Country', esc(s.country)], ['Open commitments', money(openVal)]]))}
     ${sec('Risk position', `${chk(s.otd >= 90, `On-time delivery ${s.otd}%`, s.otd >= 90 ? 'Within the 90 % target' : 'Below the 90 % target — expediting call in place', s.otd >= 85)}${chk(s.quality >= 98, `Incoming quality ${s.quality}%`, 'Accepted at goods receipt', true)}${chk(!shortU, shortU ? `${shortU} units short on open work` : 'No shortfall exposure', shortU ? 'Items from this supplier block dispatch' : '')}${chk(!late, late ? `${late} PO(s) past promised date` : 'No late purchase orders', '', true)}${chk(s.country === 'Azerbaijan', s.country === 'Azerbaijan' ? 'Domestic supply' : `Import from ${s.country}`, s.country === 'Azerbaijan' ? 'No customs exposure' : 'Customs clearance adds 3–7 days', true)}`)}</div>`;
   drawer.open({
     kicker: `${s.country} · ${s.cat}`, title: s.name, sub: `${s.id} · ${parts.length} approved catalogue items · ${pos.length} purchase orders`, icon: 'factory', wide: true,
-    badges: [[`OTD ${s.otd}%`, s.otd < 85 ? 'crit' : s.otd < 92 ? 'warn' : 'ok'], [`Quality ${s.quality}%`, s.quality >= 98 ? 'ok' : 'warn'], [esc(ctype), 'info'], ...(late ? [[`${late} late PO`, 'crit']] : []), ...(shortU ? [[`${shortU} units short`, 'crit']] : [])],
-    meta: `Supplier master ${s.id} · scorecard refreshed weekly`,
+    badges: [[`OTD ${s.otd}%`, s.otd < 85 ? 'crit' : s.otd < 92 ? 'warn' : 'ok'], [`Quality ${s.quality}%`, s.quality >= 98 ? 'ok' : 'warn'], [esc(ctype), 'info'], ...(late ? [[`${late} late PO`, 'crit']] : []), ...(shortU ? [[`${shortU} units short`, 'crit']] : []), ['ERP · SAP MM', 'info']],
+    meta: `SAP MM vendor master ${s.id} · read through the integration layer · scorecard refreshed weekly`,
     tabs: [
       { name: 'Performance', body: perf, mount: (el, ctx) => { ctx.chart('sdl', deliveryChart(s, dl)); ctx.chart('sotd', ch.line({ x: MONTHS.map(monLabel), series: [{ name: 'OTD %', data: otdTrend(s), color: '#2563eb', area: true, symbol: true }], yMin: 60, yMax: 100, legend: false, markArea: { silent: true, data: [[{ yAxis: 90, itemStyle: { color: 'rgba(22,163,74,.07)' } }, { yAxis: 100 }]] } })); } },
       { name: `Items & orders (${parts.length + pos.length})`, body: items },
       { name: 'Contract & risk', body: contract },
     ],
-    actions: [{ label: 'Request expedite', icon: 'clock', onClick: (close) => { toast(`Expedite request sent to ${s.name} for ${pos.filter((x) => x.stage !== 'received').length} open order(s).`); close(); } }, { label: 'Raise PR', icon: 'cart', primary: true, onClick: (close) => { const p = parts.slice().sort((x, y) => (A.shortBySku[y.sku] || 0) - (A.shortBySku[x.sku] || 0))[0]; raisePR(p.sku, Math.max(1, A.shortBySku[p.sku] || forecastOf(p).eoq)); close(); } }],
+    actions: [{ label: 'Request expedite in SAP MM', icon: 'clock', onClick: (close) => { const open = pos.filter((x) => x.stage !== 'received'); erpRequest('purchasing', `Expedite · ${open.length} open order(s) with ${s.name}`, { supplier: s.id, orders: open.map((x) => x.id) }); close(); } }, { label: 'Request PR in SAP MM', icon: 'cart', primary: true, onClick: (close) => { const p = parts.slice().sort((x, y) => (A.shortBySku[y.sku] || 0) - (A.shortBySku[x.sku] || 0))[0]; raisePR(p.sku, Math.max(1, A.shortBySku[p.sku] || forecastOf(p).eoq)); close(); } }],
   });
 }
 function openPO(id) {
   const po = state.pos.find((p) => p.id === id); if (!po) return;
   const i = STAGES.findIndex(([k]) => k === po.stage); const p = partBySku.get(po.sku); const sup = supplierById.get(po.supplier);
   const waiting = A.jobs.filter((j) => j.lines.some((l) => l.sku === po.sku && l.short));
-  const body = `${ui.stats([{ label: 'Quantity', value: `${po.qty} ${p.uom}` }, { label: 'Value', value: money(po.value) }, { label: 'Deliver to', value: depotName[po.depot] }, { label: 'Promised', value: fmt.short(po.eta), color: po.late ? '#dc2626' : undefined }, { label: 'Days to ETA', value: `${daysBetween(AS_OF, po.eta)} d` }])}
+  // The document flow belongs to SAP MM: the next step is requested there and comes back with the sync. Nothing is set here.
+  const req = state.poReq.get(po.id);
+  const next = { rfq: ['Request PO release in SAP MM', 'purchasing', 'PO release', 'PO release requested in SAP MM'], po: ['Request delivery confirmation in SAP MM', 'purchasing', 'Delivery confirmation', 'Delivery confirmation requested in SAP MM'], shipped: ['Request goods receipt in SAP MM (mvt 101)', 'inventory', 'Goods receipt (mvt 101)', 'Goods receipt requested in SAP MM'] }[po.stage];
+  const body = `${req ? ui.callout(`<b>${esc(req.label)}</b> · ERP request reference <span class="inv-sku">${esc(req.ref)}</span>. SAP MM updates the purchase order; the new status arrives with the next sync.`, 'info', 'database') : ''}${ui.stats([{ label: 'Quantity', value: `${po.qty} ${p.uom}` }, { label: 'Value', value: money(po.value) }, { label: 'Deliver to', value: depotName[po.depot] }, { label: 'Promised', value: fmt.short(po.eta), color: po.late ? '#dc2626' : undefined }, { label: 'Days to ETA', value: `${daysBetween(AS_OF, po.eta)} d` }])}
     <div class="nx-drawer-grid">${sec('Document flow', ui.timeline(STAGES.map(([k, l], x) => ({ when: x < i ? 'Done' : x === i ? 'Current' : 'Pending', title: l, text: x === 0 ? `Created ${fmt.date(po.created)}` : x === 2 ? `Released to ${esc(po.supplierName)}` : x === 4 ? `Goods receipt into ${esc(depotName[po.depot])} (mvt 101)` : '', tone: x < i ? 'ok' : x === i ? (po.late ? 'crit' : 'warn') : 'muted' }))))}
     ${sec('Line item', ui.kv([['SKU', `<span class="inv-sku">${esc(po.sku)}</span>`], ['Item', esc(po.name)], ['Unit price', money(p.unitCost)], ['Supplier', esc(po.supplierName)], ['Supplier OTD', `${sup.otd}%`], ['Quoted lead', `${p.lead} d`], ['Incoterms', esc((CONTRACT[po.supplier] || [])[1] || 'DAP Baku')]]))}</div>
-    ${sec(`Work orders waiting on this item (${waiting.length})`, waiting.length ? `<div class="nx-list">${waiting.slice(0, 8).map((j) => ui.li({ ic: 'clipboard', color: '#dc2626', title: `${j.wo.id} · ${fmt.title(j.wo.work_type)}`, sub: `${esc(j.wo.towerName || j.wo.asset)} · planned ${fmt.short(j.wo.planned_date)} · ${j.lines.find((l) => l.sku === po.sku).short} short`, end: ui.badge(j.home.short, 'muted', { dot: false }) })).join('')}</div>` : `<p class="nx-note" style="margin:0 0 8px">No open work order is waiting on this item — this order replenishes stock. Position after allocation:</p>${depots.map((d) => `<div class="inv-dep"><span>${esc(d.short)}${d.id === po.depot ? ' <b style="color:var(--nx-accent)">← delivery</b>' : ''}</span><div class="nx-bar"><i style="width:${clamp((A.left[po.sku][d.id] / Math.max(1, p.max / 3)) * 100, 0, 100)}%;background:${A.left[po.sku][d.id] < p.min / 3 ? '#dc2626' : '#2563eb'}"></i></div><span class="nx-num" style="text-align:right">${fmt.n(A.left[po.sku][d.id])} free</span></div>`).join('')}`)}`;
+    ${sec(`Work orders waiting on this item (${waiting.length}) ${ui.erp('SAP PM', 'workOrders')}`, waiting.length ? `<div class="nx-list">${waiting.slice(0, 8).map((j) => ui.li({ ic: 'clipboard', color: '#dc2626', title: `${j.wo.id} · ${fmt.title(j.wo.work_type)}`, sub: `${esc(j.wo.towerName || j.wo.asset)} · planned ${fmt.short(j.wo.planned_date)} · ${j.lines.find((l) => l.sku === po.sku).short} short`, end: ui.badge(j.home.short, 'muted', { dot: false }) })).join('')}</div>` : `<p class="nx-note" style="margin:0 0 8px">No open work order is waiting on this item — this order replenishes stock. Position after allocation:</p>${depots.map((d) => `<div class="inv-dep"><span>${esc(d.short)}${d.id === po.depot ? ' <b style="color:var(--nx-accent)">← delivery</b>' : ''}</span><div class="nx-bar"><i style="width:${clamp((A.left[po.sku][d.id] / Math.max(1, p.max / 3)) * 100, 0, 100)}%;background:${A.left[po.sku][d.id] < p.min / 3 ? '#dc2626' : '#2563eb'}"></i></div><span class="nx-num" style="text-align:right">${fmt.n(A.left[po.sku][d.id])} free</span></div>`).join('')}`)}`;
   drawer.open({
     kicker: `Purchase order · ${po.supplierName}`, title: po.id, sub: `<span class="inv-sku">${esc(po.sku)}</span> · ${esc(po.name)}`, icon: 'cart',
-    badges: [[STAGES[i][1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[po.stage] || 'muted'], ...(po.late ? [['Past promised date', 'crit']] : []), [depotName[po.depot], 'info']],
-    meta: `SAP MM ME23N · created ${fmt.date(po.created)}`,
+    badges: [[STAGES[i][1], { rfq: 'muted', po: 'accent', shipped: 'violet', received: 'ok' }[po.stage] || 'muted'], ...(po.late ? [['Past promised date', 'crit']] : []), [depotName[po.depot], 'info'], ...(req ? [[req.label, 'warn']] : []), ['ERP · SAP MM', 'info']],
+    meta: `Read from SAP MM (ME23N) · created ${fmt.date(po.created)}`,
     body,
-    actions: po.stage !== 'received' ? [{ label: 'Open supplier', icon: 'factory', onClick: () => openSupplier(po.supplier) }, { label: po.stage === 'shipped' ? 'Post goods receipt (mvt 101)' : `Advance to ${STAGES[i + 1][1]}`, primary: true, onClick: (close) => { po.stage = STAGES[i + 1][0]; if (po.stage === 'received') { refresh(); toast(`Goods receipt posted for ${po.id}: ${po.qty} × ${po.sku} into ${depotName[po.depot]}. Backorders re-allocated.`); } else toast(`${po.id} moved to ${STAGES[i + 1][1]}.`); close(); nav.rerender(); } }] : [{ label: 'Open supplier', icon: 'factory', onClick: () => openSupplier(po.supplier) }],
+    actions: next && !req ? [{ label: 'Open supplier', icon: 'factory', onClick: () => openSupplier(po.supplier) }, { label: next[0], primary: true, onClick: (close) => { const r = erpRequest(next[1], `${next[2]} · ${po.id} · ${po.qty} × ${po.sku}`, { po: po.id, sku: po.sku, qty: po.qty, depot: po.depot, supplier: po.supplier }); state.poReq.set(po.id, { ref: r.ref, label: next[3] }); close(); nav.rerender(); } }] : [{ label: 'Open supplier', icon: 'factory', onClick: () => openSupplier(po.supplier) }],
   });
 }
 
-/* ================================================================== actions */
+/* ================================================================== actions: requests to the ERP */
+// Nothing below creates or edits an ERP record. Each action sends a REQUEST to SAP MM through the integration layer
+// (erpRequest: one request, with its toast; erp.request: the same without a toast, for a batch that reports once).
+// SAP MM creates the requisition, reservation or goods issue; the dashboard shows the ERP reference it was given and
+// the document itself arrives with the next sync.
+const viaConnector = () => (erp.adapter.live ? '' : ' (simulated connector)');
+/** The line shown for a requisition request: the ERP reference and what was asked for. Not a document held here. */
+const prRequestRow = (r, p, sup, qty, wo, reason) => ({ id: r.ref, sku: p.sku, name: p.name, qty, uom: p.uom, value: qty * p.unitCost, supplier: sup.id, supplierName: sup.name, wo: wo || null, created: AS_OF, need: addDays(AS_OF, p.lead), stage: 'pr', reason, requested: true });
+/** Ask SAP MM for a purchase requisition. */
 function raisePR(sku, qty, wo) {
   const p = partBySku.get(sku); const sup = supplierById.get(p.supplier);
   qty = Math.max(1, Math.round(qty));
-  const pr = { id: `PR-${state.seqPR++}`, sku, name: p.name, qty, uom: p.uom, value: qty * p.unitCost, supplier: sup.id, supplierName: sup.name, wo: wo || null, created: AS_OF, need: addDays(AS_OF, p.lead), stage: 'pr', reason: wo ? `Shortfall on ${wo}` : 'Below reorder point' };
+  const r = erpRequest('purchasing', `Purchase requisition · ${qty} × ${sku}`, { sku, qty, uom: p.uom, supplier: sup.id, wo: wo || null, needBy: addDays(AS_OF, p.lead) });
+  const pr = prRequestRow(r, p, sup, qty, wo, wo ? `Shortfall on ${wo}` : 'Below reorder point');
   state.prs.unshift(pr);
-  toast(`${pr.id} raised: ${qty} × ${sku} from ${sup.name} (${money(pr.value)}). Sent to SAP MM for release.`);
   nav.rerender();
   return pr;
 }
+/** Ask SAP MM to reserve the material of the given work orders (one reservation request per work order). */
 function reserve(ids) {
-  let n = 0; for (const id of ids) { if (!state.reserved.has(id)) { state.reserved.add(id); n += 1; } }
+  const fresh = ids.filter((id) => !state.reserved.has(id)).map((id) => A.jobs.find((j) => j.wo.id === id)).filter(Boolean);
+  const ask = (j, send) => send('inventory', `Reservation · ${j.mr} for ${j.wo.id} at ${j.home.short}`, { wo: j.wo.id, sap: j.wo.sap, depot: j.home.id, lines: j.lines.map((l) => ({ sku: l.sku, qty: l.qty })) }).ref;
+  if (fresh.length === 1) state.reserved.set(fresh[0].wo.id, ask(fresh[0], erpRequest));
+  else {
+    for (const j of fresh) state.reserved.set(j.wo.id, ask(j, erp.request));
+    toast(fresh.length ? `${fresh.length} reservation requests sent to SAP MM${viaConnector()}. SAP MM creates the reservations (RESB); they arrive with the next sync.` : 'Nothing new to reserve.');
+  }
   refresh();
-  toast(n ? `${n} material reservation(s) posted to SAP MM (mvt 201 reserved). Stock is held at the home depot.` : 'Nothing new to reserve.');
   nav.rerender();
 }
+/** Ask SAP MM for a requisition for every item under its estimated reorder point (reorder model, 'inv-reorder'). */
 function autoReplenish() {
   const made = [];
   for (const p of net.parts) {
     const fc = forecastOf(p); const short = A.shortBySku[p.sku] || 0;
     const inbound = state.pos.filter((x) => x.sku === p.sku && x.stage !== 'received').reduce((s, x) => s + x.qty, 0) + state.prs.filter((x) => x.sku === p.sku).reduce((s, x) => s + x.qty, 0);
     const position = fc.onHandNow + inbound - short;
-    if (position < fc.rop) made.push(raisePRSilent(p.sku, Math.max(fc.eoq, Math.ceil(fc.rop - position + fc.ss))));
+    if (position < fc.rop) {
+      const qty = Math.max(fc.eoq, Math.ceil(fc.rop - position + fc.ss)); const sup = supplierById.get(p.supplier);
+      const pr = prRequestRow(erp.request('purchasing', `Purchase requisition · ${qty} × ${p.sku} (reorder suggestion)`, { sku: p.sku, qty, uom: p.uom, supplier: sup.id, needBy: addDays(AS_OF, p.lead) }), p, sup, qty, null, 'Reorder suggestion (model)');
+      state.prs.unshift(pr); made.push(pr);
+    }
   }
-  toast(made.length ? `${made.length} purchase requests generated from reorder points and shortfalls (${money(made.reduce((s, x) => s + x.value, 0))}).` : 'Every item is above its reorder point once open orders arrive.', made.length ? 'warn' : 'ok');
+  toast(made.length ? `${made.length} requisition requests sent to SAP MM${viaConnector()} from the reorder suggestions (${money(made.reduce((s, x) => s + x.value, 0))}). SAP MM creates the requisitions; they arrive with the next sync.` : 'Every item is above its estimated reorder point once open orders arrive.', made.length ? 'warn' : 'ok');
   nav.rerender();
 }
-function raisePRSilent(sku, qty) { const p = partBySku.get(sku); const sup = supplierById.get(p.supplier); const pr = { id: `PR-${state.seqPR++}`, sku, name: p.name, qty, uom: p.uom, value: qty * p.unitCost, supplier: sup.id, supplierName: sup.name, wo: null, created: AS_OF, need: addDays(AS_OF, p.lead), stage: 'pr', reason: 'Reorder point (auto)' }; state.prs.unshift(pr); return pr; }
 
 /* ================================================================== charts */
 function forecastChart(p, fc, compact) {
@@ -411,7 +467,7 @@ const catalogScreen = {
             { label: 'Items short for open work', value: shortSkus, icon: 'event', tone: shortSkus ? 'crit' : 'ok', sub: `${fmt.n(Object.values(A.shortBySku).reduce((a, b) => a + b, 0))} units across the programme`, spark: [3, 4, 3, 5, 4, 5, shortSkus] },
           ])}
           ${ui.card({
-            title: 'Approved replacement-part catalogue', sub: 'Each item is approved for the CV defect classes it repairs. Click a row for stock, forecast and the work orders that draw on it.',
+            title: 'Approved replacement-part catalogue', erp: ['SAP MM', 'inventory'], sub: 'Each item is approved for the CV defect classes it repairs. Click a row for stock, forecast and the work orders that draw on it.',
             tools: `${ui.chips('cat', [['All', 'All'], ...cats.map((c) => [c, c])], 'All')}${ui.search('#inv-cat', 'Search SKU, item, defect…')}`, flush: true,
             body: ui.table({ id: 'inv-cat', rowId: (p) => p.sku, rows: net.parts, cols: [
               { label: 'SKU', key: 'sku', render: (p) => `<span class="inv-sku">${esc(p.sku)}</span>${p.critical ? ` ${ui.badge('critical', 'high', { dot: false })}` : ''}` },
@@ -427,7 +483,7 @@ const catalogScreen = {
           })}
           <div class="nx-row nx-c2">
             ${ui.card({ title: 'Network demand by category', sub: 'Open findings the catalogue must answer, grouped by part category', body: ui.chart('catdemand') })}
-            ${ui.card({ title: 'Stock value by category', sub: 'On-hand value at standard cost (treemap — click to drill into SKUs)', body: ui.chart('cattree') })}
+            ${ui.card({ title: 'Stock value by category', erp: ['SAP MM', 'inventory'], sub: 'On-hand value at standard cost (treemap — click to drill into SKUs)', body: ui.chart('cattree') })}
           </div></div>`;
       },
       mount: (st, ctx) => {
@@ -471,9 +527,9 @@ const catalogScreen = {
         const cls = (c) => rows.filter((r) => r.abc === c);
         return `<div class="nx-page">
           ${ui.kpis(['A', 'B', 'C'].map((c, i) => ({ label: `Class ${c} items`, value: cls(c).length, icon: 'layers', tone: ['crit', 'warn', 'ok'][i], sub: `${fmt.n((cls(c).reduce((s, r) => s + r.annual, 0) / rows.reduce((s, r) => s + r.annual, 0)) * 100)}% of annual consumption value · review ${['weekly', 'monthly', 'quarterly'][i]}` })))}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Pareto of annual consumption value', sub: 'Annual usage × standard cost. Class A = first 80 % of value, B = next 15 %, C = last 5 %.', body: ui.chart('pareto', 'lg') })}
-          ${ui.card({ cls: 'nx-s4', title: 'ABC × XYZ policy matrix', sub: 'Value class × demand variability (X: CV < 0.25 steady, Y: < 0.5, Z: erratic). Cell = items.', body: ui.chart('abcxyz', 'lg') })}</div>
-          ${ui.card({ title: 'Classification and stocking policy', flush: true, body: ui.table({ id: 'inv-abc', rows, rowId: (r) => r.sku, cols: [
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Pareto of annual consumption value', erp: ['SAP MM', 'inventory'], sub: 'Annual usage × standard cost. Class A = first 80 % of value, B = next 15 %, C = last 5 %.', body: ui.chart('pareto', 'lg') })}
+          ${ui.card({ cls: 'nx-s4', title: 'ABC × XYZ policy matrix', erp: ['SAP MM', 'inventory'], sub: 'Value class × demand variability (X: CV < 0.25 steady, Y: < 0.5, Z: erratic). Cell = items.', body: ui.chart('abcxyz', 'lg') })}</div>
+          ${ui.card({ title: 'Classification and stocking policy', erp: ['SAP MM', 'inventory'], flush: true, body: ui.table({ id: 'inv-abc', rows, rowId: (r) => r.sku, cols: [
             { label: 'Class', key: 'abc', render: (r) => ui.badge(r.abc, { A: 'crit', B: 'warn', C: 'ok' }[r.abc], { dot: false }) },
             { label: 'SKU', key: 'sku', render: (r) => `<span class="inv-sku">${esc(r.sku)}</span>` }, { label: 'Item', key: 'name' },
             { label: 'Annual usage', align: 'r', key: 'usage', render: (r) => `${fmt.n(r.usage, 0)} ${esc(r.uom)}` },
@@ -519,18 +575,18 @@ function dashboardMapCfg(selectDepot) {
     const low = net.parts.map((p) => ({ p, free: A.left[p.sku][d.id] })).sort((a, b) => a.free / Math.max(1, a.p.min) - b.free / Math.max(1, b.p.min)).slice(0, 6);
     return {
       kicker: `${d.kind} · ${d.bins} bin locations`, title: d.name, sub: `${d.id} · ${fmt.n(d.lat, 4)}, ${fmt.n(d.lng, 4)}`,
-      badges: [[h.below ? `${h.below} items below min` : 'All items above min', h.below > 4 ? 'crit' : h.below ? 'warn' : 'ok'], [`${jobs.length} jobs supplied`, 'accent']],
+      badges: [[h.below ? `${h.below} items below min` : 'All items above min', h.below > 4 ? 'crit' : h.below ? 'warn' : 'ok'], [`${jobs.length} jobs supplied`, 'accent'], ['ERP · SAP MM', 'info']],
       fields: [['Stock value', money(val)], ['Reserved for jobs', money(jobs.reduce((s, j) => s + j.lines.reduce((a, l) => a + l.fromHome * l.unitCost, 0), 0))], ['Shortfall jobs', String(jobs.filter((j) => j.short).length)], ['Warehouse temp', `<span data-live="INV.${d.id}.T">—</span> °C`], ['Relative humidity', `<span data-live="INV.${d.id}.RH">—</span> %`]],
       html: `<table class="inv-mini"><thead><tr><th>Lowest cover</th><th class="r">Free</th><th class="r">Min</th></tr></thead><tbody>${low.map((x) => `<tr><td class="inv-sku">${esc(x.p.sku)}</td><td class="r" style="color:${x.free < x.p.min / 3 ? '#dc2626' : 'inherit'}">${x.free}</td><td class="r">${Math.round(x.p.min / 3)}</td></tr>`).join('')}</tbody></table>`,
-      actions: [{ label: 'Stock audit', primary: true, icon: 'clipboard', onClick: () => nav.go('dashboard', 'Stock audit') }, { label: 'Auto-replenish', icon: 'cart', onClick: () => autoReplenish() }],
+      actions: [{ label: 'Stock audit', primary: true, icon: 'clipboard', onClick: () => nav.go('dashboard', 'Stock audit') }, { label: 'Request replenishment in SAP MM', icon: 'cart', onClick: () => autoReplenish() }],
     };
   };
   const jobInfo = (j) => ({
     kicker: `${j.mr} · ${j.wo.crewName}`, title: `${j.wo.id} · ${fmt.title(j.wo.work_type)}`, sub: `${esc(j.wo.towerName || j.wo.asset)} · ${esc(j.wo.line || '')} · planned ${fmt.short(j.wo.planned_date)}`,
-    badges: [[COVER_LABEL[j.cover], COVER_TONE[j.cover]], [STAGE_LABEL[j.wo.stage], STAGE_TONE[j.wo.stage]]],
+    badges: [[COVER_LABEL[j.cover], COVER_TONE[j.cover]], [STAGE_LABEL[j.wo.stage], STAGE_TONE[j.wo.stage]], ['ERP · SAP PM', 'info']],
     fields: [['Home depot', j.home.short], ['Material value', money(j.value)], ['Dispatch in', j.dispatchIn == null ? '—' : `${j.dispatchIn} days`]],
     html: `<table class="inv-mini"><thead><tr><th>SKU</th><th class="r">Qty</th><th>Source</th></tr></thead><tbody>${j.lines.map((l) => `<tr><td class="inv-sku">${esc(l.sku)}</td><td class="r">${l.qty}</td><td>${l.short ? `<span style="color:#dc2626">short ${l.short}</span>` : l.transfers.length ? `xfer ${l.transfers.map((t) => depotName[t.depot]).join(',')}` : depotName[j.home.id]}</td></tr>`).join('')}</tbody></table>`,
-    actions: [{ label: 'Open material request', primary: true, icon: 'clipboard', onClick: () => openJob(j.wo.id) }, ...(j.mrStatus === 'ready to reserve' ? [{ label: 'Reserve', icon: 'lock', onClick: () => reserve([j.wo.id]) }] : [])],
+    actions: [{ label: 'Open material request', primary: true, icon: 'clipboard', onClick: () => openJob(j.wo.id) }, ...(j.mrStatus === 'ready to reserve' ? [{ label: 'Request reservation', icon: 'lock', onClick: () => reserve([j.wo.id]) }] : [])],
   });
   return {
     layers: [
@@ -548,7 +604,7 @@ function dashboardMapCfg(selectDepot) {
 function transferRoutes() {
   const pairs = new Map();
   for (const j of A.jobs) for (const l of j.lines) for (const t of l.transfers) { const k = `${t.depot}>${j.home.id}`; pairs.set(k, (pairs.get(k) || 0) + t.qty * l.unitCost); }
-  return [...pairs].map(([k, v]) => { const [a, b] = k.split('>'); const da = depots.find((d) => d.id === a); const db = depots.find((d) => d.id === b); return { id: `RT-${a}-${b}`, coords: [[da.lat, da.lng], [db.lat, db.lng]], color: '#0284c7', weight: 3, dash: '6 6', tip: `Stock transfer ${depotName[a]} → ${depotName[b]} · ${money(v)}` }; });
+  return [...pairs].map(([k, v]) => { const [a, b] = k.split('>'); const da = depots.find((d) => d.id === a); const db = depots.find((d) => d.id === b); return { id: `RT-${a}-${b}`, coords: [[da.lat, da.lng], [db.lat, db.lng]], color: '#0284c7', weight: 3, dash: '6 6', tip: `Proposed stock transfer ${depotName[a]} → ${depotName[b]} · ${money(v)}` }; });
 }
 const dashboardScreen = {
   id: 'dashboard', name: 'Inventory Dashboard', icon: 'warehouse',
@@ -563,25 +619,25 @@ const dashboardScreen = {
         const fill = A.jobs.filter((j) => j.lines.length).length ? (A.jobs.filter((j) => j.lines.length && j.cover !== 'short').length / A.jobs.filter((j) => j.lines.length).length) * 100 : 100;
         const below = net.parts.filter((p) => forecastOf(p).onHandNow < forecastOf(p).rop).length;
         return `<div class="nx-page">
-          ${ui.hero({ kicker: 'Operational output · material readiness', text: `Replacement hardware requested for <b>${sel.length === 3 ? 'three' : sel.length} approved repair jobs</b> (${sel.map((j) => esc(j.wo.id)).join(', ')}); warehouse availability confirmed at ${[...new Set(sel.map((j) => esc(j.home.short)))].join(' and ')}.`, icon: 'boxes', meta: [{ label: 'Approved jobs ready', value: `${ready.length}/${approved.length}` }, { label: 'Fill rate', value: fmt.pct(fill) }], actions: ui.btn('Reserve all ready', { attrs: 'data-reserve-all' }) })}
+          ${ui.hero({ kicker: 'Operational output · material readiness', text: `Replacement hardware requested for <b>${sel.length === 3 ? 'three' : sel.length} approved repair jobs</b> (${sel.map((j) => esc(j.wo.id)).join(', ')}); warehouse availability confirmed at ${[...new Set(sel.map((j) => esc(j.home.short)))].join(' and ')}.`, icon: 'boxes', meta: [{ label: 'Approved jobs ready', value: `${ready.length}/${approved.length}` }, { label: 'Fill rate', value: fmt.pct(fill) }], actions: ui.btn('Request reservations in SAP MM', { attrs: 'data-reserve-all' }) })}
           ${ui.kpis([
             { label: 'Inventory value', value: money(val), icon: 'wallet', sub: '3 depots · standard cost', delta: 3.6, spark: [5.2, 5.4, 5.3, 5.6, 5.8, 5.7, val / 1e5] },
             { label: 'Work-order fill rate', value: fmt.n(fill, 1), unit: '%', icon: 'checkCircle', tone: fill > 85 ? 'ok' : 'warn', sub: 'jobs fully kitted from stock', delta: 2.4, spark: [78, 81, 80, 84, 83, 86, fill] },
-            { label: 'Below reorder point', value: below, icon: 'event', tone: below > 4 ? 'crit' : 'warn', sub: 'after open-work reservations', spark: [3, 5, 4, 6, 5, 7, below] },
+            { label: 'Below reorder point', value: below, icon: 'event', tone: below > 4 ? 'crit' : 'warn', sub: 'estimated ROP · after open-work reservations', exp: true, spark: [3, 5, 4, 6, 5, 7, below] },
             { label: 'Inventory turns', value: '3.8', unit: '×/yr', icon: 'sync', tone: 'violet', sub: 'MRO benchmark 2.5–4.0', delta: 0.4, deltaSuffix: '', spark: [3.1, 3.3, 3.2, 3.5, 3.6, 3.7, 3.8] },
             { label: 'Open shortfall value', value: money(A.jobs.reduce((s, j) => s + j.lines.reduce((a, l) => a + l.short * l.unitCost, 0), 0)), icon: 'cart', tone: 'crit', sub: `${A.jobs.filter((j) => j.short).length} jobs waiting on supply`, deltaInvert: true, delta: -6.2, spark: [62, 58, 66, 54, 49, 44, 41] },
           ])}
           <div class="inv-split">
-            ${ui.card({ title: 'Depots, work sites and transfer routes', sub: 'Click a depot for its stock position, a diamond for the job’s bill of materials', body: '<div id="inv-map" class="nx-map" style="height:560px"></div>', flush: true })}
+            ${ui.card({ title: 'Depots, work sites and transfer routes', erp: ['SAP MM', 'inventory'], sub: 'Click a depot for its stock position, a diamond for the job’s bill of materials', body: '<div id="inv-map" class="nx-map" style="height:560px"></div>', flush: true })}
             <div class="nx-page">
-              ${ui.card({ title: 'Stock health by depot', sub: 'Share of catalogue items above minimum after reservations', body: depots.map((d) => { const h = depotHealth(d); return `<div class="inv-dep" style="grid-template-columns:120px 1fr 60px"><span><b>${esc(d.short)}</b><span class="nx-sub">${h.below} below min</span></span><div class="nx-bar"><i style="width:${(h.pct * 100).toFixed(0)}%;background:${h.pct > 0.85 ? '#16a34a' : h.pct > 0.7 ? '#d97706' : '#dc2626'}"></i></div><span class="nx-num" style="text-align:right;font-weight:700">${fmt.pct(h.pct * 100)}</span></div>`; }).join('') })}
-              ${ui.card({ title: 'Kitting status of open jobs', body: `${ui.chart('cover', 'sm')}<div class="nx-map-legend" style="position:static;display:flex;gap:12px;font-size:11px;justify-content:center;flex-wrap:wrap">${['covered', 'transfer', 'short'].map((c) => `<span style="display:inline-flex;gap:5px;align-items:center"><i style="width:9px;height:9px;border-radius:50%;display:inline-block;background:${{ covered: '#16a34a', transfer: '#0284c7', short: '#dc2626' }[c]}"></i>${COVER_LABEL[c]} · ${A.jobs.filter((j) => j.lines.length && j.cover === c).length}</span>`).join('')}</div>` })}
+              ${ui.card({ title: 'Stock health by depot', erp: ['SAP MM', 'inventory'], sub: 'Share of catalogue items above minimum after reservations', body: depots.map((d) => { const h = depotHealth(d); return `<div class="inv-dep" style="grid-template-columns:120px 1fr 60px"><span><b>${esc(d.short)}</b><span class="nx-sub">${h.below} below min</span></span><div class="nx-bar"><i style="width:${(h.pct * 100).toFixed(0)}%;background:${h.pct > 0.85 ? '#16a34a' : h.pct > 0.7 ? '#d97706' : '#dc2626'}"></i></div><span class="nx-num" style="text-align:right;font-weight:700">${fmt.pct(h.pct * 100)}</span></div>`; }).join('') })}
+              ${ui.card({ title: 'Kitting status of open jobs', erp: ['SAP PM', 'workOrders'], body: `${ui.chart('cover', 'sm')}<div class="nx-map-legend" style="position:static;display:flex;gap:12px;font-size:11px;justify-content:center;flex-wrap:wrap">${['covered', 'transfer', 'short'].map((c) => `<span style="display:inline-flex;gap:5px;align-items:center"><i style="width:9px;height:9px;border-radius:50%;display:inline-block;background:${{ covered: '#16a34a', transfer: '#0284c7', short: '#dc2626' }[c]}"></i>${COVER_LABEL[c]} · ${A.jobs.filter((j) => j.lines.length && j.cover === c).length}</span>`).join('')}</div>` })}
               ${ui.card({ title: 'Warehouse conditions', sub: 'Live from depot BMS sensors', body: ui.stats(depots.map((d) => ({ label: `${d.short} · °C / %RH`, value: '—', live: `INV.${d.id}.T` }))) })}
             </div>
           </div>
           <div class="nx-row nx-c2">
-            ${ui.card({ title: 'Stock value — depot × category', sub: 'Where the money sits ($k at standard cost)', body: ui.chart('heat', 'md') })}
-            ${ui.card({ title: 'Critical spares at risk', sub: 'Free stock after reservations vs reorder point', flush: true, body: ui.table({ id: 'inv-risk', rowId: (p) => p.sku, rows: net.parts.map((p) => ({ ...p, fc: forecastOf(p) })).sort((a, b) => a.fc.cover - b.fc.cover).slice(0, 8), cols: [
+            ${ui.card({ title: 'Stock value — depot × category', erp: ['SAP MM', 'inventory'], sub: 'Where the money sits ($k at standard cost)', body: ui.chart('heat', 'md') })}
+            ${ui.card({ title: 'Critical spares at risk', erp: ['SAP MM', 'inventory'], exp: true, sub: 'Free stock after reservations (SAP MM) vs the estimated reorder point and days of cover', flush: true, body: ui.table({ id: 'inv-risk', rowId: (p) => p.sku, rows: net.parts.map((p) => ({ ...p, fc: forecastOf(p) })).sort((a, b) => a.fc.cover - b.fc.cover).slice(0, 8), cols: [
               { label: 'SKU', key: 'sku', render: (p) => `<span class="inv-sku">${esc(p.sku)}</span><span class="nx-sub">${esc(p.name)}</span>` },
               { label: 'Free', align: 'r', sort: (p) => p.fc.onHandNow, render: (p) => fmt.n(p.fc.onHandNow) },
               { label: 'ROP', align: 'r', sort: (p) => p.fc.rop, render: (p) => fmt.n(p.fc.rop, 1) },
@@ -615,7 +671,7 @@ const dashboardScreen = {
         const variance = rows.filter((r) => r.counted !== r.book);
         return `<div class="nx-page">
           ${ui.callout(`Audit of book stock against the bill of materials of every open work order (${A.jobs.filter((j) => j.lines.length).length} jobs). Reservations are taken from the depot nearest the job first, then transferred from the other depots. Last cycle count ${fmt.date(addDays(AS_OF, -3))}: <b>${variance.length} bin variances</b> on ${rows.length} positions (accuracy ${fmt.pct((1 - variance.length / rows.length) * 100, 1)}).`, variance.length ? 'warn' : 'ok', 'clipboard')}
-          ${ui.card({ title: 'Book stock vs planned maintenance demand', sub: 'One row per item and depot. Sort by shortfall to see what blocks dispatch.', tools: `${ui.chips('aud', [['all', 'All'], ['short', 'Shortfall only'], ['var', 'Count variance']], 'all')}${ui.search('#inv-aud', 'Filter…')}`, flush: true, body: ui.table({ id: 'inv-aud', rows, rowId: (r) => r.key, cols: [
+          ${ui.card({ title: 'Book stock vs planned maintenance demand', erp: ['SAP MM', 'inventory'], sub: 'One row per item and depot. Sort by shortfall to see what blocks dispatch.', tools: `${ui.chips('aud', [['all', 'All'], ['short', 'Shortfall only'], ['var', 'Count variance']], 'all')}${ui.search('#inv-aud', 'Filter…')}`, flush: true, body: ui.table({ id: 'inv-aud', rows, rowId: (r) => r.key, cols: [
             { label: 'Depot', sort: (r) => r.d.short, render: (r) => `<b>${esc(r.d.short)}</b><span class="nx-sub">${esc(r.d.id)}</span>` },
             { label: 'SKU', sort: (r) => r.p.sku, render: (r) => `<span class="inv-sku">${esc(r.p.sku)}</span><span class="nx-sub">${esc(r.p.name)}</span>` },
             { label: 'Book', align: 'r', key: 'book' },
@@ -643,11 +699,11 @@ const dashboardScreen = {
           { label: 'Excess / slow-moving value', value: money(exVal), icon: 'event', tone: 'warn', sub: `${excess.length} items above 80 % of max or > 240 d cover` },
           { label: 'Stock older than 12 months', value: '$84k', icon: 'clock', tone: 'crit', sub: '10 % of value · review for disposal or reallocation' },
         ])}<div class="nx-row nx-c2">
-        ${ui.card({ title: 'Inventory value trend', sub: 'Month-end value by depot ($k)', body: ui.chart('vtrend', 'md') })}
-        ${ui.card({ title: 'Ageing of stock', sub: 'Value by months since last movement', body: ui.chart('ageing', 'md') })}
-        </div>${ui.card({ title: 'Value by item', sub: 'On-hand value, coloured by category', body: ui.chart('vbar', 'lg') })}
-        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s4', title: 'Value by depot', sub: 'Share of on-hand value at standard cost', body: ui.chart('vdep', 'md') })}
-        ${ui.card({ cls: 'nx-s8', title: 'Excess and slow-moving items', sub: 'Candidates to transfer to another depot, return to vendor or stop reordering', flush: true, body: ui.table({ id: 'inv-excess', rowId: (x) => x.p.sku, rows: excess.sort((a, b) => b.ex * b.p.unitCost - a.ex * a.p.unitCost).slice(0, 8), empty: 'No excess stock.', cols: [
+        ${ui.card({ title: 'Inventory value trend', erp: ['SAP MM', 'inventory'], sub: 'Month-end value by depot ($k)', body: ui.chart('vtrend', 'md') })}
+        ${ui.card({ title: 'Ageing of stock', erp: ['SAP MM', 'inventory'], sub: 'Value by months since last movement', body: ui.chart('ageing', 'md') })}
+        </div>${ui.card({ title: 'Value by item', erp: ['SAP MM', 'inventory'], sub: 'On-hand value, coloured by category', body: ui.chart('vbar', 'lg') })}
+        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s4', title: 'Value by depot', erp: ['SAP MM', 'inventory'], sub: 'Share of on-hand value at standard cost', body: ui.chart('vdep', 'md') })}
+        ${ui.card({ cls: 'nx-s8', title: 'Excess and slow-moving items', erp: ['SAP MM', 'inventory'], exp: true, sub: 'Candidates to transfer to another depot, return to vendor or stop reordering. Cover and the suggested action are model estimates.', flush: true, body: ui.table({ id: 'inv-excess', rowId: (x) => x.p.sku, rows: excess.sort((a, b) => b.ex * b.p.unitCost - a.ex * a.p.unitCost).slice(0, 8), empty: 'No excess stock.', cols: [
           { label: 'SKU', sort: (x) => x.p.sku, render: (x) => `<span class="inv-sku">${esc(x.p.sku)}</span><span class="nx-sub">${esc(x.p.name)}</span>` },
           { label: 'Free', align: 'r', sort: (x) => x.fc.onHandNow, render: (x) => fmt.n(x.fc.onHandNow) },
           { label: 'Max', align: 'r', sort: (x) => x.p.max, render: (x) => fmt.n(x.p.max) },
@@ -686,7 +742,7 @@ const requestsScreen = {
             { label: 'Reserved', value: jobs.filter((j) => j.mrStatus === 'reserved').length, icon: 'checkCircle', tone: 'ok', sub: 'held in bin, picking list printed' },
             { label: 'Backordered', value: jobs.filter((j) => j.mrStatus === 'backorder').length, icon: 'event', tone: 'crit', sub: 'waiting on purchase orders' },
           ])}
-          ${ui.card({ title: 'Material request pipeline', sub: 'One request per work order, generated from its verified findings. Click a card for the BOM.', tools: ui.btn('Reserve all ready', { primary: true, ic: 'lock', attrs: 'data-reserve-all' }), body: ui.kanban(cols.map((c) => ({ title: fmt.title(c), color: { 'awaiting approval': '#94a3b8', 'ready to reserve': '#0284c7', reserved: '#2563eb', backorder: '#dc2626', issued: '#16a34a' }[c], items: jobs.filter((j) => j.mrStatus === c).slice(0, 14).map((j) => ({ id: j.wo.id, title: j.mr, badge: ui.badge(j.wo.priority, j.wo.priority === 'high' ? 'high' : 'muted', { dot: false }), text: `${esc(j.wo.id)} · ${esc(fmt.title(j.wo.work_type))}<br/><span style="color:var(--nx-muted)">${esc(j.wo.towerName || j.wo.asset)} · ${esc(j.wo.line || 'Substation')}</span>`, meta: `${icon('warehouse', 12)} ${esc(j.home.short)} · ${j.lines.length} lines · ${money(j.value)}${j.short ? ` · <b style="color:#dc2626">${j.short} short</b>` : ''}` })) }))) })}</div>`;
+          ${ui.card({ title: 'Material request pipeline', erp: ['SAP MM', 'inventory'], sub: 'One material requirement per SAP PM work order, derived from its verified findings. Reservations and goods issues are SAP MM documents: a request from here is sent to SAP MM and arrives with the next sync. Click a card for the BOM.', tools: `${ui.erp('SAP PM', 'workOrders')}${ui.btn('Request reservations in SAP MM', { primary: true, ic: 'lock', attrs: 'data-reserve-all' })}`, body: ui.kanban(cols.map((c) => ({ title: fmt.title(c), color: { 'awaiting approval': '#94a3b8', 'ready to reserve': '#0284c7', reserved: '#2563eb', backorder: '#dc2626', issued: '#16a34a' }[c], items: jobs.filter((j) => j.mrStatus === c).slice(0, 14).map((j) => ({ id: j.wo.id, title: j.mr, badge: ui.badge(j.wo.priority, j.wo.priority === 'high' ? 'high' : 'muted', { dot: false }), text: `${esc(j.wo.id)} · ${esc(fmt.title(j.wo.work_type))}<br/><span style="color:var(--nx-muted)">${esc(j.wo.towerName || j.wo.asset)} · ${esc(j.wo.line || 'Substation')}</span>`, meta: `${icon('warehouse', 12)} ${esc(j.home.short)} · ${j.lines.length} lines · ${money(j.value)}${j.short ? ` · <b style="color:#dc2626">${j.short} short</b>` : ''}${mrRef(j) ? ` · <span class="inv-sku">${esc(mrRef(j))}</span> requested in SAP MM` : ''}` })) }))) })}</div>`;
       },
       mount: (st, ctx) => {
         ctx.on('click', '.nx-tile[data-row]', (e, t) => openJob(t.dataset.row));
@@ -695,7 +751,7 @@ const requestsScreen = {
     },
     {
       name: 'Register', icon: 'doc',
-      render: () => ui.card({ title: 'Material request register', sub: 'Synchronised with SAP MM reservations (RESB) and Maximo inventory usage', tools: `${ui.search('#inv-mr', 'Search MR, WO, tower…')}${ui.btn('Export CSV', { ic: 'download', sm: true, attrs: 'data-csv' })}`, flush: true, body: ui.table({ id: 'inv-mr', rows: A.jobs.filter((j) => j.lines.length), rowId: (j) => j.wo.id, cols: [
+      render: () => ui.card({ title: 'Material request register', erp: ['SAP MM', 'inventory'], sub: 'Reservations read from SAP MM (RESB) and Maximo inventory usage through the integration layer. A reservation requested here shows its ERP reference until the next sync.', tools: `${ui.erp('SAP PM', 'workOrders')}${ui.search('#inv-mr', 'Search MR, WO, tower…')}${ui.btn('Export CSV', { ic: 'download', sm: true, attrs: 'data-csv' })}`, flush: true, body: ui.table({ id: 'inv-mr', rows: A.jobs.filter((j) => j.lines.length), rowId: (j) => j.wo.id, cols: [
         { label: 'Request', sort: (j) => j.mr, render: (j) => `<b class="inv-sku">${esc(j.mr)}</b><span class="nx-sub">${esc(j.wo.id)} · SAP ${esc(j.wo.sap)}</span>` },
         { label: 'Work', sort: (j) => j.wo.work_type, render: (j) => `${esc(fmt.title(j.wo.work_type))}<span class="nx-sub">${esc(j.wo.towerName || j.wo.asset)} · ${esc(j.wo.line || 'Substation')}</span>` },
         { label: 'Stage', sort: (j) => STAGE_ORDER[j.wo.stage], render: (j) => ui.badge(STAGE_LABEL[j.wo.stage], STAGE_TONE[j.wo.stage]) },
@@ -704,7 +760,7 @@ const requestsScreen = {
         { label: 'Lines', align: 'r', sort: (j) => j.lines.length, render: (j) => String(j.lines.length) },
         { label: 'Value', align: 'r', sort: (j) => j.value, render: (j) => money(j.value) },
         { label: 'Availability', sort: (j) => j.cover, render: (j) => ui.badge(COVER_LABEL[j.cover], COVER_TONE[j.cover]) },
-        { label: 'Status', sort: (j) => j.mrStatus, render: (j) => ui.badge(fmt.title(j.mrStatus), MR_TONE[j.mrStatus]) },
+        { label: 'Status', sort: (j) => j.mrStatus, render: (j) => `${ui.badge(mrText(j), MR_TONE[j.mrStatus])}${mrRef(j) ? `<span class="nx-sub inv-sku">${esc(mrRef(j))} · next sync</span>` : ''}` },
       ] }) }),
       mount: (st, ctx) => {
         ctx.on('click', '#inv-mr tr[data-row]', (e, tr) => openJob(tr.dataset.row));
@@ -725,12 +781,12 @@ const requestsScreen = {
             { label: 'Jobs dispatching ≤ 45 days', value: soon.length, icon: 'truck', sub: `${money(soon.reduce((a, j) => a + j.value, 0))} of material` },
             { label: 'Fully kitted', value: ready.length, icon: 'checkCircle', tone: 'ok', sub: `${fmt.pct(soon.length ? (ready.length / soon.length) * 100 : 100)} of the window` },
             { label: 'Need a depot transfer', value: xfer.length, icon: 'sync', tone: 'info', sub: 'stock transport order before dispatch' },
-            { label: 'At risk on dispatch day', value: atRisk.length, icon: 'alert', tone: atRisk.length ? 'crit' : 'ok', sub: 'supplier lead time exceeds time left' },
+            { label: 'At risk on dispatch day', value: atRisk.length, icon: 'alert', tone: atRisk.length ? 'crit' : 'ok', sub: 'quoted supplier lead time exceeds time left', exp: true },
           ])}
-          ${atRisk.length ? ui.callout(`<b>${atRisk.length} job(s) will not have hardware on dispatch day</b> — the supplier lead time is longer than the time left: ${atRisk.slice(0, 5).map((j) => `${esc(j.wo.id)} (${esc(j.wo.towerName || j.wo.asset)}, ${j.dispatchIn} d)`).join(', ')}. Expedite, substitute an alternate item, or re-sequence the work plan.`, 'crit', 'alert') : ui.callout('Every job dispatching in the next 45 days has its hardware in stock or arriving in time.', 'ok', 'checkCircle')}
-          ${ui.card({ title: 'Jobs dispatching in the next 45 days', sub: 'Shortages flagged against supplier lead time before the crew leaves the depot', body: ui.gantt({ range: [addDays(AS_OF, -7), addDays(AS_OF, 60)], now: AS_OF, ticks: 'week', labelW: 230, rows: soon.slice(0, 18).map((j) => { const lead = j.short ? Math.max(...j.lines.filter((l) => l.short).map((l) => l.lead)) : 0; return { label: `${j.wo.id} · ${j.wo.towerName || j.wo.asset}`, sub: `${fmt.title(j.wo.work_type)} · ${j.home.short}`, bars: [...(j.short ? [{ id: j.wo.id, start: AS_OF, end: addDays(AS_OF, lead), color: lead > j.dispatchIn ? '#fca5a5' : '#bfdbfe', text: `supply ${lead} d`, tip: `Earliest delivery ${fmt.date(addDays(AS_OF, lead))}` }] : []), { id: j.wo.id, start: j.wo.planned_date, end: addDays(j.wo.planned_date, 4), color: j.short ? (lead > j.dispatchIn ? '#dc2626' : '#d97706') : '#16a34a', text: 'go', tip: `${j.wo.id} dispatch ${fmt.date(j.wo.planned_date)}` }] }; }) }) })}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Readiness by dispatch week', sub: 'Jobs leaving each week, by kitting status', body: ui.chart('rdy', 'md') })}
-          ${ui.card({ cls: 'nx-s5', title: 'Items blocking dispatch', sub: 'Short SKUs on jobs in the 45-day window', flush: true, body: ui.table({ id: 'inv-block', rowId: (r) => r.sku, empty: 'Nothing is blocking dispatch.', rows: Object.values(soon.flatMap((j) => j.lines.filter((l) => l.short).map((l) => ({ l, j }))).reduce((m, { l, j }) => { (m[l.sku] ||= { sku: l.sku, name: l.name, short: 0, jobs: 0, lead: l.lead, first: j.dispatchIn }); m[l.sku].short += l.short; m[l.sku].jobs += 1; m[l.sku].first = Math.min(m[l.sku].first, j.dispatchIn); return m; }, {})), cols: [
+          ${atRisk.length ? ui.callout(`${ui.exp()} <b>${atRisk.length} job(s) are projected not to have hardware on dispatch day</b> — the quoted supplier lead time is longer than the time left: ${atRisk.slice(0, 5).map((j) => `${esc(j.wo.id)} (${esc(j.wo.towerName || j.wo.asset)}, ${j.dispatchIn} d)`).join(', ')}. Expedite, substitute an alternate item, or re-sequence the work plan.`, 'crit', 'alert') : ui.callout('Every job dispatching in the next 45 days has its hardware in stock or due in time on quoted lead times.', 'ok', 'checkCircle')}
+          ${ui.card({ title: 'Jobs dispatching in the next 45 days', erp: ['SAP PM', 'workOrders'], sub: 'Shortages flagged against quoted supplier lead time before the crew leaves the depot', body: ui.gantt({ range: [addDays(AS_OF, -7), addDays(AS_OF, 60)], now: AS_OF, ticks: 'week', labelW: 230, rows: soon.slice(0, 18).map((j) => { const lead = j.short ? Math.max(...j.lines.filter((l) => l.short).map((l) => l.lead)) : 0; return { label: `${j.wo.id} · ${j.wo.towerName || j.wo.asset}`, sub: `${fmt.title(j.wo.work_type)} · ${j.home.short}`, bars: [...(j.short ? [{ id: j.wo.id, start: AS_OF, end: addDays(AS_OF, lead), color: lead > j.dispatchIn ? '#fca5a5' : '#bfdbfe', text: `supply ${lead} d`, tip: `Estimated earliest delivery ${fmt.date(addDays(AS_OF, lead))} (quoted lead time)` }] : []), { id: j.wo.id, start: j.wo.planned_date, end: addDays(j.wo.planned_date, 4), color: j.short ? (lead > j.dispatchIn ? '#dc2626' : '#d97706') : '#16a34a', text: 'go', tip: `${j.wo.id} dispatch ${fmt.date(j.wo.planned_date)}` }] }; }) }) })}
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Readiness by dispatch week', erp: ['SAP PM', 'workOrders'], sub: 'Jobs leaving each week, by kitting status', body: ui.chart('rdy', 'md') })}
+          ${ui.card({ cls: 'nx-s5', title: 'Items blocking dispatch', erp: ['SAP MM', 'inventory'], sub: 'Short SKUs on jobs in the 45-day window', flush: true, body: ui.table({ id: 'inv-block', rowId: (r) => r.sku, empty: 'Nothing is blocking dispatch.', rows: Object.values(soon.flatMap((j) => j.lines.filter((l) => l.short).map((l) => ({ l, j }))).reduce((m, { l, j }) => { (m[l.sku] ||= { sku: l.sku, name: l.name, short: 0, jobs: 0, lead: l.lead, first: j.dispatchIn }); m[l.sku].short += l.short; m[l.sku].jobs += 1; m[l.sku].first = Math.min(m[l.sku].first, j.dispatchIn); return m; }, {})), cols: [
             { label: 'SKU', key: 'sku', render: (r) => `<span class="inv-sku">${esc(r.sku)}</span><span class="nx-sub">${esc(r.name)}</span>` },
             { label: 'Short', align: 'r', key: 'short', render: (r) => ui.badge(String(r.short), 'crit') }, { label: 'Jobs', align: 'r', key: 'jobs' },
             { label: 'First dispatch', align: 'r', key: 'first', render: (r) => `${r.first} d` }, { label: 'Lead', align: 'r', key: 'lead', render: (r) => `<b style="color:${r.lead > r.first ? '#dc2626' : 'inherit'}">${r.lead} d</b>` },
@@ -766,10 +822,10 @@ const suppliersScreen = {
             { label: 'Suppliers on watch', value: rows.filter((r) => r.score < 88).length, icon: 'event', tone: 'warn', sub: 'composite score below 88' },
           ])}
           <div class="nx-row nx-c2">
-            ${ui.card({ title: 'Lead time vs reliability', sub: 'Bubble size = 12-month spend. Upper-left is where you want suppliers.', body: ui.chart('bub', 'md') })}
-            ${ui.card({ title: 'Supplier capability profile', sub: 'OTD, quality, lead-time adherence, responsiveness, local content', body: ui.chart('radar', 'md') })}
+            ${ui.card({ title: 'Lead time vs reliability', erp: ['SAP MM', 'suppliers'], sub: 'Bubble size = 12-month spend. Upper-left is where you want suppliers.', body: ui.chart('bub', 'md') })}
+            ${ui.card({ title: 'Supplier capability profile', erp: ['SAP MM', 'suppliers'], sub: 'OTD, quality, lead-time adherence, responsiveness, local content', body: ui.chart('radar', 'md') })}
           </div>
-          ${ui.card({ title: 'Supplier scorecard', sub: 'Composite = 45 % OTD + 35 % quality + 20 % lead-time adherence', flush: true, body: ui.table({ id: 'inv-sup', rows: rows.sort((a, b) => b.score - a.score), rowId: (s) => s.id, cols: [
+          ${ui.card({ title: 'Supplier scorecard', erp: ['SAP MM', 'suppliers'], sub: 'Composite = 45 % OTD + 35 % quality + 20 % lead-time adherence', flush: true, body: ui.table({ id: 'inv-sup', rows: rows.sort((a, b) => b.score - a.score), rowId: (s) => s.id, cols: [
             { label: 'Supplier', key: 'name', render: (s) => `<b>${esc(s.name)}</b><span class="nx-sub">${esc(s.id)} · ${esc(s.country)}</span>` },
             { label: 'Category', key: 'cat' },
             { label: 'Score', align: 'r', key: 'score', render: (s) => ui.score(s.score, s.score >= 92 ? '#16a34a' : s.score >= 88 ? '#d97706' : '#dc2626') },
@@ -792,10 +848,10 @@ const suppliersScreen = {
     {
       name: 'Lead times', icon: 'clock',
       render: () => `<div class="nx-page">
-        ${ui.card({ title: 'Actual lead-time distribution by supplier', sub: 'Box = interquartile range of the last 24 deliveries; dot = quoted lead time. Wide boxes need more safety stock.', body: ui.chart('box', 'lg') })}
+        ${ui.card({ title: 'Actual lead-time distribution by supplier', erp: ['SAP MM', 'suppliers'], sub: 'Box = interquartile range of the last 24 deliveries; dot = quoted lead time. Wide boxes need more safety stock.', body: ui.chart('box', 'lg') })}
         <div class="nx-row nx-c2">
-          ${ui.card({ title: 'Lead time vs required-by date', sub: 'Open shortfalls: days until the job dispatches vs supplier lead time', body: ui.chart('need', 'md') })}
-          ${ui.card({ title: 'Hardware shortage watch-list', sub: 'The nine items with the least cover beyond their lead time — negative gap means stock runs out first', flush: true, body: ui.table({ id: 'inv-watch', rowId: (r) => r.sku, rows: net.parts.map((p) => ({ ...p, fc: forecastOf(p) })).sort((a, b) => a.fc.cover - a.lead - (b.fc.cover - b.lead)).slice(0, 9), cols: [
+          ${ui.card({ title: 'Lead time vs required-by date', erp: ['SAP PM', 'workOrders'], sub: 'Open shortfalls: days until the job dispatches vs supplier lead time', body: ui.chart('need', 'md') })}
+          ${ui.card({ title: 'Hardware shortage watch-list', erp: ['SAP MM', 'inventory'], exp: true, sub: 'The nine items with the least estimated cover beyond their lead time — a negative gap means stock is projected to run out first', flush: true, body: ui.table({ id: 'inv-watch', rowId: (r) => r.sku, rows: net.parts.map((p) => ({ ...p, fc: forecastOf(p) })).sort((a, b) => a.fc.cover - a.lead - (b.fc.cover - b.lead)).slice(0, 9), cols: [
             { label: 'SKU', key: 'sku', render: (p) => `<span class="inv-sku">${esc(p.sku)}</span><span class="nx-sub">${esc(p.supplierName)}</span>` },
             { label: 'Cover', align: 'r', sort: (p) => p.fc.cover, render: (p) => coverBadge(p.fc.cover) },
             { label: 'Lead', align: 'r', key: 'lead', render: (p) => `${p.lead} d` },
@@ -803,7 +859,7 @@ const suppliersScreen = {
             { label: 'Stock-out', sort: (p) => p.fc.stockout, render: (p) => (p.fc.stockout ? fmt.short(p.fc.stockout) : '—') },
           ] }) })}
         </div>
-        ${ui.card({ title: 'Lead-time drift — quoted vs actual', sub: 'Quoted lead time against the median and 90th percentile of the last 24 deliveries. The gap is what safety stock has to absorb.', body: ui.chart('drift', 'md') })}</div>`,
+        ${ui.card({ title: 'Lead-time drift — quoted vs actual', erp: ['SAP MM', 'suppliers'], sub: 'Quoted lead time against the median and 90th percentile of the last 24 deliveries. The gap is what safety stock has to absorb.', body: ui.chart('drift', 'md') })}</div>`,
       mount: (st, ctx) => {
         ctx.on('click', '#inv-watch tr[data-row]', (e, tr) => openPart(tr.dataset.row));
         const p90 = (arr) => { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(0.9 * (a.length - 1))]; };
@@ -823,10 +879,10 @@ const suppliersScreen = {
           { label: 'Single-sourced items', value: `${net.parts.length}/${net.parts.length}`, icon: 'link', tone: 'warn', sub: 'every item has one approved supplier today' },
           { label: 'Critical spares single-sourced', value: critSingle, icon: 'alert', tone: 'crit', sub: 'second-source qualification programme' },
           { label: 'Imported share of spend', value: fmt.pct(importSpend * 100), icon: 'cart', tone: 'info', sub: 'customs adds 3–7 days to lead time' },
-          { label: 'Highest supplier risk', value: risk[0].r, icon: 'shield', tone: risk[0].r >= 50 ? 'crit' : 'warn', sub: risk[0].s.name },
+          { label: 'Highest supplier risk', value: risk[0].r, icon: 'shield', tone: risk[0].r >= 50 ? 'crit' : 'warn', sub: risk[0].s.name, exp: true },
         ])}<div class="nx-row nx-c12">
-          ${ui.card({ cls: 'nx-s5', title: 'Supply-risk matrix', sub: 'Probability of a late delivery × impact on critical spares', body: ui.chart('rmx', 'md') })}
-          ${ui.card({ cls: 'nx-s3', title: 'Spend by supplier country', sub: 'Geographic concentration of 12-month spend', body: ui.chart('ctry', 'md') })}
+          ${ui.card({ cls: 'nx-s5', title: 'Supply-risk matrix', exp: true, sub: 'Estimated probability of a late delivery (100 − OTD) × impact on critical spares', body: ui.chart('rmx', 'md') })}
+          ${ui.card({ cls: 'nx-s3', title: 'Spend by supplier country', erp: ['SAP MM', 'suppliers'], sub: 'Geographic concentration of 12-month spend', body: ui.chart('ctry', 'md') })}
           ${ui.card({ cls: 'nx-s4', title: 'Mitigations in place', body: ui.timeline([
             { when: 'Active', title: 'Vendor-managed inventory — Caspian Line Hardware', text: 'Dampers, clamps and cotter pins replenished weekly to North Depot against min/max.', tone: 'ok' },
             { when: 'Active', title: 'Frame agreement — Anatolia Insulator Works', text: 'Long-rod insulators held at supplier for 6 weeks of demand; call-off within 10 days.', tone: 'ok' },
@@ -834,7 +890,7 @@ const suppliersScreen = {
             { when: 'Watch', title: 'Kura Steel Fabrication on improvement plan', text: `OTD ${supplierById.get('SUP-04').otd}% — weekly expediting call; galvanising capacity added Dec.`, tone: 'crit' },
           ]) })}
           </div>
-          ${ui.card({ title: 'Supplier risk register', flush: true, body: ui.table({ id: 'inv-srisk', rows: risk, rowId: (r) => r.s.id, cols: [
+          ${ui.card({ title: 'Supplier risk register', erp: ['SAP MM', 'suppliers'], exp: true, sub: 'Heuristic risk score from late-delivery rate, lead-time variability, critical items and logistics distance. The weights are assumptions, not fitted to delivery history.', flush: true, body: ui.table({ id: 'inv-srisk', rows: risk, rowId: (r) => r.s.id, cols: [
             { label: 'Supplier', sort: (r) => r.s.name, render: (r) => `<b>${esc(r.s.name)}</b><span class="nx-sub">${esc(r.s.country)}</span>` },
             { label: 'Risk', align: 'r', sort: (r) => r.r, render: (r) => ui.score(r.r, r.r >= 50 ? '#dc2626' : r.r >= 30 ? '#d97706' : '#16a34a') },
             { label: 'Items sourced', align: 'r', sort: (r) => r.sole, render: (r) => String(r.sole) },
@@ -847,7 +903,7 @@ const suppliersScreen = {
         ctx.on('click', '#inv-srisk tr[data-row]', (e, tr) => openSupplier(tr.dataset.row));
         const byC = {}; for (const x of net.suppliers) byC[x.country] = (byC[x.country] || 0) + x.spend;
         ctx.chart('ctry', ch.donut({ data: Object.entries(byC).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k, value: Math.round(v) })), center: 'spend', value: money(Object.values(byC).reduce((a, b) => a + b, 0)) }));
-        ctx.chart('rmx', { grid: ch.grid({ top: 20 }), tooltip: { trigger: 'item', formatter: (p) => (p.data?.name ? `<b>${esc(p.data.name)}</b><br/>Late-delivery probability ${fmt.n(p.data.value[0], 0)} %<br/>Critical spares supplied: ${Math.round(p.data.value[1] - 0.4)}` : '') }, xAxis: { type: 'value', name: 'Late-delivery probability %', min: 0, max: 30, nameLocation: 'middle', nameGap: 26 }, yAxis: { type: 'value', name: 'Impact (critical spares)', min: 0, max: 6 }, visualMap: { show: false, dimension: 0, min: 0, max: 30, inRange: { color: ['#16a34a', '#f59e0b', '#dc2626'] } }, series: [{ type: 'scatter', symbolSize: 22, data: net.suppliers.map((s) => ({ name: s.name, value: [100 - s.otd, net.parts.filter((p) => p.supplier === s.id && p.critical).length + 0.4], label: { show: true, position: 'right', formatter: s.name.split(' ')[0], fontSize: 10.5, color: '#334155' } })), markArea: { silent: true, data: [[{ xAxis: 0, yAxis: 0, itemStyle: { color: 'rgba(22,163,74,.06)' } }, { xAxis: 10, yAxis: 2 }], [{ xAxis: 10, yAxis: 2, itemStyle: { color: 'rgba(245,158,11,.07)' } }, { xAxis: 20, yAxis: 4 }], [{ xAxis: 20, yAxis: 4, itemStyle: { color: 'rgba(220,38,38,.07)' } }, { xAxis: 30, yAxis: 6 }]] } }] });
+        ctx.chart('rmx', { grid: ch.grid({ top: 20 }), tooltip: { trigger: 'item', formatter: (p) => (p.data?.name ? `<b>${esc(p.data.name)}</b><br/>Estimated late-delivery probability ${fmt.n(p.data.value[0], 0)} %<br/>Critical spares supplied: ${Math.round(p.data.value[1] - 0.4)}` : '') }, xAxis: { type: 'value', name: 'Est. late-delivery probability %', min: 0, max: 30, nameLocation: 'middle', nameGap: 26 }, yAxis: { type: 'value', name: 'Impact (critical spares)', min: 0, max: 6 }, visualMap: { show: false, dimension: 0, min: 0, max: 30, inRange: { color: ['#16a34a', '#f59e0b', '#dc2626'] } }, series: [{ type: 'scatter', symbolSize: 22, data: net.suppliers.map((s) => ({ name: s.name, value: [100 - s.otd, net.parts.filter((p) => p.supplier === s.id && p.critical).length + 0.4], label: { show: true, position: 'right', formatter: s.name.split(' ')[0], fontSize: 10.5, color: '#334155' } })), markArea: { silent: true, data: [[{ xAxis: 0, yAxis: 0, itemStyle: { color: 'rgba(22,163,74,.06)' } }, { xAxis: 10, yAxis: 2 }], [{ xAxis: 10, yAxis: 2, itemStyle: { color: 'rgba(245,158,11,.07)' } }, { xAxis: 20, yAxis: 4 }], [{ xAxis: 20, yAxis: 4, itemStyle: { color: 'rgba(220,38,38,.07)' } }, { xAxis: 30, yAxis: 6 }]] } }] });
       },
     },
   ],
@@ -867,11 +923,11 @@ const procurementScreen = {
         return `<div class="nx-page">
           <div class="inv-flow">${STAGES.map(([k, l]) => `<div><small>${esc(l)}</small><b>${by[k].length}</b><div class="nx-note">${money(by[k].reduce((s, x) => s + x.value, 0))}</div></div>`).join('')}</div>
           <div class="nx-row nx-c2">
-            ${ui.card({ title: 'Procure-to-pay funnel', sub: 'Document value at each step (requisition → goods receipt)', body: ui.chart('funnel', 'md') })}
-            ${ui.card({ title: 'Inbound deliveries — next 12 weeks', sub: 'Expected receipts by week and depot', body: ui.chart('inbound', 'md') })}
+            ${ui.card({ title: 'Procure-to-pay funnel', erp: ['SAP MM', 'purchasing'], sub: 'Document value at each step (requisition → goods receipt)', body: ui.chart('funnel', 'md') })}
+            ${ui.card({ title: 'Inbound deliveries — next 12 weeks', erp: ['SAP MM', 'purchasing'], sub: 'Promised receipts (purchase-order delivery dates) by week and depot', body: ui.chart('inbound', 'md') })}
           </div>
           ${late ? ui.callout(`<b>${late} purchase order(s) past their promised date.</b> Expedite with the supplier or call off from the frame agreement.`, 'warn', 'clock') : ''}
-          ${ui.card({ title: 'Purchase orders', sub: 'Released to SAP MM · ME2N', tools: ui.search('#inv-po', 'Search PO, SKU, supplier…'), flush: true, body: ui.table({ id: 'inv-po', rows: state.pos, rowId: (p) => p.id, cols: [
+          ${ui.card({ title: 'Purchase orders', erp: ['SAP MM', 'purchasing'], sub: `${erp.syncedText('purchasing')} · ME2N · read-only here`, tools: ui.search('#inv-po', 'Search PO, SKU, supplier…'), flush: true, body: ui.table({ id: 'inv-po', rows: state.pos, rowId: (p) => p.id, cols: [
             { label: 'PO', key: 'id', render: (p) => `<b class="inv-sku">${esc(p.id)}</b><span class="nx-sub">created ${fmt.short(p.created)}</span>` },
             { label: 'Item', key: 'sku', render: (p) => `<span class="inv-sku">${esc(p.sku)}</span><span class="nx-sub">${esc(p.name)}</span>` },
             { label: 'Supplier', key: 'supplierName' },
@@ -899,12 +955,12 @@ const procurementScreen = {
         const DOA = [['Planner', 0, 10000], ['Maintenance manager', 10000, 50000], ['Head of asset management', 50000, 250000], ['Director (CAPEX board)', 250000, Infinity]];
         return `<div class="nx-page">
           ${ui.kpis([
-            { label: 'PRs awaiting release', value: state.prs.length, icon: 'doc', tone: 'warn', sub: `${money(state.prs.reduce((a, x) => a + x.value, 0))} requested` },
-            { label: 'MRP suggestions', value: sugg.length, icon: 'ai', tone: sugg.length ? 'info' : 'ok', sub: 'items below reorder point' },
+            { label: 'PRs awaiting release', value: state.prs.length, icon: 'doc', tone: 'warn', sub: `${money(state.prs.reduce((a, x) => a + x.value, 0))} · released in SAP MM` },
+            { label: 'Reorder suggestions', value: sugg.length, icon: 'ai', tone: sugg.length ? 'info' : 'ok', sub: 'items below estimated reorder point', exp: true },
             { label: 'PR → PO cycle time', value: '4.6', unit: 'days', icon: 'clock', tone: 'ok', delta: -0.8, deltaInvert: true, deltaSuffix: ' d', sub: 'median, last 12 weeks · target 5 d', spark: [6.8, 6.1, 5.9, 5.4, 5.6, 5.0, 4.8, 4.6] },
             { label: 'Open commitments', value: money(openPO.reduce((a, x) => a + x.value, 0)), icon: 'wallet', tone: 'violet', sub: `${openPO.length} open purchase orders` },
           ])}
-          ${ui.card({ title: 'MRP suggestions', sub: 'Inventory position (free + inbound − shortfall) below reorder point. Quantity = max(EOQ, gap to ROP + safety stock).', tools: ui.btn(`Generate ${sugg.length} purchase requests`, { primary: true, ic: 'ai', attrs: 'data-auto' }), flush: true, body: ui.table({ id: 'inv-sugg', rows: sugg, rowId: (x) => x.p.sku, empty: 'No item is below its reorder point.', cols: [
+          ${ui.card({ title: 'Reorder suggestions', exp: true, sub: 'Inventory position (free + inbound − shortfall) below the estimated reorder point. Quantity = max(EOQ, gap to ROP + safety stock). A request asks SAP MM to create the requisition; nothing is created here.', tools: ui.btn(`Request ${sugg.length} requisitions in SAP MM`, { primary: true, ic: 'ai', attrs: 'data-auto' }), flush: true, body: ui.table({ id: 'inv-sugg', rows: sugg, rowId: (x) => x.p.sku, empty: 'No item is below its estimated reorder point.', cols: [
             { label: 'SKU', sort: (x) => x.p.sku, render: (x) => `<span class="inv-sku">${esc(x.p.sku)}</span><span class="nx-sub">${esc(x.p.name)}</span>` },
             { label: 'Position', align: 'r', sort: (x) => x.pos, render: (x) => fmt.n(x.pos) },
             { label: 'Reorder point', align: 'r', sort: (x) => x.fc.rop, render: (x) => fmt.n(x.fc.rop, 1) },
@@ -912,17 +968,18 @@ const procurementScreen = {
             { label: 'Suggest qty', align: 'r', sort: (x) => x.qty, render: (x) => `<b>${x.qty}</b> ${esc(x.p.uom)}` },
             { label: 'Value', align: 'r', sort: (x) => x.qty * x.p.unitCost, render: (x) => money(x.qty * x.p.unitCost) },
             { label: 'Supplier', sort: (x) => x.p.supplierName, render: (x) => `${esc(x.p.supplierName)}<span class="nx-sub">lead ${x.p.lead} d</span>` },
-            { label: '', sort: false, render: (x) => ui.btn('Raise PR', { sm: true, attrs: `data-pr="${esc(x.p.sku)}" data-q="${x.qty}"` }) },
+            { label: '', sort: false, render: (x) => ui.btn('Request PR', { sm: true, attrs: `data-pr="${esc(x.p.sku)}" data-q="${x.qty}"` }) },
           ] }) })}
-          ${ui.card({ title: `Purchase requests (${state.prs.length})`, sub: 'Raised from this workspace and awaiting release in SAP MM', flush: true, body: ui.table({ id: 'inv-pr', rows: state.prs, rowId: (x) => x.id, empty: 'No purchase requests yet — use “Generate” above or raise one from a shortfall.', cols: [
-            { label: 'PR', key: 'id', render: (x) => `<b class="inv-sku">${esc(x.id)}</b>` }, { label: 'Item', key: 'sku', render: (x) => `<span class="inv-sku">${esc(x.sku)}</span><span class="nx-sub">${esc(x.name)}</span>` },
+          ${ui.card({ title: `Purchase requisitions in SAP MM (${state.prs.length})`, erp: ['SAP MM', 'purchasing'], sub: 'Open requisitions read from SAP MM, and requisition requests sent to SAP MM from this workspace (ERP reference and status). SAP MM creates and releases the documents; none is kept or edited here.', flush: true, body: ui.table({ id: 'inv-pr', rows: state.prs, rowId: (x) => x.id, empty: 'No open requisition in SAP MM and no request sent from this workspace.', cols: [
+            { label: 'ERP reference', key: 'id', render: (x) => `<b class="inv-sku">${esc(x.id)}</b>` }, { label: 'Item', key: 'sku', render: (x) => `<span class="inv-sku">${esc(x.sku)}</span><span class="nx-sub">${esc(x.name)}</span>` },
             { label: 'Qty', align: 'r', key: 'qty' }, { label: 'Value', align: 'r', key: 'value', render: (x) => money(x.value) }, { label: 'Supplier', key: 'supplierName' }, { label: 'Reason', key: 'reason' }, { label: 'Need by', key: 'need', render: (x) => fmt.short(x.need) },
-            { label: '', sort: false, render: (x) => ui.btn('Convert to PO', { sm: true, primary: true, attrs: `data-po="${esc(x.id)}"` }) },
+            { label: 'Status', sort: (x) => prStatus(x)[0], render: (x) => ui.badge(...prStatus(x)) },
+            { label: '', sort: false, render: (x) => (x.requested || state.prRelease.has(x.id) ? '' : ui.btn('Request release in SAP MM', { sm: true, primary: true, attrs: `data-po="${esc(x.id)}"` })) },
           ] }) })}
           <div class="nx-row nx-c12">
-            ${ui.card({ cls: 'nx-s5', title: 'Requisition-to-PO cycle time', sub: 'Median days from PR creation to PO release, weekly', body: ui.chart('cyc', 'md') })}
-            ${ui.card({ cls: 'nx-s4', title: 'Open commitments by category', sub: 'Value on released, not yet received POs', body: ui.chart('commit', 'md') })}
-            ${ui.card({ cls: 'nx-s3', title: 'Release authority (DoA)', sub: 'Who releases each purchase request', body: `<div class="nx-list">${DOA.map(([who, lo, hi]) => { const n = state.prs.filter((x) => x.value >= lo && x.value < hi).length; return ui.li({ ic: 'key', title: who, sub: hi === Infinity ? `≥ ${money(lo)}` : `${money(lo)} – ${money(hi)}`, end: ui.badge(`${n} PR`, n ? 'warn' : 'muted', { dot: false }) }); }).join('')}</div>` })}
+            ${ui.card({ cls: 'nx-s5', title: 'Requisition-to-PO cycle time', erp: ['SAP MM', 'purchasing'], sub: 'Median days from PR creation to PO release, weekly', body: ui.chart('cyc', 'md') })}
+            ${ui.card({ cls: 'nx-s4', title: 'Open commitments by category', erp: ['SAP MM', 'purchasing'], sub: 'Value on released, not yet received POs', body: ui.chart('commit', 'md') })}
+            ${ui.card({ cls: 'nx-s3', title: 'Release authority (DoA)', sub: 'Who releases each requisition in SAP MM', body: `<div class="nx-list">${DOA.map(([who, lo, hi]) => { const n = state.prs.filter((x) => x.value >= lo && x.value < hi).length; return ui.li({ ic: 'key', title: who, sub: hi === Infinity ? `≥ ${money(lo)}` : `${money(lo)} – ${money(hi)}`, end: ui.badge(`${n} PR`, n ? 'warn' : 'muted', { dot: false }) }); }).join('')}</div>` })}
           </div></div>`;
       },
       mount: (st, ctx) => {
@@ -935,10 +992,11 @@ const procurementScreen = {
         ctx.on('click', '[data-pr]', (e, b) => { e.stopPropagation(); raisePR(b.dataset.pr, Number(b.dataset.q)); });
         ctx.on('click', '[data-po]', (e, b) => {
           e.stopPropagation();
-          const i = state.prs.findIndex((x) => x.id === b.dataset.po); const pr = state.prs[i]; state.prs.splice(i, 1);
-          const p = partBySku.get(pr.sku);
-          const po = { id: `PO-${state.seqPO++}`, sku: pr.sku, name: pr.name, supplier: pr.supplier, supplierName: pr.supplierName, qty: pr.qty, value: pr.value, depot: p.unitCost > 5000 ? 'DEP-S2' : nearestDepot(net.workOrders.find((w) => w.id === pr.wo) || depots[0]).id, stage: 'po', created: AS_OF, eta: addDays(AS_OF, p.lead), late: false };
-          state.pos.unshift(po); toast(`${po.id} released to ${po.supplierName} · ETA ${fmt.date(po.eta)}.`); nav.rerender();
+          // Releasing a requisition to a purchase order is a purchasing decision taken in SAP MM: ask for it there.
+          // The purchase order is created by SAP MM and arrives with the next sync; none is built here.
+          const pr = state.prs.find((x) => x.id === b.dataset.po); if (!pr || state.prRelease.has(pr.id)) return;
+          state.prRelease.set(pr.id, erpRequest('purchasing', `Release requisition ${pr.id} to purchase order · ${pr.qty} × ${pr.sku}`, { requisition: pr.id, sku: pr.sku, qty: pr.qty, supplier: pr.supplier }).ref);
+          nav.rerender();
         });
       },
     },
@@ -953,12 +1011,12 @@ const procurementScreen = {
           { label: 'Purchase price variance', value: '+2.4', unit: '%', icon: 'trend', tone: 'warn', sub: 'actual vs standard cost, YTD', delta: 2.4, deltaInvert: true },
           { label: 'Budget used (FY 2026)', value: fmt.n((ytd / 610000) * 100, 0), unit: '%', icon: 'wallet', tone: ytd > 610000 * 0.9 ? 'warn' : 'violet', sub: `${money(ytd)} of the $610k MRO materials budget` },
         ])}<div class="nx-row nx-c12">
-        ${ui.card({ cls: 'nx-s5', title: 'Spend by supplier', sub: '12-month committed spend', body: ui.chart('sps', 'md') })}
-        ${ui.card({ cls: 'nx-s7', title: 'Spend by category and month', sub: 'Material consumption at standard cost ($k)', body: ui.chart('spm', 'md') })}
+        ${ui.card({ cls: 'nx-s5', title: 'Spend by supplier', erp: ['SAP MM', 'suppliers'], sub: '12-month committed spend', body: ui.chart('sps', 'md') })}
+        ${ui.card({ cls: 'nx-s7', title: 'Spend by category and month', erp: ['SAP MM', 'inventory'], sub: 'Material consumption at standard cost ($k)', body: ui.chart('spm', 'md') })}
         </div><div class="nx-row nx-c3">
         ${ui.card({ title: 'Budget burn, FY 2026', sub: 'Materials spend against the approved MRO budget', body: ui.chart('burn', 'lg') })}
-        ${ui.card({ title: 'Contract coverage', sub: 'Spend by agreement type', body: ui.chart('ctype', 'lg') })}
-        ${ui.card({ title: 'Price variance by category', sub: 'Paid vs standard cost, % (positive = paid more)', body: ui.chart('ppv', 'lg') })}
+        ${ui.card({ title: 'Contract coverage', erp: ['SAP MM', 'suppliers'], sub: 'Spend by agreement type', body: ui.chart('ctype', 'lg') })}
+        ${ui.card({ title: 'Price variance by category', erp: ['SAP MM', 'purchasing'], sub: 'Paid vs standard cost, % (positive = paid more)', body: ui.chart('ppv', 'lg') })}
         </div></div>`;
       },
       mount: (st, ctx) => {
@@ -981,7 +1039,7 @@ const procurementScreen = {
 
 /* ================================================================== screen: Stock Forecast */
 const forecastScreen = {
-  id: 'forecast', name: 'Stock Forecast', icon: 'forecast',
+  id: 'forecast', name: 'Stock Forecast', icon: 'forecast', exp: true,
   tabs: [
     {
       name: 'Demand forecast', icon: 'forecast',
@@ -989,20 +1047,20 @@ const forecastScreen = {
         const opts = [...net.parts].sort((a, b) => b.demand - a.demand);
         return `<div class="nx-page">
           ${ui.kpis([
-            { label: 'Forecast demand · next 6 months', value: money(net.parts.reduce((s, p) => s + forecastOf(p).f.reduce((a, b) => a + b, 0) * p.unitCost, 0)), icon: 'forecast', tone: 'violet', sub: 'at standard cost, all items' },
-            { label: 'Forecast accuracy (MAPE)', value: '14.2', unit: '%', icon: 'target', tone: 'ok', sub: 'rolling 6-month backtest', delta: -2.1, deltaInvert: true },
-            { label: 'Items projected to stock out', value: net.parts.filter((p) => forecastOf(p).cover < p.lead).length, icon: 'event', tone: 'crit', sub: 'before replenishment can arrive' },
-            { label: 'Campaign uplift', value: '+31', unit: '%', icon: 'drone', sub: 'spring inspection campaign effect' },
+            { label: 'Forecast demand · next 6 months', value: money(net.parts.reduce((s, p) => s + forecastOf(p).f.reduce((a, b) => a + b, 0) * p.unitCost, 0)), icon: 'forecast', tone: 'violet', sub: 'at standard cost, all items', exp: true },
+            { label: 'Forecast error (MAPE)', value: '14.2', unit: '%', icon: 'target', tone: 'ok', sub: 'back-test on simulated demo data, not on real consumption', delta: -2.1, deltaInvert: true, },
+            { label: 'Items projected to stock out', value: net.parts.filter((p) => forecastOf(p).cover < p.lead).length, icon: 'event', tone: 'crit', sub: 'before replenishment can arrive', exp: true },
+            { label: 'Campaign uplift', value: '+31', unit: '%', icon: 'drone', sub: 'assumed spring inspection campaign effect', exp: true },
           ])}
-          ${ui.card({ title: 'Consumption history and forecast', sub: 'Monthly issues, 6-month forecast with 80 % interval. Next two months include the open work-order pipeline.', tools: `<select class="nx-select" id="inv-fsku">${opts.map((p) => `<option value="${esc(p.sku)}">${esc(p.sku)} — ${esc(p.name)}</option>`).join('')}</select>`, body: `<div class="nx-row" style="grid-template-columns:minmax(0,1fr) 260px"><div class="nx-chart is-lg" data-chart="fc"></div><div id="inv-fstats"></div></div>` })}
-          ${ui.card({ title: 'Forecast demand by category', sub: 'Next 6 months, units converted to value ($k)', body: ui.chart('fcat', 'md') })}</div>`;
+          ${ui.card({ title: 'Consumption history and forecast', erp: ['SAP MM', 'inventory'], exp: true, sub: 'Monthly issues read from SAP MM, and 6-month forecast with 80 % interval. Next two months include the open work-order pipeline.', tools: `<select class="nx-select" id="inv-fsku">${opts.map((p) => `<option value="${esc(p.sku)}">${esc(p.sku)} — ${esc(p.name)}</option>`).join('')}</select>`, body: `<div class="nx-row" style="grid-template-columns:minmax(0,1fr) 260px"><div class="nx-chart is-lg" data-chart="fc"></div><div id="inv-fstats"></div></div>` })}
+          ${ui.card({ title: 'Forecast demand by category', exp: true, sub: 'Next 6 months, units converted to value ($k)', body: ui.chart('fcat', 'md') })}</div>`;
       },
       mount: (st, ctx) => {
         const sel = st.querySelector('#inv-fsku');
         const draw = () => {
           const p = partBySku.get(sel.value); const fc = forecastOf(p);
           ctx.chart('fc', forecastChart(p, fc));
-          st.querySelector('#inv-fstats').innerHTML = `${ui.kv([['Mean monthly use', `${fmt.n(fc.mean, 1)} ${esc(p.uom)}`], ['Std. deviation', fmt.n(fc.sd, 1)], ['Lead time', `${p.lead} d`], ['Safety stock (95 %)', fmt.n(fc.ss, 1)], ['Reorder point', fmt.n(fc.rop, 1)], ['EOQ', fmt.n(fc.eoq)], ['Free stock', fmt.n(fc.onHandNow)], ['Days of cover', coverBadge(fc.cover)], ['Projected stock-out', fc.stockout ? fmt.date(fc.stockout) : '—']])}<div style="margin-top:12px">${ui.btn('Open item', { sm: true, attrs: `data-open="${esc(p.sku)}"` })} ${ui.btn('Raise PR', { sm: true, primary: true, attrs: `data-pr2="${esc(p.sku)}" data-q="${fc.eoq}"` })}</div>`;
+          st.querySelector('#inv-fstats').innerHTML = `${ui.kv([['Mean monthly use', `${fmt.n(fc.mean, 1)} ${esc(p.uom)}`], ['Std. deviation', fmt.n(fc.sd, 1)], ['Lead time', `${p.lead} d`], ['Safety stock (95 %)', fmt.n(fc.ss, 1)], ['Reorder point', fmt.n(fc.rop, 1)], ['EOQ', fmt.n(fc.eoq)], ['Free stock', fmt.n(fc.onHandNow)], ['Days of cover', coverBadge(fc.cover)], ['Projected stock-out', fc.stockout ? fmt.date(fc.stockout) : '—']])}<div style="margin-top:12px">${ui.btn('Open item', { sm: true, attrs: `data-open="${esc(p.sku)}"` })} ${ui.btn('Request PR in SAP MM', { sm: true, primary: true, attrs: `data-pr2="${esc(p.sku)}" data-q="${fc.eoq}"` })}</div>`;
         };
         sel.addEventListener('change', draw); draw();
         ctx.on('click', '[data-open]', (e, b) => openPart(b.dataset.open));
@@ -1018,14 +1076,14 @@ const forecastScreen = {
         const now = rows.filter((r) => r.fc.onHandNow < r.fc.rop); const watch = rows.filter((r) => r.fc.onHandNow >= r.fc.rop && r.fc.cover < r.p.lead * 2);
         return `<div class="nx-page">
           ${ui.kpis([
-            { label: 'Reorder now', value: now.length, icon: 'alert', tone: now.length ? 'crit' : 'ok', sub: 'free stock below reorder point' },
+            { label: 'Reorder now', value: now.length, icon: 'alert', tone: now.length ? 'crit' : 'ok', sub: 'free stock below estimated reorder point', exp: true },
             { label: 'Watch', value: watch.length, icon: 'event', tone: 'warn', sub: 'cover under two lead times' },
             { label: 'Total safety stock value', value: money(rows.reduce((a, r) => a + r.fc.ss * r.p.unitCost, 0)), icon: 'shield', tone: 'violet', sub: '95 % cycle service level' },
             { label: 'Average order cycle', value: fmt.n(rows.reduce((a, r) => a + (r.fc.daily > 0 ? r.fc.eoq / r.fc.daily : 0), 0) / rows.length, 0), unit: 'days', icon: 'sync', sub: 'EOQ ÷ daily demand' },
           ])}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Days of cover vs supplier lead time', sub: 'Below the diagonal the stock runs out before an order placed today arrives. Size = item value on hand.', body: ui.chart('cvl', 'md') })}
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Days of cover vs supplier lead time', sub: 'Below the diagonal the stock is projected to run out before an order placed today would arrive. Size = item value on hand.', body: ui.chart('cvl', 'md') })}
           ${ui.card({ cls: 'nx-s4', title: 'Inventory position vs reorder point', sub: 'Items closest to their trigger', body: ui.chart('posrop', 'md') })}</div>
-          ${ui.card({ title: 'Reorder parameters', sub: 'Safety stock = z·σ·√L (z = 1.65, 95 % cycle service). ROP = daily demand × lead + SS. EOQ with $85 order cost and 22 %/yr holding.', flush: true, body: ui.table({ id: 'inv-rop', rows, rowId: (r) => r.p.sku, cols: [
+          ${ui.card({ title: 'Reorder parameters', exp: true, sub: 'Safety stock = z·σ·√L (z = 1.65, 95 % cycle service). ROP = daily demand × lead + SS. EOQ with $85 order cost and 22 %/yr holding.', flush: true, body: ui.table({ id: 'inv-rop', rows, rowId: (r) => r.p.sku, cols: [
             { label: 'SKU', sort: (r) => r.p.sku, render: (r) => `<span class="inv-sku">${esc(r.p.sku)}</span><span class="nx-sub">${esc(r.p.name)}</span>` },
             { label: 'Daily demand', align: 'r', sort: (r) => r.fc.daily, render: (r) => fmt.n(r.fc.daily, 2) },
             { label: 'Lead', align: 'r', sort: (r) => r.p.lead, render: (r) => `${r.p.lead} d` },
@@ -1051,8 +1109,8 @@ const forecastScreen = {
       name: 'Days of cover', icon: 'calendar',
       render: () => {
         const outs = net.parts.map((p) => ({ p, fc: forecastOf(p) })).filter((x) => x.fc.stockout && x.fc.cover < 365).sort((a, b) => a.fc.cover - b.fc.cover);
-        return `<div class="nx-page"><div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Projected days of cover — item × depot', sub: 'Free stock after reservations ÷ forecast daily use, apportioned by depot share of jobs. Red cells run out before a replenishment order can arrive.', body: '<div class="nx-chart" data-chart="dheat" style="height:620px"></div>' })}
-        ${ui.card({ cls: 'nx-s4', title: 'Stock-out calendar', sub: 'Projected network stock-out date in the next 12 months, against the date an order placed today would land', body: `${ui.chart('cband', 'sm')}${outs.length ? ui.timeline(outs.slice(0, 8).map((x) => ({ when: `${fmt.date(x.fc.stockout)} · ${fmt.n(x.fc.cover)} d`, title: `${x.p.sku} · ${x.p.name}`, text: `Order today arrives ${fmt.date(addDays(AS_OF, x.p.lead))} — ${x.fc.cover < x.p.lead ? `<b style="color:#dc2626">${fmt.n(x.p.lead - x.fc.cover)} d gap, expedite</b>` : 'in time if ordered this week'}`, tone: x.fc.cover < x.p.lead ? 'crit' : 'warn' }))) : ui.empty('No stock-out projected in the next 12 months.')}` })}</div></div>`;
+        return `<div class="nx-page"><div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Projected days of cover — item × depot', exp: true, sub: 'Free stock after reservations ÷ forecast daily use, apportioned by depot share of jobs. Red cells are projected to run out before a replenishment order can arrive.', body: '<div class="nx-chart" data-chart="dheat" style="height:620px"></div>' })}
+        ${ui.card({ cls: 'nx-s4', title: 'Stock-out calendar', sub: 'Projected network stock-out date in the next 12 months, against the date an order placed today would land', body: `${ui.chart('cband', 'sm')}${outs.length ? ui.timeline(outs.slice(0, 8).map((x) => ({ when: `${fmt.date(x.fc.stockout)} · ${fmt.n(x.fc.cover)} d`, title: `${x.p.sku} · ${x.p.name}`, text: `An order placed today is due ${fmt.date(addDays(AS_OF, x.p.lead))} on quoted lead time — ${x.fc.cover < x.p.lead ? `<b style="color:#dc2626">${fmt.n(x.p.lead - x.fc.cover)} d gap, expedite</b>` : 'in time if ordered this week'}`, tone: x.fc.cover < x.p.lead ? 'crit' : 'warn' }))) : ui.empty('No stock-out projected in the next 12 months.')}` })}</div></div>`;
       },
       mount: (st, ctx) => {
         const bands = [['< lead', (x) => x.fc.cover < x.p.lead, '#dc2626'], ['< 2× lead', (x) => x.fc.cover >= x.p.lead && x.fc.cover < x.p.lead * 2, '#f59e0b'], ['< 180 d', (x) => x.fc.cover >= x.p.lead * 2 && x.fc.cover < 180, '#84cc16'], ['≥ 180 d', (x) => x.fc.cover >= x.p.lead * 2 && x.fc.cover >= 180, '#16a34a']];
@@ -1175,7 +1233,7 @@ function oilPlantHmi() {
   s.push(sx.frame(W, H, { title: 'EAST WAREHOUSE · TRANSFORMER-OIL STORAGE & TREATMENT', dno: 'NX-INV-PID-2201', rev: 'D' }));
   const eq = {
     'TK-101': { name: 'New-oil bulk tank TK-101', type: 'Atmospheric tank · 25 m³ · IEC 60296 inhibited oil', tags: [{ tag: 'OTP.TK-101.LVL', label: 'Level' }] },
-    'TK-102': { name: 'New-oil bulk tank TK-102', type: 'Atmospheric tank · 25 m³', desc: 'Low-stock alarm at 5 m³ raises a replenishment PR for TX-OIL-IEC.', tags: [{ tag: 'OTP.TK-102.LVL', label: 'Level' }] },
+    'TK-102': { name: 'New-oil bulk tank TK-102', type: 'Atmospheric tank · 25 m³', desc: 'Low-stock alarm at 5 m³ prompts a replenishment requisition request to SAP MM for TX-OIL-IEC.', tags: [{ tag: 'OTP.TK-102.LVL', label: 'Level' }] },
     'TK-201': { name: 'Used-oil tank TK-201', type: 'Atmospheric tank · 15 m³', desc: 'Drained oil from transformer repairs, reconditioned through VD-101.', tags: [{ tag: 'OTP.TK-201.LVL', label: 'Level' }] },
     'TK-301': { name: 'Treated-oil tank TK-301', type: 'Nitrogen-blanketed tank · 30 m³', tags: [{ tag: 'OTP.TK-301.LVL', label: 'Level' }, { tag: 'OTP.FT102', label: 'Inflow' }] },
     'LT-101': { name: 'LT-101 level transmitter', type: 'Radar, 4–20 mA HART', tags: [{ tag: 'OTP.TK-101.LVL', label: 'Level' }] },
@@ -1214,7 +1272,7 @@ function oilPlantHmi() {
     TRT: { parent: 'DEG', requires: ['V-301'], tags: ['OTP.FT102'] },
     IBCN: { requires: ['V-401', 'P-401'], tags: ['OTP.FT401', 'OTP.P401.RUN'] },
   };
-  return { title: 'Transformer-oil storage & treatment plant', dno: 'NX-INV-PID-2201', rev: 'D', w: W, h: H, svg: s.join(''), equipment: eq, nets, switches: plant, legend: [{ label: 'Insulating oil', color: '#b08d3b' }, { label: 'Vacuum / vent', color: '#94a3b8' }, { label: 'Signal (ISA-5.1)', color: '#64748b' }], toolbar: '<button type="button" data-pr-oil>Raise oil PR</button>' };
+  return { title: 'Transformer-oil storage & treatment plant', dno: 'NX-INV-PID-2201', rev: 'D', w: W, h: H, svg: s.join(''), equipment: eq, nets, switches: plant, legend: [{ label: 'Insulating oil', color: '#b08d3b' }, { label: 'Vacuum / vent', color: '#94a3b8' }, { label: 'Signal (ISA-5.1)', color: '#64748b' }], toolbar: '<button type="button" data-pr-oil>Request oil PR in SAP MM</button>' };
 }
 
 function sf6StoreHmi() {

@@ -4,11 +4,17 @@
 //
 // States: loading (skeleton), error (message and Retry), asset not found, and a section-level empty message
 // wherever there is nothing to show.
+//
+// The detail is laid out as six tabs in two groups (management review, 12 Nov 2026):
+//   Asset Health, the current condition:   Health & Risk · Components · Condition Trends (forecast: experimental)
+//   Operations, maintenance and stock:     Maintenance History · Work Orders (from the ERP) · Inventory & Parts (from the ERP)
+// The left group alone is Asset Health. Both groups together are Asset Reliability.
 
 import { h, replace } from '../ui/dom.js';
 import { loadAssetDetail } from './assetModel.js';
 import { parseHash, hashFor } from './hashState.js';
-import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
+import { drawChart, historyOption, dgaOption, loadingOption, forecastOption } from './charts.js';
+import { assetOperations } from './assetOps.js';
 import { openLinkInReview } from './navigation.js';
 import { openFinding } from './findingViewer.js';
 
@@ -20,7 +26,23 @@ const STATUS_TONE = { proposed: 'a', confirmed: 'g', rejected: 'r', open: 'a', i
 const COND_TONE = { 1: 'r', 2: 'a', 3: 'a', 4: 'b', 5: 'g' };
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const ctl = { deps: null, root: null, panel: null, body: null, state: { open: false, id: null, token: 0, view: 'loading', detail: null, error: null, opener: null }, charts: [] };
+const ctl = { deps: null, root: null, panel: null, body: null, state: { open: false, id: null, token: 0, view: 'loading', detail: null, ops: null, error: null, opener: null, tab: 'health' }, charts: [] };
+
+/** The six tabs of the asset detail view, in two groups. */
+const TAB_GROUPS = [
+  { id: 'health', title: 'Asset Health', sub: 'current condition', tabs: [
+    { id: 'health', name: 'Health & Risk', hint: 'Current health and risk score of this asset' },
+    { id: 'components', name: 'Components', hint: 'Condition of each component' },
+    { id: 'trends', name: 'Condition Trends', hint: 'Condition over the inspections, and a forecast', exp: true },
+  ] },
+  { id: 'ops', title: 'Operations', sub: 'maintenance and stock', tabs: [
+    { id: 'maintenance', name: 'Maintenance History', hint: 'Past inspections and maintenance' },
+    { id: 'work', name: 'Work Orders', hint: 'Open and planned work, from the ERP', erp: true },
+    { id: 'parts', name: 'Inventory & Parts', hint: 'Stock and suppliers, from the ERP', erp: true },
+  ] },
+];
+const TAB_IDS = TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.id));
+const money = (v) => `$${Math.round(v).toLocaleString('en-US')}`;
 
 const tag = (text, tone, extra = {}) => h('span', { class: `tag ${tone ?? 'x'}`, ...extra }, text);
 const humanize = (s) => String(s).replace(/_/g, ' ');
@@ -78,7 +100,7 @@ function show(id) {
   const s = ctl.state;
   const first = !s.open;
   s.id = id; s.open = true;
-  if (first) { s.restore = s.opener ?? document.activeElement; ctl.root.hidden = false; document.body.classList.add('a360-open'); setInert(true); requestAnimationFrame(() => ctl.panel.classList.add('is-in')); }
+  if (first) { s.tab = 'health'; s.restore = s.opener ?? document.activeElement; ctl.root.hidden = false; document.body.classList.add('a360-open'); setInert(true); requestAnimationFrame(() => ctl.panel.classList.add('is-in')); }
   load();
 }
 
@@ -122,12 +144,13 @@ async function load({ quiet = false } = {}) {
   const mine = ++s.token;
   if (!quiet) { disposeCharts(); s.view = 'loading'; draw(); }
   try {
-    const { flags = {}, repo, getSnapshot } = ctl.deps;
+    const { flags = {}, repo, getSnapshot, getNet } = ctl.deps;
     if (flags.panelDelay && !quiet) await sleep(flags.panelDelay);
     if (flags.panelFail) throw new Error('The asset service did not respond (simulated failure).');
     const detail = await loadAssetDetail(repo, getSnapshot(), s.id);
     if (mine !== s.token) return;
     s.detail = detail;
+    s.ops = detail.found ? assetOperations(detail, getNet?.() ?? null) : null;
     s.view = detail.found ? 'ready' : 'missing';
   } catch (e) {
     if (mine !== s.token) return;
@@ -168,7 +191,7 @@ function draw() {
 }
 
 function closeBar(id) {
-  return h('div', { class: 'a360-bar' }, h('span', { class: 'a360-id' }, id ?? ''), h('span', { class: 'a360-spacer' }),
+  return h('div', { class: 'a360-bar' }, h('span', { class: 'a360-kicker' }, 'Asset detail · Asset Reliability'), h('span', { class: 'a360-id' }, id ?? ''), h('span', { class: 'a360-spacer' }),
     h('button', { class: 'a360-close', type: 'button', 'aria-label': 'Close asset panel', title: 'Close (Esc)', onClick: closeAsset }, '×'));
 }
 
@@ -178,16 +201,58 @@ const note = (text) => h('p', { class: 'a360-muted a360-note' }, text);
 const th = (...cols) => h('thead', {}, h('tr', {}, cols.map((c) => h('th', {}, c))));
 
 function renderDetail(d) {
-  const parts = [closeBar(d.id), headerView(d)];
-  const body = h('div', { class: 'a360-pad' });
-  const add = (...x) => body.append(...x.filter(Boolean));
-  add(breakdownView(d));
-  if (d.transformer) add(...transformerViews(d));
-  add(findingsView(d), historyView(d));
-  if (d.components.length) add(componentsView(d));
-  add(linksView(d), workView(d));
-  parts.push(body);
-  return h('div', {}, ...parts);
+  const ops = ctl.state.ops;
+  const sections = {
+    health: [breakdownView(d), ...(d.transformer ? transformerViews(d) : []), findingsView(d), linksView(d)],
+    components: [componentsView(d)],
+    trends: [historyView(d), forecastView(d, ops)],
+    maintenance: [inspectionsView(d), repairsView(d)],
+    work: [workView(d, ops)],
+    parts: [partsView(d, ops)],
+  };
+  const counts = { components: d.components.length || null, work: ops?.workOrders.open || null, parts: ops?.parts.short || null };
+  const active = TAB_IDS.includes(ctl.state.tab) ? ctl.state.tab : 'health';
+  const panels = TAB_IDS.map((id) => h('div', { class: 'a360-pad a360-panel', role: 'tabpanel', id: `a360-panel-${id}`, 'aria-labelledby': `a360-tab-${id}`, 'data-panel': id, hidden: id !== active, tabindex: '0' }, ...sections[id].filter(Boolean)));
+  return h('div', {}, closeBar(d.id), headerView(d), tabBar(active, counts), ...panels);
+}
+
+/** Two groups of three tabs. The left group alone is Asset Health; both together are Asset Reliability. */
+function tabBar(active, counts) {
+  const tabBtn = (t) => h('button', {
+    class: `a360-tab${t.id === active ? ' is-on' : ''}`, type: 'button', role: 'tab', id: `a360-tab-${t.id}`, 'data-tab': t.id, title: t.hint,
+    'aria-selected': String(t.id === active), 'aria-controls': `a360-panel-${t.id}`, tabindex: t.id === active ? '0' : '-1', onClick: () => selectTab(t.id),
+  }, t.name, counts[t.id] ? h('span', { class: 'a360-tabcount' }, String(counts[t.id])) : null,
+  t.erp ? h('span', { class: 'a360-mark a360-mark-erp', title: 'Read from the ERP through the integration layer' }, 'ERP') : null);
+  return h('div', { class: 'a360-tabs', 'data-testid': 'asset-tabs' },
+    h('div', { class: 'a360-tabgroups', role: 'tablist', 'aria-label': 'Asset detail', onKeydown: onTabKey },
+      TAB_GROUPS.map((g) => h('div', { class: `a360-tabgroup a360-tabgroup-${g.id}`, role: 'presentation', 'data-group': g.id },
+        h('div', { class: 'a360-tabgroup-h', role: 'presentation' }, h('b', {}, g.title), h('span', {}, `: ${g.sub}`)),
+        h('div', { class: 'a360-tabrow', role: 'presentation' }, g.tabs.map(tabBtn))))),
+    h('p', { class: 'a360-tabnote' }, 'Asset Health alone is the current condition. Together with Operations it is Asset Reliability.'));
+}
+
+function selectTab(id, { focus = false } = {}) {
+  if (!TAB_IDS.includes(id)) return;
+  ctl.state.tab = id;
+  for (const b of ctl.body.querySelectorAll('.a360-tab')) { const on = b.dataset.tab === id; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
+  for (const p of ctl.body.querySelectorAll('.a360-panel')) p.hidden = p.dataset.panel !== id;
+  drawCharts();
+}
+
+function onTabKey(e) {
+  const i = TAB_IDS.indexOf(e.target.closest?.('.a360-tab')?.dataset.tab);
+  if (i < 0) return;
+  const next = e.key === 'ArrowRight' ? TAB_IDS[(i + 1) % TAB_IDS.length] : e.key === 'ArrowLeft' ? TAB_IDS[(i + TAB_IDS.length - 1) % TAB_IDS.length] : e.key === 'Home' ? TAB_IDS[0] : e.key === 'End' ? TAB_IDS[TAB_IDS.length - 1] : null;
+  if (!next) return;
+  e.preventDefault();
+  selectTab(next, { focus: true });
+}
+
+/** Where a set of records comes from: the ERP, through the integration layer. Read-only, never entered here. */
+function erpSource(system, what, synced) {
+  return h('div', { class: 'a360-source', 'data-testid': 'erp-source' },
+    h('span', { class: 'a360-mark a360-mark-erp' }, `ERP · ${system}`),
+    h('span', {}, `${what} read from the ERP through the integration layer${synced ? ` · ${synced.replace(/^.*? · /, '')}` : ''}. The ERP is the system of record; nothing is entered here.`));
 }
 
 // ------------------------------------------------------------------- header
@@ -241,7 +306,7 @@ function scoreRow(d) {
       card('Condition', rf.condition.points.toFixed(1), `100 − ${rf.condition.hi}`),
       op('×'), card('Criticality', String(rf.criticality), 'of 5'),
       op('×'), card('Consequence', String(c.value), c.uplift ? `${c.base} + ${c.uplift} linked${c.capped ? ' (capped at 5)' : ''}` : `${c.base} · ${c.source}`),
-      op('='), h('div', { class: 'a360-card a360-result' }, h('div', { class: 'a360-k' }, 'Risk'), h('div', { class: 'a360-n' }, String(Math.round(rf.score))), h('div', {}, tag(rf.band, RISK_TONE[rf.band])))));
+      op('='), h('div', { class: 'a360-card a360-result' }, h('div', { class: 'a360-k' }, 'Risk ', ''), h('div', { class: 'a360-n' }, String(Math.round(rf.score))), h('div', {}, tag(rf.band, RISK_TONE[rf.band])))));
 }
 
 // ---------------------------------------------------------------- breakdown
@@ -384,24 +449,45 @@ function historyView(d) {
   if (hs.hasHi && !anyOpen && hs.hi.every((x) => x === null)) return section('history', 'Condition history', note('Not assessed on any campaign date, so there is no history to chart.'));
   const rows = hs.dates.map((date, i) => h('tr', {}, h('th', { scope: 'row' }, hs.labels[i]), h('td', {}, date), h('td', {}, hs.hasHi ? (hs.hi[i] === null ? 'not assessed' : String(hs.hi[i])) : '–'), h('td', {}, String(hs.open[i]))));
   return section('history', 'Condition history',
+    note('Measured: the health index re-scored at the end of each inspection campaign.'),
     h('div', { class: 'a360-chart a360-chart-s', 'data-chart': 'history', 'data-testid': 'history-chart', role: 'img', 'aria-label': 'Health index and open findings at each campaign date' }),
     h('table', { class: 'a360-table', 'data-testid': 'history-table' }, th('Campaign', 'Date', hs.hasHi ? 'Health index' : '', 'Open findings'), h('tbody', {}, rows)));
 }
 
+/** Draw the charts of the tab that is showing. A chart in a hidden tab has no size, so it waits for its tab. */
 function drawCharts() {
   const d = ctl.state.detail;
-  for (const el of ctl.body.querySelectorAll('[data-chart]')) {
+  const ops = ctl.state.ops;
+  for (const el of ctl.body.querySelectorAll('.a360-panel:not([hidden]) [data-chart]:not([data-ready])')) {
     const kind = el.dataset.chart;
-    const build = kind === 'history' ? (p) => historyOption(d.history, p) : kind === 'dga' ? (p) => dgaOption(d.transformer.dga, p) : (p) => loadingOption(d.transformer.loading, p);
+    const build = kind === 'history' ? (p) => historyOption(d.history, p) : kind === 'forecast' ? (p) => forecastOption(d.history, ops.forecast, p) : kind === 'dga' ? (p) => dgaOption(d.transformer.dga, p) : (p) => loadingOption(d.transformer.loading, p);
+    el.dataset.ready = 'pending';
     drawChart(el, build).then((c) => { if (ctl.state.detail === d && ctl.state.open) ctl.charts.push(c); else c.dispose(); el.dataset.ready = 'true'; })
       .catch((e) => { el.replaceChildren(h('p', { class: 'a360-muted a360-note', role: 'status' }, `The chart could not be drawn (${e.message}). The values are in the table.`)); el.dataset.ready = 'failed'; });
   }
 }
 
+/** Condition forecast. EXPERIMENTAL: the model is not validated against real data (see models.js). */
+function forecastView(d, ops) {
+  const f = ops?.forecast;
+  const title = h('h3', { id: 'a360-h-forecast' }, 'Condition forecast');
+  const wrap = (...kids) => h('section', { class: 'a360-sec', 'aria-labelledby': 'a360-h-forecast', 'data-section': 'forecast', 'data-testid': 'forecast' }, title, ...kids);
+  const caveat = null;
+  if (!f || !f.available) return wrap(caveat, note(f?.reason ?? 'No forecast is available for this asset.'));
+  return wrap(caveat,
+    h('div', { class: 'a360-chart a360-chart-s', 'data-chart': 'forecast', 'data-testid': 'forecast-chart', role: 'img', 'aria-label': 'Measured health index and the projection for the next five years' }),
+    h('table', { class: 'a360-table', 'data-testid': 'forecast-table' }, th('Horizon', 'Projected health index', 'Band', 'Basis'),
+      h('tbody', {}, h('tr', {}, h('th', { scope: 'row' }, 'Today (measured)'), h('td', {}, String(f.now)), h('td', {}, tag(f.band, BAND_TONE[f.band])), h('td', {}, `scored from findings as of ${d.asOf}`)),
+        f.points.map((p) => h('tr', {}, h('th', { scope: 'row' }, p.label), h('td', {}, String(p.hi)), h('td', {}, tag(p.band, BAND_TONE[p.band])), h('td', { class: 'a360-muted' }, 'projected, no intervention'))))),
+    note(`Exponential decay for corrosivity zone ${f.zone ?? 'n/a'}${f.age != null ? `, age ${f.age} years` : ''}, with open-defect and storm-loss terms. ${f.band === 'poor' ? 'The tower is already in the poor band.' : f.poorIn ? `On this projection the tower would reach the poor band (below 40) in about ${f.poorIn} years.` : 'On this projection the tower stays above the poor band for 15 years.'}`));
+}
+
 // --------------------------------------------------------------- components
 
 function componentsView(d) {
+  if (!d.components.length) return section('components', 'Components', note(d.kind === 'component' ? 'This is a component. It has no parts of its own in the register; its condition is on the Health & Risk tab.' : 'No components are registered under this asset.'));
   return section('components', `Components (${d.components.length})`,
+    note('Condition of each component, from its open findings (1 very poor to 5 very good).'),
     h('table', { class: 'a360-table', 'data-testid': 'components' }, th('Component', 'Class', 'Open findings', 'Worst condition'),
       h('tbody', {}, d.components.map((c) => h('tr', {}, h('th', { scope: 'row' }, assetLink(c.id, c.name)), h('td', {}, c.class), h('td', {}, String(c.open)),
         h('td', {}, c.worst === null ? tag('none', 'g') : tag(String(c.worst), COND_TONE[c.worst])))))));
@@ -423,18 +509,68 @@ function linksView(d) {
     g.more ? note(`and ${g.more} more.`) : null)));
 }
 
-// --------------------------------------------------------------------- work
+// ------------------------------------------------------- maintenance history
 
-function workView(d) {
+/** Past inspections: what each campaign found on this asset. */
+function inspectionsView(d) {
+  const hs = d.history;
+  const rows = hs.dates.map((date, i) => ({ date, label: hs.labels[i], hi: hs.hasHi ? hs.hi[i] : null, open: hs.open[i] })).filter((r) => r.label !== 'Today');
+  if (!rows.length) return section('inspections', 'Past inspections', note('No inspection campaign is recorded up to the reference date.'));
+  return section('inspections', `Past inspections (${rows.length})`,
+    note('Aerial inspection campaigns up to the reference date, and what each one left open on this asset.'),
+    h('table', { class: 'a360-table', 'data-testid': 'inspections' }, th('Campaign', 'Completed', hs.hasHi ? 'Health index after' : '', 'Open findings after'),
+      h('tbody', {}, rows.map((r) => h('tr', {}, h('th', { scope: 'row' }, r.label), h('td', {}, r.date), h('td', {}, hs.hasHi ? (r.hi === null ? 'not assessed' : String(r.hi)) : '–'), h('td', {}, String(r.open)))))));
+}
+
+/** Maintenance carried out: completed repairs and the findings they closed. */
+function repairsView(d) {
   const w = d.work;
-  if (!w.ordersTotal && !w.repairsTotal) return section('work', 'Work orders and repairs', note('No work orders or repairs.'));
-  return section('work', 'Work orders and repairs',
-    h('p', { class: 'a360-muted a360-note' }, `${w.ordersTotal} work order${w.ordersTotal === 1 ? '' : 's'} (${w.open} open) · ${w.repairsTotal} repair${w.repairsTotal === 1 ? '' : 's'}. A completed repair closes the findings it fixed.`),
-    w.orders.length ? h('table', { class: 'a360-table', 'data-testid': 'work-orders' }, th('Work order', 'Status', 'Priority', 'On', 'Findings', 'Created', 'Done'),
-      h('tbody', {}, w.orders.map((o) => h('tr', {}, h('th', { scope: 'row' }, o.id), h('td', {}, tag(humanize(o.status), STATUS_TONE[o.status])), h('td', {}, o.priority),
-        h('td', {}, o.assetId === d.id ? o.assetName : assetLink(o.assetId, o.assetName)), h('td', {}, String(o.findings)), h('td', {}, o.created), h('td', {}, o.completed ?? `due ${o.planned}`))))) : null,
-    w.repairs.length ? h('table', { class: 'a360-table', 'data-testid': 'repairs' }, th('Repair', 'Date', 'Action', 'On', 'Closes'),
-      h('tbody', {}, w.repairs.map((r) => h('tr', {}, h('th', { scope: 'row' }, r.id), h('td', {}, r.date), h('td', {}, r.action), h('td', {}, r.assetId === d.id ? r.assetName : assetLink(r.assetId, r.assetName)), h('td', {}, `${r.closes} finding${r.closes === 1 ? '' : 's'}`))))) : null,
+  if (!w.repairsTotal) return section('repairs', 'Maintenance carried out', note('No repairs are recorded on this asset.'));
+  return section('repairs', `Maintenance carried out (${w.repairsTotal})`,
+    note('A completed repair closes the findings it fixed, and the health index is re-scored without them.'),
+    h('table', { class: 'a360-table', 'data-testid': 'repairs' }, th('Repair', 'Date', 'Action', 'On', 'Work order', 'Closes'),
+      h('tbody', {}, w.repairs.map((r) => h('tr', {}, h('th', { scope: 'row' }, r.id), h('td', {}, r.date), h('td', {}, r.action), h('td', {}, r.assetId === d.id ? r.assetName : assetLink(r.assetId, r.assetName)), h('td', {}, r.workOrderId ?? '–'), h('td', {}, `${r.closes} finding${r.closes === 1 ? '' : 's'}`))))),
+    w.repairsTotal > w.repairs.length ? note(`Showing the ${w.repairs.length} newest of ${w.repairsTotal} repairs.`) : null);
+}
+
+// -------------------------------------------------------------- work orders
+
+/** Open and planned work, from the ERP (SAP PM). Read-only: orders are created and changed in the ERP. */
+function workView(d, ops) {
+  const w = d.work;
+  const wo = ops?.workOrders;
+  const source = erpSource('SAP PM', 'Maintenance orders', wo?.synced);
+  if (!w.ordersTotal) return section('work', 'Work orders', source, note('No work orders in the ERP for this asset.'));
+  const rows = wo?.rows.length ? wo.rows : w.orders;
+  return section('work', `Work orders (${w.ordersTotal})`, source,
+    h('p', { class: 'a360-muted a360-note' }, `${w.ordersTotal} work order${w.ordersTotal === 1 ? '' : 's'}, ${w.open} open${wo?.committed ? ` · ${money(wo.committed)} estimated on open orders` : ''}.`),
+    h('table', { class: 'a360-table', 'data-testid': 'work-orders' }, th('Work order', 'SAP order', 'Work', 'Status', 'Priority', 'On', 'Findings', 'Crew', 'Created', 'Done / due'),
+      h('tbody', {}, rows.map((o) => h('tr', {}, h('th', { scope: 'row' }, o.id), h('td', { class: 'a360-id' }, o.sap ?? '–'), h('td', {}, o.workType ?? '–'),
+        h('td', {}, tag(humanize(o.stage ?? o.status), STATUS_TONE[o.status])), h('td', {}, o.priority),
+        h('td', {}, o.assetId === d.id ? o.assetName : assetLink(o.assetId, o.assetName)), h('td', {}, String(o.findings)), h('td', {}, o.crew ?? '–'), h('td', {}, o.created), h('td', {}, o.completed ?? `due ${o.planned}`))))),
     w.ordersTotal > w.orders.length ? note(`Showing the ${w.orders.length} newest of ${w.ordersTotal} work orders.`) : null);
 }
 
+// -------------------------------------------------------- inventory & parts
+
+const STOCK_TAG = { in_stock: ['in stock', 'g'], partial: ['short', 'a'], out: ['out of stock', 'r'] };
+
+/** The materials the open findings on this asset need, their stock and suppliers, from the ERP (SAP MM). */
+function partsView(d, ops) {
+  const p = ops?.parts;
+  const source = erpSource('SAP MM', 'Materials, stock and suppliers', p?.synced);
+  if (!p || !ops.available) return section('parts', 'Inventory & parts', source, note('The inventory could not be loaded.'));
+  if (!p.rows.length) return section('parts', 'Inventory & parts', source, note(d.findings.total ? 'None of the open findings on this asset needs a catalogue part.' : 'No open findings on this asset, so no parts are needed.'));
+  return section('parts', `Inventory & parts (${p.rows.length})`, source,
+    h('p', { class: 'a360-muted a360-note' }, `Materials for the ${p.basis} open finding${p.basis === 1 ? '' : 's'} on this asset${p.more ? ' (the 25 most severe)' : ''}: ${p.rows.length} catalogue item${p.rows.length === 1 ? '' : 's'}, ${money(p.value)} at standard cost${p.short ? `, ${p.short} short of stock` : ', all in stock'}.`),
+    h('table', { class: 'a360-table', 'data-testid': 'parts' }, th('Material', 'Needed for', 'Need', 'Available', 'Stock by depot', 'Lead time', 'Supplier'),
+      h('tbody', {}, p.rows.map((r) => h('tr', { 'data-sku': r.sku }, h('th', { scope: 'row' }, r.sku, h('div', { class: 'a360-muted a360-small' }, r.name)),
+        h('td', {}, r.defects.join(', ')), h('td', {}, `${r.qty} ${r.uom}`),
+        h('td', {}, `${r.available} of ${r.onHand} `, tag(r.short ? `${STOCK_TAG[r.status][0]} by ${r.short}` : STOCK_TAG[r.status][0], STOCK_TAG[r.status][1])),
+        h('td', { class: 'a360-small' }, r.stock.map((x) => `${x.name} ${x.qty}`).join(' · ')), h('td', {}, `${r.leadDays} d`), h('td', {}, r.supplierName))))),
+    h('h4', {}, `Suppliers (${p.suppliers.length})`),
+    h('table', { class: 'a360-table', 'data-testid': 'suppliers' }, th('Supplier', 'Country', 'Supplies', 'On-time delivery', 'Lead time', 'Quality'),
+      h('tbody', {}, p.suppliers.map((x) => h('tr', {}, h('th', { scope: 'row' }, x.name, h('div', { class: 'a360-muted a360-small' }, x.id)), h('td', {}, x.country), h('td', {}, x.category),
+        h('td', {}, tag(`${x.onTime}%`, x.onTime >= 92 ? 'g' : x.onTime >= 85 ? 'a' : 'r')), h('td', {}, `${x.leadDays} d`), h('td', {}, `${x.quality}%`))))),
+    note('Stock, reservations and supplier records stay in the ERP. To order or reserve, use Supply Chain & Inventory, which sends the request to SAP MM.'));
+}

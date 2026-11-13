@@ -44,7 +44,7 @@ try {
     id: 'reliability', code: '01', product: 'Asset Reliability Intelligence', back: '/#module-card-01', asOf: net.asOf, screens,
     searchIndex: () => net.searchIndex.filter((x) => x.kind !== 'crew').map((x) => ({ ...x, run: () => (x.kind === 'wo' ? app.go('history', 0) : x.kind === 'line' ? app.go('line', 0) : openAsset(x.id)) })),
   });
-  const deps = { repo: repository, getSnapshot: () => state.snapshot, subscribeSnapshot, flags };
+  const deps = { repo: repository, getSnapshot: () => state.snapshot, subscribeSnapshot, flags, getNet: () => net }; // net: work orders, parts and suppliers read from the ERP
   initAssetPanel(deps);
   initFindingViewer(deps);
 } catch (error) {

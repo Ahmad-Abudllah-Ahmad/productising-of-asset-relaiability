@@ -11,6 +11,8 @@ const tab = (page, name) => page.locator('#tabs [data-tab]', { hasText: new RegE
 const rows = (page) => page.locator('#stage table.reg-table tbody tr');
 const panel = (page) => page.getByTestId('asset-panel');
 const section = (page, id) => panel(page).locator(`[data-section="${id}"]`);
+/** The asset detail has six tabs in two groups: Asset Health (health, components, trends) and Operations (maintenance, work, parts). */
+const ptab = (page, id) => panel(page).locator(`[data-tab="${id}"]`);
 const queue = (page) => page.getByTestId('queue-row');
 
 async function open(page, url = '/reliability') {
@@ -140,7 +142,12 @@ test.describe('Asset 360 panel', () => {
     await expect(rf).toContainText('Criticality');
     await expect(rf).toContainText('Consequence');
     await expect(rf).toContainText('Risk');
-    for (const id of ['breakdown', 'findings', 'history', 'components', 'links', 'work']) await expect(section(page, id)).toBeVisible();
+    // six tabs in two groups; Asset Health alone is the condition, with Operations it is Asset Reliability
+    await expect(panel(page).locator('[data-group="health"] [data-tab]')).toHaveText([/^Health & Risk/, /^Components/, /^Condition Trends/]);
+    await expect(panel(page).locator('[data-group="ops"] [data-tab]')).toHaveText([/^Maintenance History/, /^Work Orders/, /^Inventory & Parts/]);
+    await expect(ptab(page, 'health')).toHaveAttribute('aria-selected', 'true');
+    for (const id of ['breakdown', 'findings', 'links']) await expect(section(page, id)).toBeVisible();
+    await expect(section(page, 'history')).toBeHidden();
     // breakdown: groups, and the cap with its uncapped score
     await expect(page.getByTestId('breakdown-groups').locator('tbody tr')).toHaveCount(6);
     await expect(page.getByTestId('cap-note')).toContainText('A condition cap applies');
@@ -151,16 +158,46 @@ test.describe('Asset 360 panel', () => {
     await expect(f.locator('.tag').first()).toHaveText(/critical|serious|moderate|minor/);
     await expect(f.locator('.a360-thumb')).toBeVisible();
     await expect(page.getByTestId('findings').locator('li')).toHaveCount(3);
-    // history: a table row per campaign date and a chart
+    // linked assets grouped by type
+    await expect(panel(page).locator('[data-link-type]')).toHaveCount(3);
+    for (const t of ['same_asset', 'spatial', 'hierarchy']) await expect(panel(page).locator(`[data-link-type="${t}"]`)).toBeVisible();
+    await shotPanel(page, 'tower');
+    // Components
+    await ptab(page, 'components').click();
+    await expect(section(page, 'components')).toBeVisible();
+    await expect(section(page, 'breakdown')).toBeHidden();
+    await expect(page.getByTestId('components').locator('tbody tr')).toHaveCount(7);
+    // Condition Trends: the measured history (a table row per campaign date and a chart) ...
+    await ptab(page, 'trends').click();
     await expect(page.getByTestId('history-table').locator('tbody tr')).toHaveCount(4);
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
     await expect(page.locator('[data-chart="history"] canvas')).toBeVisible();
-    // linked assets grouped by type, work orders
-    await expect(panel(page).locator('[data-link-type]')).toHaveCount(3);
-    for (const t of ['same_asset', 'spatial', 'hierarchy']) await expect(panel(page).locator(`[data-link-type="${t}"]`)).toBeVisible();
-    await expect(page.getByTestId('work-orders')).toBeVisible();
+    // ... and the forecast
+    await expect(page.getByTestId('forecast')).toContainText('Condition forecast');
+    await expect(page.getByTestId('forecast-table').locator('tbody tr')).toHaveCount(6);
+    await expect(page.locator('[data-chart="forecast"] canvas')).toBeVisible();
+    await shotPanel(page, 'tower-trends');
+    // Maintenance History: past inspections and the repairs carried out
+    await ptab(page, 'maintenance').click();
+    await expect(page.getByTestId('inspections').locator('tbody tr')).toHaveCount(3);
     await expect(page.getByTestId('repairs')).toBeVisible();
-    await shotPanel(page, 'tower');
+    // Work Orders: read from the ERP (SAP PM), with the SAP order number
+    await ptab(page, 'work').click();
+    await expect(page.getByTestId('work-orders')).toBeVisible();
+    await expect(section(page, 'work').getByTestId('erp-source')).toContainText('ERP · SAP PM');
+    await expect(section(page, 'work').getByTestId('erp-source')).toContainText('nothing is entered here');
+    await expect(page.getByTestId('work-orders').locator('tbody tr').first()).toContainText(/40\d{6}/);
+    // Inventory & Parts: the materials the open findings need, their stock and suppliers, from the ERP (SAP MM)
+    await ptab(page, 'parts').click();
+    await expect(section(page, 'parts').getByTestId('erp-source')).toContainText('ERP · SAP MM');
+    await expect(page.getByTestId('parts').locator('tbody tr')).toHaveCount(1);
+    await expect(page.getByTestId('parts')).toContainText('OPGW-48F');
+    await expect(page.getByTestId('suppliers')).toContainText('Rhein Conductor GmbH');
+    await shotPanel(page, 'tower-parts');
+    // the arrow keys move between the tabs
+    await ptab(page, 'parts').press('ArrowLeft');
+    await expect(ptab(page, 'work')).toHaveAttribute('aria-selected', 'true');
+    await expect(ptab(page, 'work')).toBeFocused();
     expect(errors).toEqual([]);
   });
 
@@ -224,7 +261,9 @@ test.describe('Asset 360 panel', () => {
     await expect(section(page, 'breakdown')).toContainText('No health index is defined');
     await expect(section(page, 'findings')).toContainText('No open findings');
     await expect(section(page, 'history')).toContainText('no history to chart');
-    await expect(section(page, 'work')).toContainText('No work orders or repairs');
+    await expect(section(page, 'work')).toContainText('No work orders in the ERP for this asset');
+    await expect(section(page, 'repairs')).toContainText('No repairs are recorded');
+    await expect(section(page, 'forecast')).toContainText('no forecast model for this asset class');
     await expect(section(page, 'links')).toContainText('Electrical');
     await shotPanel(page, 'no-evidence');
   });
@@ -350,6 +389,7 @@ test.describe('Asset 360 panel', () => {
   test('if the chart library cannot load, the values are still there', async ({ page }) => {
     await page.route('**/vendor/echarts/echarts.min.js*', (route) => route.abort());
     await open(page, '/reliability#asset=TWR-132-01-011');
+    await ptab(page, 'trends').click();
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'failed');
     await expect(page.locator('[data-chart="history"]')).toContainText('could not be drawn');
     await expect(page.getByTestId('history-table').locator('tbody tr')).toHaveCount(4);
@@ -364,6 +404,9 @@ test.describe('Asset 360 panel', () => {
     await page.waitForTimeout(300);
     expect(seen).toEqual([]);
     await rows(page).filter({ hasText: 'TWR-132-01-011' }).click();
+    await expect(ptab(page, 'health')).toBeVisible();
+    expect(seen).toEqual([]); // the Health & Risk tab of a tower has no chart
+    await ptab(page, 'trends').click();
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
     expect(seen.length).toBe(1);
     expect(seen[0]).toContain('/reliability/js/vendor/echarts/');

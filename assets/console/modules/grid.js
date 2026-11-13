@@ -9,8 +9,20 @@ import * as sx from '../schematics.js';
 import { loadNetwork, networkLayers, DEFECT_LABEL, SEV_TONE, LINE_NAME } from '../network.js';
 import { healthIndex } from '/reliability/js/domain/health/healthIndex.js';
 import { drawingTabs } from '../drawings.js';
+import { models } from '../models.js';
 
 const net = await loadNetwork();
+// Predictive outputs of this module, for the model validation register (models.js). All run on simulated demo data and
+// stay labelled / Simulated in the interface until tested against real data.
+models.register([
+  { id: 'grid-n1', name: 'N-1 contingency screen', module: '04 · Energy & Grid Performance', predicts: 'Post-contingency loading of the surviving transformers at S-1 and S-2, the secure / alert / violation status and a remedial action; line contingencies are listed as islanding or re-dispatch cases', method: 'Live load of the transformer group re-shared pro rata over the remaining rated MVA (no AC load-flow, no network impedances). The L-220-03 and L-500-01 outcomes and all remedial actions are fixed scenario text.', needs: 'EMS contingency-analysis results (state estimator and load-flow) for the same snapshots, and recorded post-outage flows from real N-1 events.' },
+  { id: 'grid-thermal-exposure', name: 'Thermal stress exposure per structure', module: '04 · Energy & Grid Performance', predicts: 'Hours of thermal stress each tower has seen in 28 days, and its correlation with structure condition (Pearson r, trend line, high- vs low-stress split)', method: 'Line hours above 90 % of static rating × a local shelter factor (0.70–0.95, random in the demo) plus an uplift for C4 / C5 corrosion zones. No span-level conductor temperature is measured.', needs: 'Span-level conductor temperature or sag sensor history (or IEEE 738 calculations from corridor weather stations), set against inspection findings per structure.' },
+  { id: 'grid-action-priority', name: 'Defect action priority before a thermal event', module: '04 · Energy & Grid Performance', predicts: 'A 0–100 priority for clearing each verified critical / high finding on L-220-03 before the next thermal event', method: '45 % relative thermal exposure + 35 % health deficit ((100 − HI) / 70) + 20 % severity weight, × 1.15 for thermally sensitive defect classes and × 0.85 otherwise. The weights are engineering assumptions.', needs: 'Failure and trip history of defects that stayed open through thermal events, to fit the weights.' },
+  { id: 'grid-leadlag', name: 'Finding to trip lead-lag correlation', module: '04 · Energy & Grid Performance', predicts: 'Whether monthly verified findings lead line trips by 0 to 4 months (Pearson r per lag)', method: 'Pearson correlation of monthly finding counts with trip counts k months later, over 12 months of demo records (n ≤ 12 per lag).', needs: 'Several years of dated inspection findings and protection trip records per circuit.' },
+  { id: 'grid-redispatch', name: 'Avoidable losses (re-dispatch study)', module: '04 · Energy & Grid Performance', predicts: 'Share of technical losses avoidable by optimal tap and reactive dispatch', method: 'Fixed illustrative figure (7.8 %) in the prototype; no optimal power flow is run.', needs: 'An optimal power-flow study on the real network model, checked against metered losses before and after a dispatch change.' },
+  { id: 'grid-sf6-tta', name: 'SF₆ time-to-alarm projection', module: '04 · Energy & Grid Performance', predicts: 'Days until the GIS bay E03 Q0 gas density reaches alarm-1 (640 kPa)', method: 'Straight-line projection: (density − 640 kPa) ÷ a fixed loss rate of 0.35 kPa per day.', needs: 'Density-monitor history and top-up records for the leaking compartment, temperature compensated.' },
+  { id: 'grid-switching-sim', name: 'Schematic switching simulation', module: '04 · Energy & Grid Performance', predicts: 'Energised and de-energised sections and transformer load sharing after a switching operation or a simulated line trip on the one-line; SF₆ top-up on the GIS P&ID', method: 'Topology tracing over switch states; the transformer group load is re-shared pro rata to rating among the units in service. No load-flow and no protection or interlock logic.', needs: 'The network model and EMS study-mode (dispatcher training simulator) results for the same switching sequences.' },
+]);
 const AS = net.asOf;
 const R = rng(40404);
 const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
@@ -41,7 +53,7 @@ for (const t of TX) {
   LOSS_TAGS.push(`${t.id}.LOSS`);
 }
 for (const t of TX) {
-  live.define(`G04.N1.${t.id}`, { fn: () => { const grp = TX.filter((x) => x.sub === t.sub); const rest = grp.filter((x) => x.id !== t.id); return (grp.reduce((a, x) => a + (live.get(`${x.id}.MVA`) || 0), 0) / rest.reduce((a, x) => a + x.rating, 0)) * 100; }, dec: 1, unit: '%', desc: `Post-contingency loading if ${t.id} trips` });
+  live.define(`G04.N1.${t.id}`, { fn: () => { const grp = TX.filter((x) => x.sub === t.sub); const rest = grp.filter((x) => x.id !== t.id); return (grp.reduce((a, x) => a + (live.get(`${x.id}.MVA`) || 0), 0) / rest.reduce((a, x) => a + x.rating, 0)) * 100; }, dec: 1, unit: '%', desc: `Simulated post-contingency loading if ${t.id} trips` });
   live.define(`G04.HSM.${t.id}`, { fn: () => 98 - (live.get(`${t.id}.HST`) || 0), dec: 1, unit: '°C', desc: `${t.id} hot-spot margin to 98 °C alarm` });
 }
 live.define('G04.WX.WIND', { base: 4.4, noise: 0.35, rev: 0.05, min: 0.3, dec: 1, unit: 'm/s', desc: 'Corridor wind speed (met mast M-07)' });
@@ -298,7 +310,7 @@ function txDrawer(t) {
         mount: (b, cx) => { drawerStrip(cx, 'tx-th', [`${t.id}.TOT`, `${t.id}.HST`], ['Top-oil', 'Hot-spot'], ['#f59e0b', '#dc2626'], '°C', { min: 20, max: 110, marks: [[98, '#dc2626', 'HS alarm 98 °C']] }); drawerStrip(cx, 'tx-ld', [`${t.id}.MVA`], ['Load'], ['#3b82f6'], 'MVA', { legend: false, area: true, min: 0, max: Math.round(t.rating * 1.2) }); } },
       { name: `DGA (${t.dga.length} samples)`, body: `<div class="nx-sec"><h4>Dissolved gases, laboratory samples (ppm)</h4><div class="nx-chart is-md" data-chart="tx-dga"></div><p class="nx-note">IEC 60599 / IEEE C57.104 · ${t.duval ? `Duval triangle 1: zone <b>${esc(t.duval.zone)}</b> — ${esc(t.duval.label)}.` : 'No fault zone indicated.'} Worst gas: ${esc(t.worstGas || '—')}.</p></div>${last ? `<div class="nx-sec"><h4>Latest sample · ${fmt.date(last.date)}</h4>${ui.stats(['h2', 'ch4', 'c2h6', 'c2h4', 'c2h2', 'co'].map((g) => ({ label: g.toUpperCase().replace(/(\d)/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]), value: fmt.n(last[g], 1) })))}</div>` : ''}`,
         mount: (b, cx) => { const gases = [['h2', 'H₂', '#3b82f6'], ['ch4', 'CH₄', '#14b8a6'], ['c2h4', 'C₂H₄', '#f59e0b'], ['c2h6', 'C₂H₆', '#8b5cf6'], ['c2h2', 'C₂H₂', '#dc2626']]; cx.chart('tx-dga', ch.line({ x: t.dga.map((d) => fmt.short(d.date)), series: gases.map(([k, n, c]) => ({ name: n, data: t.dga.map((d) => d[k]), color: c, symbol: true })), yName: 'ppm', tooltip: { valueFormatter: (v) => `${fmt.n(v, 1)} ppm` } })); } },
-      { name: 'N-1 contingency', body: `<div class="nx-sec"><h4>If ${esc(t.id)} trips</h4>${ui.stats([{ label: 'Remaining units', value: rest.map((x) => x.id).join(' + ') }, { label: 'Post-contingency %', value: '—', live: `G04.N1.${t.id}` }, { label: 'Emergency limit', value: '120 % · 2 h' }])}<div class="nx-chart is-sm" data-chart="tx-n1" style="margin-top:12px"></div><p class="nx-note">Load of all ${grp.length} units at ${t.sub === 'SUB-S1' ? 'S-1' : 'S-2'} re-shared over the remaining rating, recalculated each second from live flows.</p></div>`,
+      { name: 'N-1 contingency', body: `<div class="nx-sec"><h4>If ${esc(t.id)} trips ${ui.exp('Simulated')}</h4>${ui.stats([{ label: 'Remaining units', value: rest.map((x) => x.id).join(' + ') }, { label: 'Post-contingency %', value: '—', live: `G04.N1.${t.id}` }, { label: 'Emergency limit', value: '120 % · 2 h' }])}<div class="nx-chart is-sm" data-chart="tx-n1" style="margin-top:12px"></div><p class="nx-note">Load of all ${grp.length} units at ${t.sub === 'SUB-S1' ? 'S-1' : 'S-2'} re-shared over the remaining rating, recalculated each second from live flows. Simulated study (pro-rata re-share, no load-flow); not validated against real data.</p></div>`,
         mount: (b, cx) => { let inst = null; const opt = () => ch.bar({ x: grp.map((x) => x.id), series: [{ name: 'Now', data: grp.map((x) => +((live.get(`${x.id}.MVA`) / x.rating) * 100).toFixed(1)), color: '#94a3b8' }, { name: `After loss of ${t.id}`, data: grp.map((x) => (x.id === t.id ? 0 : +post().toFixed(1))), color: post() > 100 ? '#dc2626' : '#16a34a' }], yName: '% of rating', tooltip: { valueFormatter: (v) => `${fmt.n(v, 1)} %` } }); cx.chart('tx-n1', opt()).then((i) => { inst = i; }); cx.every(2000, () => { if (inst && !inst.isDisposed()) inst.setOption(opt()); }); } },
     ],
     actions: [{ label: 'Open one-line', primary: true, icon: 'schematic', onClick: (close) => { close(); go('schematics', 0); } }],
@@ -425,7 +437,7 @@ screens.push({
       render: () => {
         const activeAlarms = events.filter((e) => daysBetween(e.date, AS) <= 7 && e.cat !== 'switching').length;
         return `<div class="nx-page">
-        ${ui.hero({ kicker: 'Operational output · EMS correlation engine', icon: 'ai', text: `<b>${l220Find.length} high-priority findings on the 220 kV corridor</b> (L-220-03) correlated with <b>${l220Therm30.length} thermal loading events</b> in the last 30 days — ${hotFind.length} of them are thermally sensitive (joints, strands, clamps) and should be cleared before the next heat event.`, meta: [{ label: 'System demand · MW', value: '—', live: 'G04.SYS.MW' }, { label: 'Frequency · Hz', value: '—', live: 'SUB-S2.F' }, { label: 'Losses · MW', value: '—', live: 'G04.SYS.LOSS' }], actions: ui.btn('Open correlation', { attrs: 'data-goto="events:1"', ic: 'trend' }) })}
+        ${ui.hero({ kicker: 'EMS correlation engine', icon: 'ai', text: `<b>${l220Find.length} high-priority findings on the 220 kV corridor</b> (L-220-03) correlated with <b>${l220Therm30.length} thermal loading events</b> in the last 30 days — ${hotFind.length} of them are thermally sensitive (joints, strands, clamps) and should be cleared before the next heat event.`, meta: [{ label: 'System demand · MW', value: '—', live: 'G04.SYS.MW' }, { label: 'Frequency · Hz', value: '—', live: 'SUB-S2.F' }, { label: 'Losses · MW', value: '—', live: 'G04.SYS.LOSS' }], actions: ui.btn('Open correlation', { attrs: 'data-goto="events:1"', ic: 'trend' }) })}
         ${ui.kpis([
           { label: 'System demand', live: 'G04.SYS.MW', unit: 'MW', icon: 'bolt', spark: histOf('G04.SYS.MW', 90), sub: 'S-2 local + S-1 132 kV' },
           { label: 'Highest line loading', live: 'G04.PEAK', unit: '%', icon: 'gauge', tone: 'warn', spark: histOf('L-220-03.LOAD', 90), sparkColor: '#d97706', sub: 'L-220-03 Corridor North' },
@@ -718,7 +730,7 @@ screens.push({
           { label: 'Transmission losses', live: 'G04.SYS.LOSS', unit: 'MW', icon: 'loss', tone: 'crit', spark: histOf('G04.SYS.LOSS', 90), sparkColor: '#dc2626', sub: 'I²R + transformer, live' },
           { label: 'Loss ratio', live: 'G04.SYS.LOSSPCT', unit: '%', icon: 'gauge', tone: 'warn', sub: 'of 500 kV infeed · target ≤ 1.2 %', spark: histOf('G04.SYS.LOSSPCT', 90) },
           { label: `Energy lost · ${monLabel(cur.m)}`, value: fmt.n((cur.line + cur.tx + cur.corona + cur.other) * 1000, 0), unit: 'MWh', icon: 'bolt', tone: 'violet', sub: `${fmt.money((cur.line + cur.tx + cur.corona + cur.other) * 1000 * PRICE)} at $${PRICE}/MWh` },
-          { label: 'Avoidable (re-dispatch)', value: '7.8', unit: '%', icon: 'ai', tone: 'ok', sub: 'Optimal tap / reactive dispatch study' },
+          { label: 'Avoidable (re-dispatch)', value: '7.8', unit: '%', icon: 'ai', tone: 'ok', sub: 'Estimate · optimal tap / reactive dispatch study', exp: true },
         ])}
         <div class="nx-row nx-c12">${chartCard(`Energy balance — ${monLabel(cur.m)}`, 'GWh from 500 kV infeed to delivered energy · waterfall', 'wf', 'md', { cls: 'nx-s7' })}${chartCard('Loss contribution — live', 'MW by network element', 'lb', 'md', { cls: 'nx-s5' })}</div>
         ${chartCard('Energy flow — live', 'Sankey of real-time MW from the 500 kV infeed through both substations to demand and losses', 'sk', 'lg')}</div>`;
@@ -773,15 +785,15 @@ screens.push({
           { c: 'Loss of L-500-01', mon: 'S-2 500 kV infeed', pre: p('L-500-01.LOAD'), post: 0, act: 'National grid N-1: re-dispatch via ICCP, Mingachevir 500 kV' },
         ];
         return `<div class="nx-page"><div class="nx-row nx-c12">${chartCard('Constraint hours by month', 'Hours a circuit operated above 90 % of static rating', 'ch', 'md', { cls: 'nx-s7' })}${chartCard('Congestion cost', 'Out-of-merit re-dispatch to relieve constraints, $k per month', 'cc', 'md', { cls: 'nx-s5' })}</div>
-        ${card('N-1 contingency screen — live', 'Post-contingency loading recalculated from live flows each time this view opens (EMS contingency analysis)', ui.table({ cols: [
+        ${card('N-1 contingency screen — live', 'Simulated post-contingency loading, recalculated from live flows each time this view opens (pro-rata re-share, not a validated EMS load-flow study)', ui.table({ cols: [
           { label: 'Contingency', key: 'c', render: (r) => `<b>${esc(r.c)}</b>` },
           { label: 'Monitored element', key: 'mon' },
           { label: 'Pre-contingency', align: 'r', key: 'pre', render: (r) => `${fmt.n(r.pre, 1)} %` },
           { label: 'Post-contingency', align: 'r', key: 'post', render: (r) => (r.post ? `<b style="color:${r.post > 100 ? '#dc2626' : r.post > 90 ? '#ea580c' : '#16a34a'}">${fmt.n(r.post, 1)} %</b>` : '<b style="color:#dc2626">Islanding</b>') },
           { label: 'Status', render: (r) => ui.badge(r.post > 100 || !r.post ? 'Violation' : r.post > 90 ? 'Alert' : 'Secure', r.post > 100 || !r.post ? 'crit' : r.post > 90 ? 'warn' : 'ok'), sort: (r) => r.post },
           { label: 'Remedial action', key: 'act', wrap: true },
-        ], rows: cont }), { flush: true })}
-        <div class="nx-row nx-c12">${chartCard('Transformer N-1 margin — live', 'Post-contingency loading of the surviving units if each transformer trips · 100 % rating, 120 % two-hour emergency limit', 'n1', 'md', { cls: 'nx-s8' })}${chartCard('Constraint hours by circuit', 'Share of the 12-month constraint hours', 'chs', 'md', { cls: 'nx-s4' })}</div></div>`;
+        ], rows: cont }), { flush: true, })}
+        <div class="nx-row nx-c12">${chartCard('Transformer N-1 margin — live', 'Post-contingency loading of the surviving units if each transformer trips · 100 % rating, 120 % two-hour emergency limit', 'n1', 'md', { cls: 'nx-s8', })}${chartCard('Constraint hours by circuit', 'Share of the 12-month constraint hours', 'chs', 'md', { cls: 'nx-s4' })}</div></div>`;
       },
       mount: (st, ctx) => {
         const data = []; const sev = { 'L-500-01': 0.4, 'L-220-03': 1, 'L-132-01': 0.55 };
@@ -838,10 +850,10 @@ screens.push({
       },
     },
     {
-      name: 'Defect × stress correlation', icon: 'ai',
+      name: 'Defect × stress correlation', icon: 'ai', 
       render: () => {
         const pairs = l220Find.map((f) => { const t = towerStress.find((x) => x.id === f.tower_id); const ev = events.filter((e) => e.cat === 'thermal' && e.line === 'L-220-03' && daysBetween(e.date, AS) <= 30); const maxE = Math.max(...towerStress.filter((x) => x.line === 'L-220-03').map((x) => x.exposure)); const pri = Math.round(100 * (0.45 * (t ? t.exposure / maxE : 0) + 0.35 * ((100 - (t?.hi ?? 100)) / 70) + 0.2 * (f.severity === 'critical' ? 1 : 0.6)) * (THERMAL_CLASSES.has(f.defect_class) ? 1.15 : 0.85)); return { f, t, n: ev.length, peak: Math.max(0, ...ev.map((e) => e.peak)), pri: Math.min(100, pri) }; }).filter((p) => p.t).sort((a, b) => b.pri - a.pri);
-        return `<div class="nx-page">${ui.hero({ kicker: 'Operational output · correlation', icon: 'ai', text: `High-priority findings on 220 kV corridor correlated with recent thermal loading operational events: <b>${l220Find.length} verified critical/high findings</b> on L-220-03 sit on a circuit that logged <b>${l220Therm30.length} thermal alarms</b> (peak ${fmt.n(Math.max(0, ...l220Therm30.map((e) => e.peak)), 1)} %) in 30 days. ${hotFind.length} are thermally sensitive — prioritise before the next heat event.`, meta: [{ label: 'Pearson r (stress vs condition)', value: fmt.n(rStress, 2) }, { label: 'L-220-03 hours > 90 %', value: hotHours['L-220-03'] }] })}
+        return `<div class="nx-page">${ui.hero({ kicker: 'operational output', icon: 'ai', text: `High-priority findings on 220 kV corridor correlated with recent thermal loading operational events: <b>${l220Find.length} verified critical/high findings</b> on L-220-03 sit on a circuit that logged <b>${l220Therm30.length} thermal alarms</b> (peak ${fmt.n(Math.max(0, ...l220Therm30.map((e) => e.peak)), 1)} %) in 30 days. ${hotFind.length} are thermally sensitive — prioritise before the next heat event.`, meta: [{ label: 'Pearson r (stress vs condition)', value: fmt.n(rStress, 2) }, { label: 'L-220-03 hours > 90 %', value: hotHours['L-220-03'] }] })}
         <div class="nx-row nx-c12">${chartCard('Thermal stress exposure vs structure condition', 'Each dot is a tower · x = loading-weighted hot-hours (28 d) · y = 100 − health index · size = open findings', 'sc', 'lg', { cls: 'nx-s7', tools: ui.seg('scl', [['L-220-03', 'L-220-03'], ['all', 'All lines']], 'L-220-03') })}${chartCard('Defect classes on high- vs low-stress structures', 'Verified findings, split at the median exposure', 'dc', 'lg', { cls: 'nx-s5' })}</div>
         ${card('Findings to act on before the next thermal event', 'Verified critical/high findings on L-220-03, ranked by thermal exposure', ui.table({ id: 'cp', cols: [
           { label: 'Finding', render: (p) => `<b>${esc(p.f.label)}</b><span class="nx-sub">${p.f.finding_id} · ${fmt.date(p.f.date)}</span>`, sort: (p) => p.f.label },
@@ -851,7 +863,7 @@ screens.push({
           { label: 'Exposure (h)', align: 'r', render: (p) => `<b>${p.t.exposure}</b>`, sort: (p) => p.t.exposure },
           { label: 'Health index', align: 'r', render: (p) => ui.score(p.t.hi), sort: (p) => p.t.hi },
           { label: 'Action priority', align: 'r', render: (p) => `<b style="color:${p.pri >= 60 ? '#dc2626' : p.pri >= 35 ? '#ea580c' : '#64748b'}">${p.pri}</b>`, sort: (p) => p.pri },
-        ], rows: pairs, rowId: (p) => p.f.finding_id }), { flush: true })}</div>`;
+        ], rows: pairs, rowId: (p) => p.f.finding_id }), { flush: true, exp: true })}</div>`;
       },
       mount: (st, ctx) => {
         const draw = (which) => {
@@ -929,7 +941,7 @@ screens.push({
     {
       name: 'Defect link', icon: 'link',
       render: () => `<div class="nx-page">${ui.callout(`Does inspection evidence lead protection trips? The lead-lag chart tests it directly: Pearson r between monthly verified findings and trips <i>k</i> months later (12 months of records, so treat |r| &lt; 0.5 as weak). Insulator and conductor-hardware findings explain <b>${fmt.n((trips.filter((t) => ['insulator', 'conductor'].includes(t.cause)).length / trips.length) * 100, 0)} %</b> of trips — the defect classes Module 02 detects best.`, 'info', 'ai')}
-      <div class="nx-row nx-c12">${chartCard('Findings opened vs line trips', 'Monthly · bars verified findings by severity, line trips', 'dl', 'lg', { cls: 'nx-s8' })}${chartCard('Lead-lag correlation', 'Correlation of monthly findings with trips k months later', 'lag', 'lg', { cls: 'nx-s4' })}</div>
+      <div class="nx-row nx-c12">${chartCard('Findings opened vs line trips', 'Monthly · bars verified findings by severity, line trips', 'dl', 'lg', { cls: 'nx-s8' })}${chartCard('Lead-lag correlation', 'Correlation of monthly findings with trips k months later', 'lag', 'lg', { cls: 'nx-s4', exp: true })}</div>
       ${chartCard('Trip causes vs open findings of the matching class', 'Where inspection evidence and protection records agree', 'match', 'md')}</div>`,
       mount: (st, ctx) => {
         const fm = (sev) => months.map((m) => net.findings.filter((f) => f.date && monthKey(f.date) === m && f.review_status !== 'rejected' && f.severity === sev).length);
@@ -1099,7 +1111,7 @@ function gisPid() {
   s += sx.pipe([[cx, 800], [cx + 60, 800]], { medium: 'gas', net: 'CART' });
   s += sx.instr(cx + 160, 830, 'WT', '01', { tag: 'GIS.CART.KG', unit: 'kg', loc: 'field', id: 'WT-01' });
   // leak summary panel
-  s += `<rect class="sx-box" x="1390" y="200" width="200" height="150" rx="6"/>${sx.text(1402, 220, 'LEAK SUPERVISION', { cls: 'sx-tb', size: 11 })}${sx.text(1402, 240, 'E03 Q0 leak rate', { cls: 'sx-ts' })}<text x="1580" y="240" class="sx-v" text-anchor="end" data-live="GIS.E03.LEAK">—</text>${sx.text(1402, 256, 'IEC 62271-1 limit 0.5 %/yr', { cls: 'sx-ts' })}${sx.text(1402, 278, 'Inventory in service', { cls: 'sx-ts' })}<text x="1580" y="278" class="sx-v" text-anchor="end">1,842 kg</text>${sx.text(1402, 298, 'CO₂-eq (GWP 24,300)', { cls: 'sx-ts' })}<text x="1580" y="298" class="sx-v" text-anchor="end">44.8 kt</text>${sx.text(1402, 318, 'Time to alarm-1 (E03)', { cls: 'sx-ts' })}<text x="1580" y="318" class="sx-v" text-anchor="end" data-live="GIS.E03.TTA">—</text>${sx.text(1402, 338, 'Open V-E03 + V-CART to top up', { cls: 'sx-ts', color: '#fbbf24' })}`;
+  s += `<rect class="sx-box" x="1390" y="200" width="200" height="150" rx="6"/>${sx.text(1402, 220, 'LEAK SUPERVISION', { cls: 'sx-tb', size: 11 })}${sx.text(1402, 240, 'E03 Q0 leak rate', { cls: 'sx-ts' })}<text x="1580" y="240" class="sx-v" text-anchor="end" data-live="GIS.E03.LEAK">—</text>${sx.text(1402, 256, 'IEC 62271-1 limit 0.5 %/yr', { cls: 'sx-ts' })}${sx.text(1402, 278, 'Inventory in service', { cls: 'sx-ts' })}<text x="1580" y="278" class="sx-v" text-anchor="end">1,842 kg</text>${sx.text(1402, 298, 'CO₂-eq (GWP 24,300)', { cls: 'sx-ts' })}<text x="1580" y="298" class="sx-v" text-anchor="end">44.8 kt</text>${sx.text(1402, 318, 'Alarm-1 forecast E03', { cls: 'sx-ts' })}<text x="1580" y="318" class="sx-v" text-anchor="end" data-live="GIS.E03.TTA">—</text>${sx.text(1402, 338, 'Open V-E03 + V-CART to top up', { cls: 'sx-ts', color: '#fbbf24' })}`;
   s += sx.frame(W, H, { title: 'S-1 220 kV GIS · SF₆ MONITORING P&ID', dno: 'NX-GRD-PID-0211', rev: 'B' });
   return { W, H, s, bays };
 }
@@ -1121,11 +1133,11 @@ function defineGisTags(bays) {
   live.define('GIS.CART.RUN', { base: 0, noise: 0, rev: 1, dec: 0, desc: 'Cart compressor running' });
   live.define('GIS.CART.FLOW', { base: 0, noise: 0, rev: 1, dec: 1, unit: 'kg/h', desc: 'Cart flow' });
   live.define('GIS.E03.LEAK', { base: 1.84, noise: 0.02, rev: 0.1, dec: 2, unit: '%/yr', h: 0.5, desc: 'E03 Q0 SF₆ leak rate (IEC limit 0.5 %/yr)' });
-  live.define('GIS.E03.TTA', { fn: () => { const v = live.get('GIS.E03.CB.D'); return v <= 640 ? 0 : (v - 640) / 0.35; }, dec: 0, unit: 'days', desc: 'Days to E03 alarm-1', fmt: (v) => (v <= 0 ? 'IN ALARM' : `${Math.round(v)} days`) });
+  live.define('GIS.E03.TTA', { fn: () => { const v = live.get('GIS.E03.CB.D'); return v <= 640 ? 0 : (v - 640) / 0.35; }, dec: 0, unit: 'days', desc: 'Projected days to E03 alarm-1', fmt: (v) => (v <= 0 ? 'IN ALARM' : `${Math.round(v)} days`) });
 }
 
 screens.push({
-  id: 'schematics', name: 'Network Schematics', icon: 'schematic', note: `${icon('info', 13)} Click any device for its faceplate · switching is simulation only (select-before-operate)`,
+  id: 'schematics', name: 'Network Schematics', icon: 'schematic', note: `${icon('info', 13)} Click any device for its faceplate · switching is simulation only (select-before-operate) ${ui.exp('Simulated', 'Switching on these diagrams is a simulation on demo data (topology tracing and pro-rata load sharing, no load-flow). Not validated against real data. Click for the model validation register.')}`,
   tabs: [
     {
       name: 'Transmission one-line (SCADA)', icon: 'bolt', full: true,
@@ -1169,14 +1181,14 @@ screens.push({
           }
         }
         ctx.on('click', '[data-ol]', (e, b) => {
-          if (b.dataset.ol === 'trip') { h.set('S1-L03-Q0', 'open'); h.set('S2-L03-Q0', 'open'); toast('L-220-03 tripped (21 Z1, both ends) — S-1 220 kV busbar de-energised', 'crit'); }
+          if (b.dataset.ol === 'trip') { h.set('S1-L03-Q0', 'open'); h.set('S2-L03-Q0', 'open'); toast('Simulated: L-220-03 tripped (21 Z1, both ends) — S-1 220 kV busbar de-energised', 'crit'); }
           else { Object.keys(switches).forEach((k) => h.set(k, switches[k])); redistribute(); toast('Network restored to normal switching state'); }
         });
         return () => { allTags.forEach((t) => live.force(t, null)); TX.forEach((t) => live.setBase(`${t.id}.MVA`, base[t.id])); };
       },
     },
     {
-      name: 'GIS SF₆ monitoring (P&ID)', icon: 'radar', full: true,
+      name: 'GIS SF₆ monitoring (P&ID)', icon: 'radar', full: true, 
       render: () => '<div id="gis" class="nx-hmi is-full"></div>',
       mount: (st, ctx) => {
         const { W, H, s, bays } = gisPid();
@@ -1220,6 +1232,6 @@ APP = mountApp({
     ...TX.map((t) => ({ label: `${t.id} · ${t.rating} MVA`, sub: 'Open in network one-line', icon: 'transformer', run: () => go('schematics', 0) })),
     ...events.slice(0, 200).map((e) => ({ label: `${e.id} · ${e.type}`, sub: `${where(e)} · ${fmt.date(e.date)}`, icon: catIcon[e.cat], run: () => eventDrawer(e) })),
     { label: 'GIS SF₆ monitoring', sub: 'S-1 220 kV GIS P&ID', icon: 'radar', run: () => go('schematics', 1) },
-    { label: 'N-1 contingency screen', sub: 'Loss analysis · constraints', icon: 'event', run: () => go('losses', 2) },
+    { label: 'N-1 contingency screen', sub: 'Loss analysis · constraints · simulated study', icon: 'event', run: () => go('losses', 2) },
   ],
 });

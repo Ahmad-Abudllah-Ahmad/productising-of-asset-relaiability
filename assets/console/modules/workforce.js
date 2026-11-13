@@ -7,9 +7,30 @@ import { mountApp, ui, ch, live, esc, fmt, icon, drawer, toast, healthColor, SEV
 import * as sx from '../schematics.js';
 import { loadNetwork, networkLayers, DEFECT_LABEL, SEV_TONE, LINE_NAME } from '../network.js';
 import { drawingTabs } from '../drawings.js';
+import { models } from '../models.js';
+import { erpRequest } from '../erp.js';
 
 const net = await loadNetwork();
 const ASOF = net.asOf;
+// Predictive heuristics this module shows. All run on simulated demo data and none is validated (see models.js).
+models.register([
+  { id: 'fatigue-index', name: 'Fatigue-risk index (FRMS)', module: '08 · Workforce & Safety',
+    predicts: 'Fatigue-risk score 0–100 per person and the planner flags derived from it (countersign or no night call-out above 60)',
+    method: 'Placeholder: a seeded demo value per person. The intended index combines shift pattern, travel and consecutive days; that calculation is not implemented yet.',
+    needs: 'Shift rosters, clock-in / clock-out and travel records from HR time recording and vehicle telematics, plus fatigue-related incident history to calibrate the 60 threshold.' },
+  { id: 'crew-match', name: 'Crew match score and best-match recommendation', module: '08 · Workforce & Safety',
+    predicts: 'Suitability score 0–100 of each crew for a work order, the ranked “best match” and the estimated drive time',
+    method: 'Rule-based points: trade match 40, required authorisations with two valid holders 30, distance from depot up to 15 (straight-line km; drive time ≈ km / 0.6 + 10 min), availability up to 15, minus 3 per member above 48 h. Weights are assumptions, not fitted. The competence block itself is a fixed rule on certificate records, not a prediction.',
+    needs: 'History of crew assignments with outcomes (job duration, rework, safety events) and real travel times from vehicle telematics.' },
+  { id: 'crew-capacity', name: 'Crew capacity by trade, next 2 weeks', module: '08 · Workforce & Safety',
+    predicts: 'Crew hours available per trade over the next two weeks, compared with the labour hours on open work orders',
+    method: 'Crew size × 40 h × 2 weeks × (1 − 0.6 × current utilisation); demand is the sum of labour-hour estimates on open SAP PM orders.',
+    needs: 'Roster, leave and booked-hours history from HR time recording, and planned vs actual labour hours from SAP PM confirmations.' },
+  { id: 'loto-switching-sim', name: 'Isolation (LOTO) switching simulation', module: '08 · Workforce & Safety',
+    predicts: 'Energised or dead state of the line for a switching sequence, interlock responses, induced voltage and portable-earth current at the work site',
+    method: 'Topology rule (the line is alive when Q1, Q0 and Q9 are closed at either end) with fixed interlock rules; induced voltage and earth current are random values in fixed ranges, not a network calculation.',
+    needs: 'Switchgear status and measurements from SCADA / EMS, the utility’s interlocking scheme, and an induction study for parallel circuits.' },
+]);
 // network.js resolves towerOf() to the raw asset record, so some work orders carry the tower id as `line` and no
 // coordinates. Normalise from the scored tower list (local workaround; see report).
 for (const w of net.workOrders) {
@@ -269,7 +290,7 @@ function personDrawer(id) {
       {
         name: 'Profile',
         body: `<div class="nx-sec"><h4>This week</h4>${ui.stats([{ label: 'Hours booked', value: `${p.hoursWeek} h`, color: p.hoursWeek > 48 ? '#dc2626' : undefined }, { label: 'Fatigue index', value: p.fatigue, color: p.fatigue > 60 ? '#d97706' : '#16a34a' }, { label: 'Years in service', value: p.years }, { label: 'Crew jobs open', value: jobs.length }])}</div>
-          <div class="nx-drawer-grid"><div class="nx-sec"><h4>Fatigue risk (FRMS)</h4><div class="nx-chart is-sm" data-chart="pfat"></div><p class="nx-note">HSE fatigue-risk index from shift pattern, travel and consecutive days. Above 60 a planner must countersign night or emergency call-out.</p></div>
+          <div class="nx-drawer-grid"><div class="nx-sec"><h4>Fatigue risk (FRMS) ${ui.exp()}</h4><div class="nx-chart is-sm" data-chart="pfat"></div><p class="nx-note">fatigue-risk index, simulated on demo data and not validated; the intended inputs are shift pattern, travel and consecutive days. Above 60 a planner must countersign night or emergency call-out.</p></div>
           <div class="nx-sec"><h4>Booked hours · last 8 weeks</h4><div class="nx-chart is-sm" data-chart="phrs"></div><p class="nx-note">Dashed red line: 48 h average working-week limit (EU 2003/88/EC).</p></div></div>
           <div class="nx-sec"><h4>Certifications & authorisations</h4>${p.certs.length ? ui.table({ cols: [{ key: 'name', label: 'Certificate', render: (c) => `<b>${esc(c.name)}</b><span class="nx-sub">${esc(c.id)}</span>` }, { key: 'expires', label: 'Expires', render: (c) => `${fmt.date(c.expires)}<span class="nx-sub">${daysTo(c.expires) >= 0 ? `in ${daysTo(c.expires)} d` : `${-daysTo(c.expires)} d ago`}</span>` }, { key: 'state', label: 'State', render: (c) => ui.badge(c.state, certTone[c.state]) }], rows: p.certs }) : ui.empty('No certificates required for this role.')}</div>`,
         mount: (el, ctx) => {
@@ -285,7 +306,7 @@ function personDrawer(id) {
       },
       {
         name: 'Activity',
-        body: `<div class="nx-sec"><h4>Crew work in hand</h4>${jobs.length ? `<div class="nx-list">${jobs.slice(0, 6).map((w) => ui.li({ ic: 'clipboard', color: SEV[w.severity], title: `${w.id} · ${fmt.title(w.work_type)}`, sub: `${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')} · planned ${fmt.short(w.planned_date)}`, end: ui.badge(w.stage.replace('_', ' '), stageTone[w.stage]) })).join('')}</div>` : ui.empty('No open jobs for this crew.')}</div>
+        body: `<div class="nx-sec"><h4>Crew work in hand ${ui.erp('SAP PM', 'workOrders')}</h4>${jobs.length ? `<div class="nx-list">${jobs.slice(0, 6).map((w) => ui.li({ ic: 'clipboard', color: SEV[w.severity], title: `${w.id} · ${fmt.title(w.work_type)}`, sub: `${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')} · planned ${fmt.short(w.planned_date)}`, end: ui.badge(w.stage.replace('_', ' '), stageTone[w.stage]) })).join('')}</div>` : ui.empty('No open jobs for this crew.')}</div>
           <div class="nx-sec"><h4>Audit trail</h4>${auditTimeline(auditFor((a) => a.object === p.id || a.actor.includes(p.name.split(' ').pop()) || jobs.some((w) => a.object === w.id || a.detail.includes(w.id)) || net.permits.some((x) => x.crew === p.crew && a.object === x.id)))}</div>`,
       },
     ],
@@ -301,7 +322,7 @@ function permitDrawer(id) {
   const hrsLeft = Math.max(0, daysTo(p.expires) * 24 + 18);
   drawer.open({
     icon: 'key', kicker: `${p.type} · ${p.code}`, title: p.id, sub: `${esc(p.wo)} · ${esc(fmt.title(wo.work_type))} at ${esc(p.asset)} · ${esc(lineName(p.line))}`, wide: true,
-    badges: [[st, permitTone[st]], [`${permitProgress(p)}% prerequisites`, permitProgress(p) === 100 ? 'ok' : 'warn'], [m.blocked ? 'Crew competence gap' : `Crew qualified · ${m.score}/100`, m.blocked ? 'crit' : 'ok'], [wo.outage ? 'Outage isolation' : 'Live-line method', wo.outage ? 'warn' : 'info']],
+    badges: [[st, permitTone[st]], [`${permitProgress(p)}% prerequisites`, permitProgress(p) === 100 ? 'ok' : 'warn'], [m.blocked ? 'Crew competence gap' : `Crew qualified · match ${m.score}/100`, m.blocked ? 'crit' : 'ok'], [wo.outage ? 'Outage isolation' : 'Live-line method', wo.outage ? 'warn' : 'info']],
     meta: `Authorised by ${p.authorisedBy} · SAP PM ${wo.sap} · Maximo ${wo.maximo}`,
     tabs: [
       {
@@ -358,18 +379,18 @@ function woDrawer(id) {
   const cur = crewById.get(assigned.get(w.id) || w.crew);
   drawer.open({
     icon: 'clipboard', kicker: `${w.id} · SAP ${w.sap} · Maximo ${w.maximo}`, title: fmt.title(w.work_type), sub: `${esc(w.towerName || w.asset)} · ${esc(lineName(w.line))}`, wide: true,
-    badges: [[w.stage.replace('_', ' '), stageTone[w.stage]], [`${w.severity} severity`, SEV_TONE[w.severity]], [w.outage ? 'Outage required' : 'Live-line method', w.outage ? 'warn' : 'info'], [permit ? `${permit.id} · ${permitState.get(permit.id)}` : 'No permit yet', permit ? permitTone[permitState.get(permit.id)] : 'muted']],
+    badges: [[w.stage.replace('_', ' '), stageTone[w.stage]], [`${w.severity} severity`, SEV_TONE[w.severity]], [w.outage ? 'Outage required' : 'Live-line method', w.outage ? 'warn' : 'info'], [permit ? `${permit.id} · ${permitState.get(permit.id)}` : 'No permit yet', permit ? permitTone[permitState.get(permit.id)] : 'muted'], ['ERP · SAP PM', 'info']],
     meta: `Planned ${fmt.date(w.planned_date)} · trade ${w.skill}`,
     tabs: [
       {
         name: 'Overview',
         body: `<div class="nx-sec"><h4>Job</h4>${ui.stats([{ label: 'Labour', value: `${w.labourH} h` }, { label: 'Estimated cost', value: fmt.money(w.estCost) }, { label: 'Voltage', value: w.kv ? `${w.kv} kV` : '—' }, { label: 'Assigned crew', value: cur?.id || '—' }])}</div>
           <div class="nx-drawer-grid"><div class="nx-sec"><h4>Required authorisations (${esc(w.skill)})</h4><div class="nx-list">${(REQ[w.skill] || []).map((cid) => { const n = cur ? peopleOf(cur.id).filter((x) => hasCert(x, cid)).length : 0; return ui.li({ ic: n >= MIN_HOLDERS ? 'checkCircle' : 'alert', color: n >= MIN_HOLDERS ? '#16a34a' : '#dc2626', title: CERT[cid].name, sub: `${n} valid holder(s) in ${cur?.id || 'no crew'} · minimum ${MIN_HOLDERS}` }); }).join('')}</div></div>
-          <div class="nx-sec"><h4>Findings driving this work</h4>${w.findings.length ? `<div class="nx-list">${w.findings.map((f) => ui.li({ ic: 'camera', color: SEV[f.severity], title: `${f.finding_id} · ${f.label}`, sub: `${f.sensor.toUpperCase()} · confidence ${Math.round(f.confidence * 100)}% · ${f.review_status}`, end: ui.badge(f.severity, SEV_TONE[f.severity]) })).join('')}</div>` : ui.empty('No linked findings.')}</div></div>`,
+          <div class="nx-sec"><h4>Findings driving this work ${ui.exp('Experimental', 'The confidence on each finding is a detection-model score on simulated data, not tested against real inspections yet. Click for the model validation register.')}</h4>${w.findings.length ? `<div class="nx-list">${w.findings.map((f) => ui.li({ ic: 'camera', color: SEV[f.severity], title: `${f.finding_id} · ${f.label}`, sub: `${f.sensor.toUpperCase()} · model confidence ${Math.round(f.confidence * 100)}% · ${f.review_status}`, end: ui.badge(f.severity, SEV_TONE[f.severity]) })).join('')}</div>` : ui.empty('No linked findings.')}</div></div>`,
       },
       {
         name: 'Crew match',
-        body: `<div class="nx-sec"><h4>Match score · top crews</h4><div class="nx-chart is-sm" data-chart="wmatch"></div></div>${cands.map((m2, i) => `<div class="nx-sec"><h4>${i + 1}. ${esc(m2.crew.id)} · ${esc(m2.crew.name)} — ${m2.score}/100 ${m2.blocked ? ui.badge('Blocked', 'crit') : ''}</h4><div class="wfs-why">${m2.reasons.map(([k, t]) => `${icon(k === 'ok' ? 'checkCircle' : k === 'no' ? 'x' : 'alert')}<span class="wfs-${k}">${esc(t)}</span>`).join('')}</div></div>`).join('')}`,
+        body: `<div class="nx-sec"><h4>Match score · top crews ${ui.exp()}</h4><div class="nx-chart is-sm" data-chart="wmatch"></div></div>${cands.map((m2, i) => `<div class="nx-sec"><h4>${i + 1}. ${esc(m2.crew.id)} · ${esc(m2.crew.name)} — ${m2.score}/100 ${m2.blocked ? ui.badge('Blocked', 'crit') : ''}</h4><div class="wfs-why">${m2.reasons.map(([k, t]) => `${icon(k === 'ok' ? 'checkCircle' : k === 'no' ? 'x' : 'alert')}<span class="wfs-${k}">${esc(t)}</span>`).join('')}</div></div>`).join('')}`,
         mount: (el, ctx) => { const all = ranked(w); ctx.chart('wmatch', ch.bar({ x: all.map((m2) => m2.crew.id), legend: false, labels: true, series: [{ name: 'Match score', data: all.map((m2) => ({ value: m2.score, itemStyle: { color: m2.blocked ? '#fca5a5' : m2.score >= 70 ? '#16a34a' : '#f59e0b', borderRadius: [4, 4, 0, 0] } })) }], max: 100, grid: { top: 16 } })); },
       },
       {
@@ -462,9 +483,9 @@ const dashboard = {
       render: () => {
         const over = net.people.filter((p) => p.hoursWeek > 48 || p.fatigue > 60).sort((a, b) => b.fatigue - a.fatigue);
         return `<div class="nx-page"><div class="nx-row nx-c12">
-          ${ui.card({ cls: 'nx-s7', title: 'Hours worked vs fatigue index', sub: 'Each dot is a person this week. Upper-right quadrant needs a planner sign-off before call-out.', body: ui.chart('fat', 'lg') })}
+          ${ui.card({ cls: 'nx-s7', exp: true, title: 'Hours worked vs fatigue index', sub: 'Each dot is a person this week. Upper-right quadrant needs a planner sign-off before call-out.', body: ui.chart('fat', 'lg') })}
           ${ui.card({ cls: 'nx-s5', title: 'Weekly hours by crew · last 12 weeks', sub: 'Average booked hours per person', body: ui.chart('wk', 'lg') })}</div>
-          ${ui.card({ title: 'People above working-time or fatigue thresholds', sub: '> 48 h this week or fatigue index > 60', flush: true, body: ui.table({ cols: [{ key: 'name', label: 'Person', render: (p) => `<b>${esc(p.name)}</b><span class="nx-sub">${esc(p.id)} · ${esc(p.role)}</span>` }, { key: 'crew', label: 'Crew', render: (p) => esc(p.crewName) }, { key: 'hoursWeek', label: 'Hours', align: 'r', render: (p) => `<b style="color:${p.hoursWeek > 48 ? '#dc2626' : 'inherit'}">${p.hoursWeek} h</b>` }, { key: 'fatigue', label: 'Fatigue', render: (p) => ui.meter(p.fatigue, 100, p.fatigue > 60 ? '#d97706' : '#16a34a') }, { key: 'action', label: 'Planner action', sort: false, render: (p) => (p.hoursWeek > 48 ? ui.badge('Stand down next shift', 'crit') : ui.badge('No night call-out', 'warn')) }], rows: over, rowId: (p) => p.id }) })}</div>`;
+          ${ui.card({ exp: true, title: 'People above working-time or fatigue thresholds', sub: '> 48 h this week or fatigue index > 60', flush: true, body: ui.table({ cols: [{ key: 'name', label: 'Person', render: (p) => `<b>${esc(p.name)}</b><span class="nx-sub">${esc(p.id)} · ${esc(p.role)}</span>` }, { key: 'crew', label: 'Crew', render: (p) => esc(p.crewName) }, { key: 'hoursWeek', label: 'Hours', align: 'r', render: (p) => `<b style="color:${p.hoursWeek > 48 ? '#dc2626' : 'inherit'}">${p.hoursWeek} h</b>` }, { key: 'fatigue', label: 'Fatigue', render: (p) => ui.meter(p.fatigue, 100, p.fatigue > 60 ? '#d97706' : '#16a34a') }, { key: 'action', label: 'Planner action', sort: false, render: (p) => (p.hoursWeek > 48 ? ui.badge('Stand down next shift', 'crit') : ui.badge('No night call-out', 'warn')) }], rows: over, rowId: (p) => p.id }) })}</div>`;
       },
       mount: (st, ctx) => {
         ctx.chart('fat', { grid: ch.grid({ top: 30 }), tooltip: { formatter: (p) => `<b>${esc(p.data[2])}</b><br/>${p.data[0]} h · fatigue ${p.data[1]}` }, legend: { top: 0, right: 0, type: 'scroll' }, xAxis: { type: 'value', name: 'hours / week', min: 28, max: 56 }, yAxis: { type: 'value', name: 'fatigue', min: 0, max: 100 },
@@ -509,7 +530,7 @@ function crewDrawer(id) {
       },
       {
         name: 'Workload',
-        body: `<div class="nx-sec"><h4>Booked hours per member · this week</h4><div class="nx-chart is-sm" data-chart="cwl"></div></div><div class="nx-sec"><h4>Open jobs</h4>${jobs.length ? ui.table({ cols: [{ key: 'id', label: 'WO', render: (w) => `<b>${esc(w.id)}</b><span class="nx-sub">${esc(fmt.title(w.work_type))}</span>` }, { key: 'towerName', label: 'Asset', render: (w) => `${esc(w.towerName || w.asset)}<span class="nx-sub">${esc(w.line || 'Substation')}</span>` }, { key: 'severity', label: 'Severity', render: (w) => ui.badge(w.severity, SEV_TONE[w.severity]) }, { key: 'labourH', label: 'Labour', align: 'r', render: (w) => `${w.labourH} h` }, { key: 'planned_date', label: 'Planned', render: (w) => fmt.short(w.planned_date) }], rows: jobs, rowId: (w) => w.id }) : ui.empty('No open jobs assigned.')}</div>`,
+        body: `<div class="nx-sec"><h4>Booked hours per member · this week</h4><div class="nx-chart is-sm" data-chart="cwl"></div></div><div class="nx-sec"><h4>Open jobs ${ui.erp('SAP PM', 'workOrders')}</h4>${jobs.length ? ui.table({ cols: [{ key: 'id', label: 'WO', render: (w) => `<b>${esc(w.id)}</b><span class="nx-sub">${esc(fmt.title(w.work_type))}</span>` }, { key: 'towerName', label: 'Asset', render: (w) => `${esc(w.towerName || w.asset)}<span class="nx-sub">${esc(w.line || 'Substation')}</span>` }, { key: 'severity', label: 'Severity', render: (w) => ui.badge(w.severity, SEV_TONE[w.severity]) }, { key: 'labourH', label: 'Labour', align: 'r', render: (w) => `${w.labourH} h` }, { key: 'planned_date', label: 'Planned', render: (w) => fmt.short(w.planned_date) }], rows: jobs, rowId: (w) => w.id }) : ui.empty('No open jobs assigned.')}</div>`,
         mount: (el, ctx) => {
           ctx.chart('cwl', ch.bar({ x: ppl.map((p) => p.name.split(' ')[0]), legend: false, series: [{ name: 'Hours', data: ppl.map((p) => ({ value: p.hoursWeek, itemStyle: { color: p.hoursWeek > 48 ? '#dc2626' : '#3b82f6', borderRadius: [4, 4, 0, 0] } })), markLine: { symbol: 'none', silent: true, data: [{ yAxis: 48 }], lineStyle: { color: '#dc2626', type: 'dashed' }, label: { formatter: '48 h' } } }], grid: { top: 14 } }));
           ctx.on('click', 'tr[data-row]', (e, r) => woDrawer(r.dataset.row));
@@ -535,15 +556,15 @@ const assignScreen = {
             { label: 'Open work orders', value: openWos.length, sub: `${openWos.filter((w) => w.severity === 'critical' || w.severity === 'high').length} high / critical`, icon: 'clipboard' },
             { label: 'Auto-matched & qualified', value: openWos.filter((w) => !matchCrew(w, crewById.get(assigned.get(w.id))).blocked).length, sub: 'assignment passes every competence rule', icon: 'checkCircle', tone: 'ok' },
             { label: 'Blocked by competence', value: openWos.filter((w) => matchCrew(w, crewById.get(assigned.get(w.id))).blocked).length, sub: 'expired or missing authorisation', icon: 'lock', tone: 'crit' },
-            { label: 'Average match score', value: Math.round(openWos.reduce((a, w) => a + matchCrew(w, crewById.get(assigned.get(w.id))).score, 0) / openWos.length), unit: '/100', icon: 'target', tone: 'violet' },
+            { label: 'Average match score', value: Math.round(openWos.reduce((a, w) => a + matchCrew(w, crewById.get(assigned.get(w.id))).score, 0) / openWos.length), unit: '/100', icon: 'target', tone: 'violet', exp: true },
           ])}
           <div class="wfs-split">
-            ${ui.card({ title: `${wo.id} · ${fmt.title(wo.work_type)}`, sub: `${wo.towerName || wo.asset} · ${lineName(wo.line)} · ${wo.kv || '—'} kV`, tools: `${ui.badge(`${wo.severity}`, SEV_TONE[wo.severity])}${wo.outage ? ui.badge('Outage', 'warn') : ui.badge('Live-line', 'info')}${ui.btn('Work order', { sm: true, attrs: `data-wo="${esc(wo.id)}"` })}`,
+            ${ui.card({ exp: true, erp: ['SAP PM', 'workOrders'], title: `${wo.id} · ${fmt.title(wo.work_type)}`, sub: `${wo.towerName || wo.asset} · ${lineName(wo.line)} · ${wo.kv || '—'} kV`, tools: `${ui.badge(`${wo.severity}`, SEV_TONE[wo.severity])}${wo.outage ? ui.badge('Outage', 'warn') : ui.badge('Live-line', 'info')}${ui.btn('Work order', { sm: true, attrs: `data-wo="${esc(wo.id)}"` })}`,
               body: `<div class="nx-row nx-c3" style="margin-bottom:14px">${ui.stats([{ label: 'Trade needed', value: wo.skill }, { label: 'Labour estimate', value: `${wo.labourH} h` }, { label: 'Planned', value: fmt.short(wo.planned_date) }])}${ui.stats([{ label: 'Required authorisations', value: (REQ[wo.skill] || []).join(' · ') }])}${ui.stats([{ label: 'Currently assigned', value: cur || '—' }])}</div>
               <div class="nx-row nx-c2">${list.slice(0, 4).map((m, i) => `<div class="wfs-cand${i === 0 && !m.blocked ? ' is-best' : ''}${m.blocked ? ' is-blocked' : ''}"><div class="wfs-cand-h"><span class="wfs-ring" style="background:${m.blocked ? '#fdecec' : m.score >= 70 ? '#e8f7ee' : '#fff4e5'};color:${m.blocked ? '#b91c1c' : m.score >= 70 ? '#15803d' : '#b45309'}">${m.score}</span><div style="min-width:0"><b>${esc(m.crew.id)} · ${esc(m.crew.name)}</b><div class="nx-note">${esc(m.crew.lead)} · ${m.crew.size} people · ${esc(m.crew.status)}</div></div><span style="margin-left:auto">${m.blocked ? ui.badge('Blocked', 'crit') : i === 0 ? ui.badge('Best match', 'ok') : ''}</span></div>
                 <div class="wfs-why">${m.reasons.map(([k, t]) => `${icon(k === 'ok' ? 'checkCircle' : k === 'no' ? 'x' : 'alert')}<span class="wfs-${k}">${esc(t)}</span>`).join('')}</div>
                 <div class="nx-toolbar">${ui.btn(cur === m.crew.id ? 'Assigned' : 'Assign crew', { primary: !m.blocked && cur !== m.crew.id, sm: true, attrs: `data-assign="${esc(m.crew.id)}" ${m.blocked || cur === m.crew.id ? 'disabled' : ''}` })}${ui.btn('Members', { sm: true, ghost: true, attrs: `data-crew="${esc(m.crew.id)}"` })}</div></div>`).join('')}</div>` })}
-            ${ui.card({ title: 'Work orders awaiting crews', sub: 'Most severe first · click to match', tools: ui.seg('wosort', [['sev', 'Severity'], ['date', 'Date']], 'sev'), body: `<div class="wfs-wolist">${openWos.map((w) => { const m = matchCrew(w, crewById.get(assigned.get(w.id))); return `<div class="wfs-wo${w.id === wo.id ? ' is-sel' : ''}" data-sel="${esc(w.id)}"><div style="display:flex;gap:6px;align-items:center"><b>${esc(w.id)}</b>${ui.badge(w.severity, SEV_TONE[w.severity])}<span style="margin-left:auto">${m.blocked ? ui.badge('blocked', 'crit', { dot: false }) : ui.badge(assigned.get(w.id), 'muted', { dot: false })}</span></div><span>${esc(fmt.title(w.work_type))} · ${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')}</span></div>`; }).join('')}</div>` })}
+            ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Work orders awaiting crews', sub: 'Most severe first · click to match', tools: ui.seg('wosort', [['sev', 'Severity'], ['date', 'Date']], 'sev'), body: `<div class="wfs-wolist">${openWos.map((w) => { const m = matchCrew(w, crewById.get(assigned.get(w.id))); return `<div class="wfs-wo${w.id === wo.id ? ' is-sel' : ''}" data-sel="${esc(w.id)}"><div style="display:flex;gap:6px;align-items:center"><b>${esc(w.id)}</b>${ui.badge(w.severity, SEV_TONE[w.severity])}<span style="margin-left:auto">${m.blocked ? ui.badge('blocked', 'crit', { dot: false }) : ui.badge(assigned.get(w.id), 'muted', { dot: false })}</span></div><span>${esc(fmt.title(w.work_type))} · ${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')}</span></div>`; }).join('')}</div>` })}
           </div></div>`;
       },
       mount: (st, ctx) => {
@@ -554,8 +575,8 @@ const assignScreen = {
           const wo = woById.get(selWo); const m = matchCrew(wo, crewById.get(b.dataset.assign));
           if (m.blocked) { toast(`Blocked: ${m.reasons.find((r) => r[0] === 'no')?.[1]}`, 'crit'); return; }
           assigned.set(wo.id, m.crew.id);
-          log({ actor: 'Planner M. Gasimov', action: 'Crew assigned', object: wo.id, detail: `${m.crew.id} · match ${m.score}/100 · synced to SAP PM ${wo.sap}`, source: 'NEXUS Workforce' });
-          toast(`${m.crew.name} assigned to ${wo.id} — synced to SAP PM ${wo.sap}`);
+          const rq = erpRequest('workOrders', `Crew assignment · ${m.crew.id} on ${wo.id} (SAP ${wo.sap})`, { order: wo.sap, workOrder: wo.id, crew: m.crew.id });
+          log({ actor: 'Planner M. Gasimov', action: 'Crew assigned', object: wo.id, detail: `${m.crew.id} · match ${m.score}/100 · update request ${rq.ref} sent to SAP PM ${wo.sap}`, source: 'NEXUS Workforce' });
           nav.rerender();
         });
         ctx.onPick('wosort', (v) => { openWos.sort(v === 'date' ? (a, b) => String(a.planned_date).localeCompare(String(b.planned_date)) : (a, b) => (a.sevScore - b.sevScore) || a.id.localeCompare(b.id)); nav.rerender(); });
@@ -565,7 +586,7 @@ const assignScreen = {
       name: 'Coverage by trade', icon: 'layers',
       render: () => `<div class="nx-page"><div class="nx-row nx-c12">
         ${ui.card({ cls: 'nx-s7', title: 'Valid holders per required authorisation', sub: `Each crew against the authorisations its trade needs; dashed line = minimum ${MIN_HOLDERS} holders per crew.`, body: ui.chart('cov', 'lg') })}
-        ${ui.card({ cls: 'nx-s5', title: 'Demand vs capacity by trade', sub: 'Open work-order labour hours vs crew hours available next 2 weeks', body: ui.chart('dem', 'lg') })}</div>
+        ${ui.card({ cls: 'nx-s5', exp: true, erp: ['SAP PM', 'workOrders'], title: 'Demand vs capacity by trade', sub: 'Open work-order labour hours (SAP PM) vs estimated crew hours available next 2 weeks', body: ui.chart('dem', 'lg') })}</div>
         ${ui.card({ title: 'Crew competence summary', flush: true, body: ui.table({ cols: [{ key: 'id', label: 'Crew', render: (c) => `<b>${esc(c.id)} · ${esc(c.name)}</b><span class="nx-sub">${esc(c.lead)}</span>` }, { key: 'skill', label: 'Trade' }, { key: 'size', label: 'Size', align: 'r' }, { key: 'req', label: 'Required authorisations', sort: false, render: (c) => (REQ[c.skill] || []).map((cid) => { const n = peopleOf(c.id).filter((p) => hasCert(p, cid)).length; return `<span class="nx-badge t-${n >= MIN_HOLDERS ? 'ok' : 'crit'}" style="margin:1px">${esc(cid)} ${n}</span>`; }).join('') }, { key: 'exp', label: 'Expired', align: 'r', render: (c) => { const n = peopleOf(c.id).reduce((a, p) => a + p.certs.filter((x) => x.state === 'expired').length, 0); return n ? `<b style="color:#dc2626">${n}</b>` : '0'; }, sort: (c) => peopleOf(c.id).reduce((a, p) => a + p.certs.filter((x) => x.state === 'expired').length, 0) }, { key: 'open', label: 'Open WOs', align: 'r', render: (c) => openWos.filter((w) => assigned.get(w.id) === c.id).length, sort: (c) => openWos.filter((w) => assigned.get(w.id) === c.id).length }], rows: net.crews, rowId: (c) => c.id }) })}</div>`,
       mount: (st, ctx) => {
         const certIds = [...new Set(Object.values(REQ).flat())];
@@ -772,7 +793,7 @@ function phoneScreen() {
     body = jobs.length ? jobs.map((w) => `<div class="wfs-job" data-ph="open:${esc(w.id)}"><div style="display:flex;gap:6px;align-items:center"><b>${esc(w.id)}</b><span style="margin-left:auto">${ui.badge(w.severity, SEV_TONE[w.severity], { dot: false })}</span></div><span>${esc(fmt.title(w.work_type))}</span><span>${icon('pin', 11)} ${esc(w.towerName || w.asset)} · ${esc(w.line || 'Substation')}</span></div>`).join('') : '<div class="nx-empty">No jobs assigned to this crew.</div>';
   } else if (phone.step === 'detail') {
     head = `<small>${esc(wo.id)} · SAP ${esc(wo.sap)}</small><b>${esc(fmt.title(wo.work_type))}</b><span>${esc(wo.towerName || wo.asset)} · ${esc(wo.line || '')}</span>`;
-    body = `${ui.kv([['Permit', permit ? `${esc(permit.id)}` : 'Not required'], ['State', permit ? esc(permitState.get(permit.id)) : '—'], ['Method', wo.outage ? 'De-energised' : 'Live-line'], ['Labour', `${wo.labourH} h`], ['GPS', gps(wo.lat, wo.lng, 4)]])}<div style="font-weight:700;margin-top:4px">Findings</div>${wo.findings.slice(0, 3).map((f) => `<div class="wfs-job"><b>${esc(f.label)}</b><span>${esc(f.finding_id)} · ${esc(f.sensor.toUpperCase())} · ${Math.round(f.confidence * 100)}%</span></div>`).join('') || '<span class="nx-note">No linked findings</span>'}${permit && !['active', 'issued'].includes(permitState.get(permit.id)) ? ui.callout(`Permit is <b>${esc(permitState.get(permit.id))}</b>. Work cannot start until it is issued.`, 'warn', 'lock') : ''}`;
+    body = `${ui.kv([['Permit', permit ? `${esc(permit.id)}` : 'Not required'], ['State', permit ? esc(permitState.get(permit.id)) : '—'], ['Method', wo.outage ? 'De-energised' : 'Live-line'], ['Labour', `${wo.labourH} h`], ['GPS', gps(wo.lat, wo.lng, 4)]])}<div style="font-weight:700;margin-top:4px">Findings</div>${wo.findings.slice(0, 3).map((f) => `<div class="wfs-job"><b>${esc(f.label)}</b><span>${esc(f.finding_id)} · ${esc(f.sensor.toUpperCase())} · model confidence ${Math.round(f.confidence * 100)}%</span></div>`).join('') || '<span class="nx-note">No linked findings</span>'}${permit && !['active', 'issued'].includes(permitState.get(permit.id)) ? ui.callout(`Permit is <b>${esc(permitState.get(permit.id))}</b>. Work cannot start until it is issued.`, 'warn', 'lock') : ''}`;
     foot = `<button class="is-sec" data-ph="back">Back</button><button data-ph="step:check" ${permit && !['active', 'issued'].includes(permitState.get(permit.id)) ? 'disabled' : ''}>Start LMRA</button>`;
   } else if (phone.step === 'check') {
     const n = CHECKS.filter((c) => phone.checks[c]).length;
@@ -788,7 +809,7 @@ function phoneScreen() {
     body = `${ui.kv([['LMRA', `${CHECKS.length}/${CHECKS.length} ✓`], ['Photos', '2 attached'], ['Earths removed', wo.outage ? 'Confirm below' : 'n/a'], ['Permit', permit ? esc(permit.id) : '—']])}<div class="wfs-sig">${phone.signed ? esc(crew.lead) : '<span style="font:12px var(--nx-font);color:var(--nx-muted)">Tap to sign</span>'}</div>`;
     foot = `<button class="is-sec" data-ph="step:photo">Back</button><button data-ph="${phone.signed ? 'done' : 'sign'}">${phone.signed ? 'Submit & sync' : 'Sign'}</button>`;
   } else if (phone.step === 'done') {
-    head = `<small>${esc(wo.id)}</small><b>Task verified</b><span>Synced to SAP PM ${esc(wo.sap)}</span>`;
+    head = `<small>${esc(wo.id)}</small><b>Task verified</b><span>Confirmation sent to SAP PM ${esc(wo.sap)}</span>`;
     body = `<div style="text-align:center;padding:24px 8px"><div style="width:64px;height:64px;border-radius:50%;background:#e8f7ee;color:#16a34a;display:grid;place-items:center;margin:0 auto 12px">${icon('check', 32)}</div><b style="font-size:14px">Repair task verified</b><p class="nx-note">Work authorisation ${permit ? esc(permit.id) : ''} approved, qualified HV crew ${esc(crew.id)} assigned, permits cleared. Evidence chained to the audit log.</p></div>`;
     foot = '<button data-ph="back">Back to jobs</button>';
   }
@@ -833,9 +854,9 @@ const mobileScreen = {
           if (a === 'sign') { phone.signed = true; pushFeed('Signed by crew lead', crewById.get(phone.crew).lead); }
           if (a === 'done') {
             phone.step = 'done';
-            log({ actor: crewById.get(phone.crew).lead, action: 'Task verified & signed off', object: wo.id, detail: `LMRA ${CHECKS.length}/${CHECKS.length}; photos 2; synced SAP PM ${wo.sap}`, source: 'NEXUS Field' });
-            pushFeed('Synced to SAP PM', `${wo.sap} · status CNF (confirmed)`); pushFeed('Synced to IBM Maximo', `${wo.maximo} · COMP`);
-            toast(`${wo.id} verified and synced to SAP PM ${wo.sap}`);
+            const rq = erpRequest('workOrders', `Completion confirmation · ${wo.id} (SAP ${wo.sap})`, { order: wo.sap, workOrder: wo.id, status: 'CNF' });
+            log({ actor: crewById.get(phone.crew).lead, action: 'Task verified & signed off', object: wo.id, detail: `LMRA ${CHECKS.length}/${CHECKS.length}; photos 2; confirmation ${rq.ref} sent to SAP PM ${wo.sap}`, source: 'NEXUS Field' });
+            pushFeed('Confirmation sent to SAP PM', `${wo.sap} · status CNF requested · ${rq.ref}`); pushFeed('Synced to IBM Maximo', `${wo.maximo} · COMP`);
           }
           repaint();
         });
@@ -867,7 +888,7 @@ const complianceScreen = {
       render: () => `<div class="nx-page">
         ${ui.kpis([{ label: 'Audit entries', value: fmt.n(audit.length), icon: 'doc', sub: 'append-only, hash-chained' }, { label: 'Chain integrity', value: 'Verified', icon: 'lock', tone: 'ok', id: 'wfs-chain', sub: `head ${audit[0].hash.slice(0, 12)}…` }, { label: 'Evidence items', value: audit.filter((a) => /Evidence|Photo/.test(a.action)).length, icon: 'camera', tone: 'info' }, { label: 'Sources', value: new Set(audit.map((a) => a.source)).size, icon: 'link', tone: 'violet', sub: 'SAP PM · SCADA · LMS · Field · Permits' }])}
         <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s4', title: 'Entries by source system', sub: 'Where each record was written', body: ui.chart('ausrc', 'sm') })}${ui.card({ cls: 'nx-s5', title: 'Daily audit volume · last 21 days', sub: 'Entries per day, stacked by action family', body: ui.chart('auday', 'sm') })}${ui.card({ cls: 'nx-s3', title: 'Most active actors', sub: 'Entries written', body: ui.chart('auact', 'sm') })}</div>
-        ${ui.card({ title: 'Immutable audit trail', sub: 'Every entry stores the hash of the one before it; changing any row breaks the chain from that point on.', tools: `${ui.search('#wfs-aud', 'Search actor, action, object…')}${ui.btn('Verify chain', { sm: true, ic: 'shield', attrs: 'data-verify' })}`, flush: true, body: ui.table({ id: 'wfs-aud', max: 300, cols: [{ key: 'seq', label: '#', align: 'r' }, { key: 'at', label: 'Timestamp (UTC+4)', render: (a) => `<span class="nx-mono" style="font-size:11.5px">${esc(a.at.replace('T', ' '))}</span>` }, { key: 'actor', label: 'Actor', render: (a) => esc(a.actor) }, { key: 'action', label: 'Action', render: (a) => `<b>${esc(a.action)}</b>` }, { key: 'object', label: 'Object', render: (a) => `<span class="nx-mono">${esc(a.object)}</span>` }, { key: 'detail', label: 'Detail', wrap: true, render: (a) => `<span class="nx-note" style="color:var(--nx-ink-2)">${esc(a.detail)}</span>` }, { key: 'source', label: 'Source', render: (a) => ui.badge(a.source, 'muted', { dot: false }) }, { key: 'hash', label: 'Hash', render: (a) => `<span class="wfs-hash" data-tip="prev ${esc(a.prev.slice(0, 16))}…">${esc(a.hash.slice(0, 12))}…</span>` }], rows: audit, cls: 'wfs-scroll' }) })}</div>`,
+        ${ui.card({ title: 'Immutable audit trail', sub: 'Every entry stores the hash of the one before it; changing any row breaks the chain from that point on.', tools: `${ui.search('#wfs-aud', 'Search actor, action, object…')}${ui.btn('Verify chain', { sm: true, ic: 'shield', attrs: 'data-verify' })}`, flush: true, body: ui.table({ id: 'wfs-aud', max: 300, cols: [{ key: 'seq', label: '#', align: 'r' }, { key: 'at', label: 'Timestamp (UTC+4)', render: (a) => `<span class="nx-mono" style="font-size:11.5px">${esc(a.at.replace('T', ' '))}</span>` }, { key: 'actor', label: 'Actor', render: (a) => esc(a.actor) }, { key: 'action', label: 'Action', render: (a) => `<b>${esc(a.action)}</b>` }, { key: 'object', label: 'Object', render: (a) => `<span class="nx-mono">${esc(a.object)}</span>` }, { key: 'detail', label: 'Detail', wrap: true, render: (a) => `<span class="nx-note" style="color:var(--nx-ink-2)">${esc(a.detail)}</span>` }, { key: 'source', label: 'Source', render: (a) => (a.source === 'SAP PM' ? ui.erp('SAP PM', 'workOrders') : ui.badge(a.source, 'muted', { dot: false })) }, { key: 'hash', label: 'Hash', render: (a) => `<span class="wfs-hash" data-tip="prev ${esc(a.prev.slice(0, 16))}…">${esc(a.hash.slice(0, 12))}…</span>` }], rows: audit, cls: 'wfs-scroll' }) })}</div>`,
       mount: (st, ctx) => {
         const src = {}; audit.forEach((a) => { src[a.source] = (src[a.source] || 0) + 1; });
         ctx.chart('ausrc', ch.donut({ data: Object.entries(src).map(([name, value]) => ({ name, value })), center: 'entries', legend: 'right' }));
@@ -1005,7 +1026,7 @@ const isolationScreen = {
   id: 'isolation', name: 'Isolation Diagram', icon: 'schematic',
   tabs: [
     {
-      name: 'Live isolation (LOTO)', icon: 'schematic', full: true,
+      name: 'Live isolation (LOTO)', icon: 'schematic', full: true, 
       render: () => {
         const c = isoContext();
         return `<div class="wfs-iso"><div id="wfs-hmi"></div><aside class="wfs-prog"><div class="wfs-prog-h"><small>Switching programme · EN 50110-1</small><h3>${esc(c.p.id)}</h3><div class="nx-note">${esc(c.wo.id)} · ${esc(fmt.title(c.wo.work_type))} at ${esc(c.tower)} · ${esc(c.line.id)}</div>

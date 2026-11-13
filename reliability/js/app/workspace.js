@@ -1,20 +1,26 @@
 // Module 01 — Asset Reliability Intelligence, on the NEXUS Console.
-// Screens: Asset Registry (the registry tabs from registryTabs.js plus an overview), Tower Health, Line Health,
-// Risk Map, Maintenance History, Reliability Dashboard, and live Substation Schematics.
-// Every number on these screens comes from the scored snapshot (health index, risk = (100 − HI) × criticality ×
-// consequence) and the seed records behind it: findings, work orders, repairs, DGA.
+// Asset Reliability is asset health PLUS the operational records (management review, 12 Nov 2026), so the rail is grouped:
+//   Overview      Reliability Dashboard, Asset Registry (the registry tabs from registryTabs.js plus an overview)
+//   Asset Health  Tower Health, Line Health, Risk Map: the current condition (health index and risk score)
+//   Operations    Maintenance History, Work Orders, Inventory & Parts: read from the ERP, never entered here
+//   Engineering   live Substation Schematics
+// Health numbers come from the scored snapshot (health index, risk = (100 − HI) × criticality × consequence) and the
+// records behind it: findings, repairs, DGA. Work orders, stock and suppliers come through the ERP integration layer
+// (assets/console/erp.js). The risk score is an unvalidated model, so every risk view is marked Experimental.
 
 import { ui, ch, live, esc, fmt, icon, drawer, toast, addDays, daysBetween } from '/assets/console/console.js';
 import * as sx from '/assets/console/schematics.js';
 import { networkLayers, DEFECT_LABEL, SEV_TONE, LINE_NAME, CORRIDOR } from '/assets/console/network.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { drawingTabs } from '/assets/console/drawings.js';
+import { erpRequest } from '/assets/console/erp.js';
 
 /* ------------------------------------------------------------------ shared vocabulary */
 const BAND_C = { normal: '#16a34a', moderate: '#d97706', poor: '#dc2626' };
 const BAND_T = { normal: 'ok', moderate: 'warn', poor: 'crit' };
 const RISK_C = { low: '#16a34a', medium: '#0284c7', high: '#ea580c', critical: '#dc2626' };
 const RISK_T = { low: 'ok', medium: 'info', high: 'high', critical: 'crit' };
+const RISK_EXP = 'The risk score, the risk colours on the map and the risk matrix come from a scoring model that has not been validated against failure or outage data. Likelihood is inferred from the health index. Treat the ranking as a simulated prioritisation, not a measured risk.';
 const GROUP_LABEL = { insulators: 'Insulators', steel_structure: 'Steel structure', foundation: 'Foundation', conductor_accessories: 'Conductor accessories', lightning_protection: 'Lightning protection', tower_accessories: 'Tower accessories', conductor: 'Conductor', clearance: 'Clearance / ROW', conductors: 'Conductor' };
 const COND_C = { 5: '#16a34a', 4: '#65a30d', 3: '#d97706', 2: '#ea580c', 1: '#dc2626' };
 const bandColor = (b) => BAND_C[b] || '#94a3b8';
@@ -296,7 +302,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
     id: 'riskmap', name: 'Risk Map', icon: 'map',
     tabs: [
       {
-        name: 'Corridor map', icon: 'map', full: true,
+        name: 'Corridor map', icon: 'map', full: true, exp: RISK_EXP,
         render: () => '<div class="nx-map is-full" id="rm"></div>',
         mount: (st, ctx) => {
           const sev = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#65a30d' };
@@ -311,9 +317,9 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
         },
       },
       {
-        name: 'Priority ranking', icon: 'target',
+        name: 'Priority ranking', icon: 'target', exp: RISK_EXP,
         render: () => `<div class="nx-page">${ui.callout(`Risk-priority score = <b>Condition (100 − HI) × Criticality (1–5) × Consequence (1–5)</b>. Consequence starts from voltage class (500 kV = 5, 220 kV = 4, 132 kV = 3) and rises by one for each poor-condition asset it is electrically linked to. Bands: medium ≥ 200, high ≥ 500, critical ≥ 1,000.`, 'info', 'scale')}
-        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Explainable risk ranking', sub: 'Top 30 assets. Each bar shows how the three factors build the score.', flush: true, tools: ui.search('#prio', 'Filter…'), body: ui.table({ id: 'prio', rowId: (a) => a.id, rows: ranked.slice(0, 30), cols: [
+        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', exp: true, title: 'Explainable risk ranking', sub: 'Top 30 assets. Each bar shows how the three factors build the score.', flush: true, tools: ui.search('#prio', 'Filter…'), body: ui.table({ id: 'prio', rowId: (a) => a.id, rows: ranked.slice(0, 30), cols: [
           { label: '#', align: 'r', sort: (a) => ranked.indexOf(a), render: (a) => `<span class="nx-note">${ranked.indexOf(a) + 1}</span>` },
           { label: 'Asset', sort: (a) => a.name, render: (a) => `<b>${esc(a.kind === 'span' ? `Span ${a.name}` : a.kind === 'transformer' ? a.name : `Tower ${a.name}`)}</b><span class="nx-sub">${esc(a.line || a.sub || '')}</span>` },
           { label: 'Condition', align: 'r', sort: (a) => 100 - a.hi, render: (a) => `<span class="nx-num">${fmt.n(100 - a.hi, 0)}</span>` },
@@ -323,7 +329,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           { label: 'Band', sort: (a) => a.risk, render: (a) => riskBadge(a.riskBand) },
           { label: 'Why', wrap: true, sort: false, render: (a) => esc(explain(a)) },
         ] }) })}
-        ${ui.card({ cls: 'nx-s4', title: 'Risk matrix', sub: 'Likelihood (from HI) × consequence class — count of towers and spans', body: ui.chart('mx', 'lg') })}</div></div>`,
+        ${ui.card({ cls: 'nx-s4', exp: true, title: 'Risk matrix', sub: 'Likelihood (inferred from HI, not from failure statistics) × consequence class — count of towers and spans', body: ui.chart('mx', 'lg') })}</div></div>`,
         mount: (st, ctx) => {
           ctx.on('click', '#prio tr[data-row]', (e, r) => open360(r.dataset.row));
           const L = (hi) => (hi < 40 ? 4 : hi < 55 ? 3 : hi < 70 ? 2 : hi < 85 ? 1 : 0);
@@ -342,9 +348,9 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           { label: 'Oldest item', value: overdue[0]?.age ?? 0, unit: 'days', icon: 'clock', tone: 'violet', sub: overdue[0] ? `${overdue[0].asset.name} · ${overdue[0].kind}` : '' },
         ])}${ui.card({ title: 'Transmission assets overdue for engineering review or intervention', sub: 'Ordered by days overdue. Click a row to open the asset.', tools: ui.chips('od', [['all', 'All'], ['Engineering review', 'Engineering review', '#dc2626'], ['AI finding review', 'AI review', '#d97706'], ['Inspection', 'Inspection', '#0284c7']], 'all'), flush: true, body: '<div data-od></div>' })}</div>`,
         mount: (st, ctx) => {
-          const draw = (k) => { st.querySelector('[data-od]').innerHTML = ui.table({ id: 'odt', rowId: (o) => o.asset.id, rows: overdue.filter((o) => k === 'all' || o.kind === k), cols: [{ label: 'Asset', sort: (o) => o.asset.name, render: (o) => `<b>Tower ${esc(o.asset.name)}</b><span class="nx-sub">${esc(o.asset.line)} · criticality ${o.asset.criticality}</span>` }, { label: 'Type', sort: (o) => o.kind, render: (o) => ui.badge(o.kind, o.tone) }, { label: 'Reason', wrap: true, sort: false, render: (o) => esc(o.reason) }, { label: 'Due', sort: (o) => o.due, render: (o) => fmt.date(o.due) }, { label: 'Overdue', align: 'r', sort: (o) => o.age, render: (o) => `<b style="color:${o.age > 90 ? '#dc2626' : o.age > 45 ? '#ea580c' : '#d97706'}">${o.age} d</b>` }, { label: 'HI', align: 'r', sort: (o) => o.asset.hi, render: (o) => hiScore(o.asset.hi, o.asset.band) }, { label: '', sort: false, render: (o) => ui.btn(o.kind === 'AI finding review' ? 'Review' : 'Raise WO', { sm: true, attrs: `data-act="${esc(o.id)}"` }) }] }); };
+          const draw = (k) => { st.querySelector('[data-od]').innerHTML = ui.table({ id: 'odt', rowId: (o) => o.asset.id, rows: overdue.filter((o) => k === 'all' || o.kind === k), cols: [{ label: 'Asset', sort: (o) => o.asset.name, render: (o) => `<b>Tower ${esc(o.asset.name)}</b><span class="nx-sub">${esc(o.asset.line)} · criticality ${o.asset.criticality}</span>` }, { label: 'Type', sort: (o) => o.kind, render: (o) => ui.badge(o.kind, o.tone) }, { label: 'Reason', wrap: true, sort: false, render: (o) => esc(o.reason) }, { label: 'Due', sort: (o) => o.due, render: (o) => fmt.date(o.due) }, { label: 'Overdue', align: 'r', sort: (o) => o.age, render: (o) => `<b style="color:${o.age > 90 ? '#dc2626' : o.age > 45 ? '#ea580c' : '#d97706'}">${o.age} d</b>` }, { label: 'HI', align: 'r', sort: (o) => o.asset.hi, render: (o) => hiScore(o.asset.hi, o.asset.band) }, { label: '', sort: false, render: (o) => ui.btn(o.kind === 'AI finding review' ? 'Review' : 'Request WO in SAP PM', { sm: true, attrs: `data-act="${esc(o.id)}"` }) }] }); };
           draw('all'); ctx.onPick('od', draw);
-          ctx.on('click', '[data-act]', (e, b) => { e.stopPropagation(); const o = overdue.find((x) => x.id === b.dataset.act); if (o.kind === 'AI finding review') { const f = o.asset.findings.find((x) => x.review_status === 'pending'); if (f) openFinding?.(f.finding_id); } else { b.outerHTML = ui.badge('WO requested', 'ok'); toast(`Work request raised for Tower ${o.asset.name} and queued for SAP PM sync`); } });
+          ctx.on('click', '[data-act]', (e, b) => { e.stopPropagation(); const o = overdue.find((x) => x.id === b.dataset.act); if (o.kind === 'AI finding review') { const f = o.asset.findings.find((x) => x.review_status === 'pending'); if (f) openFinding?.(f.finding_id); } else { const r = erpRequest('workOrders', `Work order request · Tower ${o.asset.name} · ${o.reason}`, { asset: o.asset.id, sap: o.asset.sap, reason: o.reason }); b.outerHTML = ui.badge(`${r.ref} · requested in SAP PM`, 'ok'); } });
           ctx.on('click', '#odt tr[data-row]', (e, r) => { if (!e.target.closest('button')) open360(r.dataset.row); });
         },
       },
@@ -377,7 +383,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
             { label: 'Median defect-to-repair', value: med, unit: 'days', icon: 'clock', tone: 'violet', sub: 'finding date → completion' },
             { label: 'Repeat defects after repair', value: reopened, icon: 'sync', tone: reopened ? 'warn' : 'ok', sub: 'same class re-sighted on same asset' },
           ])}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Findings raised vs closed', sub: 'Monthly. Bars = new findings by severity; line = findings closed by repairs.', body: ui.chart('fc', 'lg') })}${ui.card({ cls: 'nx-s4', title: 'Work by type', sub: 'All work orders, by status', body: ui.chart('wt', 'lg') })}</div>
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Findings raised vs closed', sub: 'Monthly. Bars = new findings by severity; line = findings closed by repairs.', body: ui.chart('fc', 'lg') })}${ui.card({ cls: 'nx-s4', erp: ['SAP PM', 'workOrders'], title: 'Work by type', sub: 'All work orders, by status', body: ui.chart('wt', 'lg') })}</div>
           ${ui.card({ title: 'Campaigns and maintenance programme', sub: 'Aerial inspection campaigns and every grouped repair visit, on one timeline', body: ui.gantt({ range: ['2026-01-01', '2026-12-31'], now: asOf, labelW: 220, rows: [
             { label: 'Aerial inspection', sub: 'RGB · thermal · LiDAR', bars: campaigns.map((c) => ({ start: c.start, end: c.end, color: '#0284c7', text: c.name, tip: `${c.name}: ${c.inspected_tower_ids.length} towers` })) },
             ...['L-132-01', 'L-220-03', 'L-500-01'].map((l) => ({ label: LINE_NAME[l], sub: `${workOrders.filter((w) => w.line === l).length} work orders`, bars: workOrders.filter((w) => w.line === l && w.planned_date).map((w) => ({ id: w.id, start: w.created_at, end: w.completed_at || w.planned_date, color: w.status === 'completed' ? '#16a34a' : w.status === 'in_progress' ? '#2563eb' : '#d97706', text: '', tip: `${w.id} · ${w.work_type} · ${w.towerName || w.asset} · ${w.status}` })) })),
@@ -396,7 +402,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
       },
       {
         name: 'Repairs', icon: 'wrench',
-        render: () => `<div class="nx-page">${ui.card({ title: 'Repair log', sub: 'Every recorded repair with the findings it closed and whether the defect came back', tools: ui.search('#rpt', 'Filter repairs…'), flush: true, body: ui.table({ id: 'rpt', rowId: (r) => r.work_order_id, rows: repairs.slice().sort((a, b) => b.date.localeCompare(a.date)), cols: [
+        render: () => `<div class="nx-page">${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Repair log', sub: 'Every repair confirmed on a work order, with the findings it closed and whether the defect came back', tools: ui.search('#rpt', 'Filter repairs…'), flush: true, body: ui.table({ id: 'rpt', rowId: (r) => r.work_order_id, rows: repairs.slice().sort((a, b) => b.date.localeCompare(a.date)), cols: [
           { key: 'date', label: 'Date', render: (r) => fmt.date(r.date) }, { key: 'repair_id', label: 'Repair', render: (r) => `<b>${esc(r.repair_id)}</b><span class="nx-sub">${esc(r.work_order_id)}</span>` },
           { label: 'Asset', sort: (r) => r.wo?.towerName, render: (r) => `${esc(r.wo?.towerName || r.asset_id)}<span class="nx-sub">${esc(r.wo?.line || 'Substation')}</span>` }, { key: 'action', label: 'Action', render: (r) => esc(fmt.title(r.action)) },
           { label: 'Findings closed', align: 'r', sort: (r) => r.closes_finding_ids?.length, render: (r) => r.closes_finding_ids?.length || 0 },
@@ -436,18 +442,109 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
     const labourCost = Math.round(w.estCost - w.materials);
     drawer.open({
       icon: 'clipboard', kicker: `${w.id} · SAP PM ${w.sap} · Maximo ${w.maximo}`, title: fmt.title(w.work_type), sub: `${esc(w.towerName || w.asset)} · ${esc(w.line ? LINE_NAME[w.line] || w.line : 'Substation')}`,
-      badges: [[fmt.title(w.status), w.status === 'completed' ? 'ok' : w.status === 'in_progress' ? 'info' : 'warn'], [`Priority ${w.priority}`, w.priority === 'high' ? 'crit' : w.priority === 'medium' ? 'warn' : 'muted'], [w.crewName, 'accent'], [w.outage ? 'Outage required' : 'Live-line / no outage', w.outage ? 'high' : 'ok'], [`ERP ${w.sync}`, w.sync === 'synced' ? 'ok' : 'warn']],
+      badges: [[fmt.title(w.status), w.status === 'completed' ? 'ok' : w.status === 'in_progress' ? 'info' : 'warn'], [`Priority ${w.priority}`, w.priority === 'high' ? 'crit' : w.priority === 'medium' ? 'warn' : 'muted'], [w.crewName, 'accent'], [w.outage ? 'Outage required' : 'Live-line / no outage', w.outage ? 'high' : 'ok'], [`ERP · SAP PM · ${w.sync}`, w.sync === 'synced' ? 'ok' : 'warn']],
       tabs: [
         { name: 'Overview', body: `${ui.stats([{ label: 'Estimate', value: fmt.money(w.estCost) }, { label: 'Labour', value: `${w.labourH} h` }, { label: 'Materials', value: fmt.money(w.materials) }, { label: 'Defect → closure', value: w.ttrDays != null ? `${w.ttrDays} d` : 'open' }])}
           <div class="nx-drawer-grid"><div class="nx-sec"><h4>Cost build-up</h4><div class="nx-chart" style="height:170px" data-chart="wcost"></div></div>
           <div class="nx-sec"><h4>Asset</h4>${ui.kv([['Asset', esc(w.asset)], ['Tower', esc(w.towerName || '—')], ['Tower HI', tw?.hi == null ? '—' : hiScore(tw.hi, tw.band)], ['Risk', tw ? riskBadge(tw.riskBand, tw.risk) : '—'], ['Created', fmt.date(w.created_at)], ['Planned', fmt.date(w.planned_date)]])}</div></div>
-          <div class="nx-sec"><h4>Lifecycle</h4>${ui.timeline([...w.findings.map((f) => ({ when: fmt.date(f.date), title: `${f.finding_id} detected — ${f.label}`, text: `${f.sensor.toUpperCase()} · condition ${f.condition_score}/5 · ${f.review_status}`, tone: SEV_TONE[f.severity] })), { when: fmt.date(w.created_at), title: 'Work order raised and synced to SAP PM', text: `Estimated ${fmt.money(w.estCost)} · ${w.labourH} labour-hours`, tone: 'info' }, { when: fmt.date(w.planned_date), title: 'Planned visit', text: esc(w.crewName), tone: 'muted' }, ...rp.map((r) => ({ when: fmt.date(r.date), title: `${r.repair_id} — ${fmt.title(r.action)}`, text: `Closed ${r.closes_finding_ids?.length || 0} finding(s)`, tone: 'ok' }))])}</div>`,
+          <div class="nx-sec"><h4>Lifecycle</h4>${ui.timeline([...w.findings.map((f) => ({ when: fmt.date(f.date), title: `${f.finding_id} detected — ${f.label}`, text: `${f.sensor.toUpperCase()} · condition ${f.condition_score}/5 · ${f.review_status}`, tone: SEV_TONE[f.severity] })), { when: fmt.date(w.created_at), title: 'Work order created in SAP PM', text: `Estimated ${fmt.money(w.estCost)} · ${w.labourH} labour-hours`, tone: 'info' }, { when: fmt.date(w.planned_date), title: 'Planned visit', text: esc(w.crewName), tone: 'muted' }, ...rp.map((r) => ({ when: fmt.date(r.date), title: `${r.repair_id} — ${fmt.title(r.action)}`, text: `Closed ${r.closes_finding_ids?.length || 0} finding(s)`, tone: 'ok' }))])}</div>`,
           mount: (el, c) => c.chart('wcost', ch.donut({ data: [{ name: 'Labour & equipment', value: labourCost, color: '#3b82f6' }, { name: 'Materials', value: w.materials, color: '#f59e0b' }], center: 'estimate', value: fmt.money(w.estCost), legend: 'right' })) },
         { name: `Findings (${w.findings.length})`, body: `<div class="nx-sec"><h4>Findings this order closes</h4>${w.findings.length ? `<div class="nx-list">${w.findings.map((f) => ui.li({ ic: 'camera', color: COND_C[f.condition_score], title: `${f.finding_id} · ${f.label}`, sub: `${f.campaign_id} · ${fmt.date(f.date)} · ${Math.round(f.confidence * 100)}% conf.`, end: ui.badge(fmt.title(f.severity), SEV_TONE[f.severity]), row: f.finding_id })).join('')}</div>` : ui.empty('Raised from a planned programme, not a finding.')}</div>`, mount: (el, c) => c.on('click', '.nx-li[data-row]', (e, r) => findingDrawer(r.dataset.row)) },
       ],
       actions: [{ label: 'Open Asset 360', primary: true, icon: 'eye', onClick: () => { drawer.close(); open360(w.towerId || w.asset_id); } }],
     });
   }
+
+  /* ---------- Work Orders (Operations): open and planned work, read from the ERP */
+  const STAGE_T = { requested: 'muted', approved: 'accent', planned: 'info', scheduled: 'violet', in_progress: 'warn', completed: 'ok', open: 'warn' };
+  const openWos = workOrders.filter((w) => w.status !== 'completed').sort((a, b) => (net.towerById.get(b.towerId)?.risk ?? 0) - (net.towerById.get(a.towerId)?.risk ?? 0) || String(a.planned_date).localeCompare(String(b.planned_date)));
+  const woAssets = new Set(openWos.map((w) => w.towerId || w.asset_id));
+  const poorNoWo = towers.filter((t) => t.band === 'poor' && !woAssets.has(t.id));
+  const erpLink = (href, label) => `<a href="${href}" style="font-weight:600;color:inherit;text-decoration:underline">${label}</a>`;
+  screens.push({
+    id: 'work', name: 'Work Orders', icon: 'clipboard',
+    tabs: [{
+      name: 'Open and planned work', icon: 'clipboard',
+      render: () => {
+        const late = openWos.filter((w) => w.planned_date && w.planned_date < asOf);
+        return `<div class="nx-page">${ui.callout(`Work orders are <b>read from the ERP</b> (${esc(net.erp.syncedText('workOrders'))}) through the integration layer and joined to the same towers, spans and transformers as the health scores. They are created and changed in SAP PM, never entered here. Planning and scheduling: ${erpLink('/operations/', 'Field Operations')}.`, 'info', 'database')}
+        ${ui.kpis([
+          { label: 'Open work orders', value: openWos.length, icon: 'clipboard', tone: 'info', sub: `${openWos.filter((w) => w.status === 'in_progress').length} in progress` },
+          { label: 'Past planned date', value: late.length, icon: 'clock', tone: late.length ? 'crit' : 'ok', sub: late.length ? `oldest ${fmt.date(late.map((w) => w.planned_date).sort()[0])}` : 'none overdue' },
+          { label: 'Estimate on open orders', value: fmt.money(openWos.reduce((a, w) => a + (w.estCost || 0), 0)), icon: 'dollar', tone: 'violet', sub: `${fmt.n(openWos.reduce((a, w) => a + (w.labourH || 0), 0))} labour-hours` },
+          { label: 'Assets with open work', value: woAssets.size, icon: 'tower', tone: 'ok', sub: `${openWos.filter((w) => w.outage).length} orders need an outage` },
+          { label: 'Poor-band towers without an order', value: poorNoWo.length, icon: 'alert', tone: poorNoWo.length ? 'warn' : 'ok', sub: poorNoWo.length ? poorNoWo.slice(0, 3).map((t) => t.name).join(', ') : 'every poor tower is covered' },
+        ])}
+        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', erp: ['SAP PM', 'workOrders'], title: 'Open and planned work orders', sub: 'Every order that is not completed, highest-risk asset first. Click a row for the order.', tools: ui.search('#wo-open', 'Filter work orders…'), flush: true, body: ui.table({ id: 'wo-open', rowId: (w) => w.id, rows: openWos, empty: 'No open work orders in SAP PM.', cols: [
+          { label: 'Work order', sort: (w) => w.id, render: (w) => `<b>${esc(w.id)}</b><span class="nx-sub nx-mono">SAP ${esc(w.sap)}</span>` },
+          { label: 'Asset', sort: (w) => w.towerName || w.asset, render: (w) => `${esc(w.towerName || w.asset)}<span class="nx-sub">${esc(w.line || 'Substation')}</span>` },
+          { label: 'Work', sort: (w) => w.work_type, render: (w) => esc(fmt.title(w.work_type)) },
+          { label: 'Status', sort: (w) => w.stage, render: (w) => ui.badge(fmt.title(w.stage), STAGE_T[w.stage] || 'muted') },
+          { label: 'Priority', sort: (w) => ({ high: 0, medium: 1, low: 2 }[w.priority] ?? 3), render: (w) => ui.badge(fmt.title(w.priority), w.priority === 'high' ? 'crit' : w.priority === 'medium' ? 'warn' : 'muted', { dot: false }) },
+          { label: 'Tower HI', align: 'r', sort: (w) => net.towerById.get(w.towerId)?.hi ?? 101, render: (w) => { const t = net.towerById.get(w.towerId); return t?.hi == null ? '—' : hiScore(t.hi, t.band); } },
+          { label: 'Crew', sort: (w) => w.crewName, render: (w) => esc(w.crewName) },
+          { label: 'Planned', sort: (w) => w.planned_date, render: (w) => (w.planned_date && w.planned_date < asOf ? `<span style="color:#dc2626;font-weight:600">${fmt.short(w.planned_date)}</span>` : fmt.short(w.planned_date)) },
+          { label: 'Estimate', align: 'r', sort: (w) => w.estCost, render: (w) => `<span class="nx-num">${fmt.money(w.estCost)}</span>` },
+        ] }) })}
+        ${ui.card({ cls: 'nx-s4', erp: ['SAP PM', 'workOrders'], title: 'Open work by status and type', sub: 'Order status in SAP PM', body: ui.chart('wstage', 'lg') })}</div></div>`;
+      },
+      mount: (st, ctx) => {
+        const stages = ['requested', 'approved', 'planned', 'scheduled', 'in_progress'];
+        const types = [...new Set(openWos.map((w) => w.work_type))];
+        ctx.chart('wstage', ch.bar({ x: types.map(fmt.title), horizontal: true, stack: true, series: stages.map((sg, i) => ({ name: fmt.title(sg), color: ['#94a3b8', '#60a5fa', '#0284c7', '#8b5cf6', '#f59e0b'][i], data: types.map((t) => openWos.filter((w) => w.work_type === t && w.stage === sg).length) })), grid: { top: 44 } }));
+        ctx.on('click', '#wo-open tr[data-row]', (e, r) => woDrawer(r.dataset.row));
+      },
+    }],
+  });
+
+  /* ---------- Inventory & Parts (Operations): the materials the open findings need, read from the ERP */
+  const partNeed = new Map();
+  for (const f of openFindings) {
+    const sku = net.partFor(f.defect_class, f.kv); if (!sku) continue;
+    const c = partNeed.get(sku) || { qty: 0, findings: 0, assets: new Set() };
+    c.qty += net.partQty[sku] || 1; c.findings += 1; c.assets.add(f.tower_id || f.asset_id); partNeed.set(sku, c);
+  }
+  const partRows = net.parts.filter((p) => partNeed.has(p.sku)).map((p) => { const n = partNeed.get(p.sku); return { ...p, need: n.qty, nFindings: n.findings, nAssets: n.assets.size, short: Math.max(0, n.qty - p.available) }; }).sort((a, b) => b.short * b.unitCost - a.short * a.unitCost || b.need * b.unitCost - a.need * a.unitCost);
+  const partSuppliers = net.suppliers.map((sp) => ({ ...sp, items: partRows.filter((r) => r.supplier === sp.id), short: partRows.filter((r) => r.supplier === sp.id && r.short).length })).filter((sp) => sp.items.length);
+  screens.push({
+    id: 'parts', name: 'Inventory & Parts', icon: 'boxes',
+    tabs: [{
+      name: 'Parts for open findings', icon: 'box',
+      render: () => {
+        const short = partRows.filter((r) => r.short);
+        return `<div class="nx-page">${ui.callout(`Materials, stock and suppliers are <b>read from the ERP</b> (${esc(net.erp.syncedText('inventory'))}) through the integration layer. Stock is kept in SAP MM and is not re-entered here; this view only matches it against the parts the open findings need. Reservations and purchase requests: ${erpLink('/inventory/', 'Supply Chain & Inventory')}.`, 'info', 'database')}
+        ${ui.kpis([
+          { label: 'Catalogue items needed', value: partRows.length, icon: 'box', tone: 'info', sub: `for ${openFindings.length} open findings` },
+          { label: 'Items short of stock', value: short.length, icon: 'alert', tone: short.length ? 'crit' : 'ok', sub: short.length ? short.slice(0, 2).map((r) => r.sku).join(', ') : 'all needs covered' },
+          { label: 'Material value needed', value: fmt.money(partRows.reduce((a, r) => a + r.need * r.unitCost, 0)), icon: 'dollar', tone: 'violet', sub: 'at standard cost' },
+          { label: 'Longest lead time (short items)', value: short.length ? Math.max(...short.map((r) => r.lead)) : 0, unit: 'days', icon: 'clock', tone: 'warn', sub: short.length ? short.slice().sort((a, b) => b.lead - a.lead)[0].supplierName : 'nothing to order' },
+          { label: 'Suppliers involved', value: partSuppliers.length, icon: 'factory', tone: 'ok', sub: `${partSuppliers.filter((sp) => sp.short).length} with a short item` },
+        ])}
+        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', erp: ['SAP MM', 'inventory'], title: 'Parts needed for open findings', sub: 'Bill of materials for every open finding against available stock (on hand minus reserved), largest shortfall first', tools: ui.search('#parts-need', 'Filter parts…'), flush: true, body: ui.table({ id: 'parts-need', rows: partRows, empty: 'No open finding needs a catalogue part.', cols: [
+          { label: 'Material', sort: (r) => r.sku, render: (r) => `<b class="nx-mono">${esc(r.sku)}</b><span class="nx-sub">${esc(r.name)}</span>` },
+          { label: 'Needed for', sort: (r) => r.nFindings, render: (r) => `${r.nFindings} finding${r.nFindings === 1 ? '' : 's'}<span class="nx-sub">${r.nAssets} asset${r.nAssets === 1 ? '' : 's'}</span>` },
+          { label: 'Need', align: 'r', sort: (r) => r.need, render: (r) => `<span class="nx-num">${fmt.n(r.need)}</span> ${esc(r.uom)}` },
+          { label: 'Available', align: 'r', sort: (r) => r.available, render: (r) => `<span class="nx-num">${fmt.n(r.available)}</span><span class="nx-sub">${fmt.n(r.onHand)} on hand · ${fmt.n(r.reserved)} reserved</span>` },
+          { label: 'Cover', sort: (r) => r.short, render: (r) => (r.short ? ui.badge(`Short by ${fmt.n(r.short)}`, r.available > 0 ? 'warn' : 'crit') : ui.badge('In stock', 'ok')) },
+          { label: 'Lead time', align: 'r', sort: (r) => r.lead, render: (r) => `${r.lead} d` },
+          { label: 'Supplier', sort: (r) => r.supplierName, render: (r) => esc(r.supplierName) },
+        ] }) })}
+        ${ui.card({ cls: 'nx-s4', erp: ['SAP MM', 'inventory'], title: 'Need vs available stock', sub: 'The ten items with the highest need', body: ui.chart('pneed', 'lg') })}</div>
+        ${ui.card({ erp: ['SAP MM', 'suppliers'], title: 'Suppliers of these parts', sub: `Vendor master and delivery performance · ${esc(net.erp.syncedText('suppliers'))}`, flush: true, body: ui.table({ id: 'parts-sup', rows: partSuppliers, cols: [
+          { label: 'Supplier', sort: (x) => x.name, render: (x) => `<b>${esc(x.name)}</b><span class="nx-sub">${esc(x.id)} · ${esc(x.country)}</span>` },
+          { label: 'Supplies', sort: (x) => x.cat, render: (x) => esc(x.cat) },
+          { label: 'Items needed', align: 'r', sort: (x) => x.items.length, render: (x) => `${x.items.length}${x.short ? ` <span class="nx-note">(${x.short} short)</span>` : ''}` },
+          { label: 'On-time delivery', align: 'r', sort: (x) => x.otd, render: (x) => ui.badge(`${x.otd}%`, x.otd >= 92 ? 'ok' : x.otd >= 85 ? 'warn' : 'crit', { dot: false }) },
+          { label: 'Lead time', align: 'r', sort: (x) => x.lead, render: (x) => `${x.lead} d` },
+          { label: 'Quality', align: 'r', sort: (x) => x.quality, render: (x) => `${x.quality}%` },
+        ] }) })}</div>`;
+      },
+      mount: (st, ctx) => {
+        const top = partRows.slice().sort((a, b) => b.need - a.need).slice(0, 10);
+        ctx.chart('pneed', ch.bar({ x: top.map((r) => r.sku), horizontal: true, series: [{ name: 'Need', color: '#f59e0b', data: top.map((r) => r.need) }, { name: 'Available', color: '#3b82f6', data: top.map((r) => r.available) }], grid: { top: 30 } }));
+      },
+    }],
+  });
 
   /* ---------- Reliability Dashboard */
   screens.push({
@@ -460,15 +557,15 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           return `<div class="nx-page">${ui.hero({ text: heroText, meta: [{ label: 'Risk score', value: fmt.n(heroTower.risk) }, { label: 'Health index', value: fmt.n(heroTower.hi, 1) }, { label: 'L-220-03 loading %', value: '—', live: 'L-220-03.LOAD' }], actions: `<button type="button" class="nx-btn" data-a360="${esc(heroTower.id)}">${icon('eye')}Open Asset 360</button>` })}
           ${ui.kpis([
             { label: 'Fleet health index', value: fmt.n(fleetHi, 1), unit: '/100', icon: 'gauge', tone: 'ok', delta: -0.8, sub: 'vs Q2 campaign', spark: [93.6, 93.4, 93.1, 92.9, 92.7, fleetHi] },
-            { label: 'Critical-risk assets', value: critN, icon: 'alert', tone: 'crit', delta: 1, deltaSuffix: '', deltaInvert: true, sub: `${ranked.filter((a) => a.riskBand === 'high').length} high`, spark: [3, 4, 4, 5, 5, critN] },
+            { label: 'Critical-risk assets', exp: true, value: critN, icon: 'alert', tone: 'crit', delta: 1, deltaSuffix: '', deltaInvert: true, sub: `${ranked.filter((a) => a.riskBand === 'high').length} high`, spark: [3, 4, 4, 5, 5, critN] },
             { label: 'Open findings', value: openFindings.length, icon: 'camera', tone: 'warn', sub: `${pending.length} awaiting review`, spark: campaigns.map((c) => findings.filter((f) => f.campaign_id === c.campaign_id).length) },
             { label: 'Overdue reviews', value: overdue.filter((o) => o.kind !== 'Inspection').length, icon: 'clock', tone: 'crit', sub: `oldest ${overdue[0]?.age ?? 0} days` },
             { label: 'Work orders open', value: workOrders.filter((w) => w.status !== 'completed').length, icon: 'wrench', tone: 'info', sub: `${workOrders.filter((w) => w.status === 'in_progress').length} in progress` },
             { label: 'Transformer fleet HI', value: fmt.n(transformers.reduce((a, t) => a + (t.hi || 0), 0) / transformers.length, 1), icon: 'transformer', tone: 'violet', sub: `${transformers.filter((t) => t.duval && t.duval.zone !== 'N' && t.duval.zone !== 'PD').length} with DGA fault zone` },
           ])}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', title: 'Where the risk is', sub: 'Towers by risk band on the corridors — click a dot', flush: true, body: '<div class="nx-map" id="dmap" style="height:380px;border-radius:0 0 12px 12px"></div>' })}
-          ${ui.card({ cls: 'nx-s4', title: 'Top risks', sub: 'Condition × criticality × consequence', flush: true, body: `<div class="nx-list" style="padding:0 16px">${ranked.slice(0, 7).map((a) => ui.li({ ic: a.kind === 'transformer' ? 'transformer' : a.kind === 'span' ? 'line' : 'tower', color: riskC(a.riskBand), title: `${a.kind === 'transformer' ? a.name : a.kind === 'span' ? `Span ${a.name}` : `Tower ${a.name}`} · ${a.line || a.sub || ''}`, sub: esc(explain(a)), end: `<b class="nx-num" style="color:${riskC(a.riskBand)}">${fmt.n(a.risk)}</b>`, row: a.id })).join('')}</div>` })}
-          ${ui.card({ cls: 'nx-s3', title: 'Risk distribution', sub: 'Scored towers, spans, transformers', body: ui.chart('rd', 'md') })}</div>
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', exp: true, title: 'Where the risk is', sub: 'Towers by risk band on the corridors — click a dot', flush: true, body: '<div class="nx-map" id="dmap" style="height:380px;border-radius:0 0 12px 12px"></div>' })}
+          ${ui.card({ cls: 'nx-s4', exp: true, title: 'Top risks', sub: 'Condition × criticality × consequence', flush: true, body: `<div class="nx-list" style="padding:0 16px">${ranked.slice(0, 7).map((a) => ui.li({ ic: a.kind === 'transformer' ? 'transformer' : a.kind === 'span' ? 'line' : 'tower', color: riskC(a.riskBand), title: `${a.kind === 'transformer' ? a.name : a.kind === 'span' ? `Span ${a.name}` : `Tower ${a.name}`} · ${a.line || a.sub || ''}`, sub: esc(explain(a)), end: `<b class="nx-num" style="color:${riskC(a.riskBand)}">${fmt.n(a.risk)}</b>`, row: a.id })).join('')}</div>` })}
+          ${ui.card({ cls: 'nx-s3', exp: true, title: 'Risk distribution', sub: 'Scored towers, spans, transformers', body: ui.chart('rd', 'md') })}</div>
           <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', title: 'Line health by campaign', sub: 'Length-weighted line health index, re-scored at each campaign end', body: ui.chart('lh', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Defect Pareto', sub: 'Open findings by defect class — the vital few', body: ui.chart('par', 'md') })}${ui.card({ cls: 'nx-s3', title: 'Transformer condition', sub: 'Online DGA & HI', flush: true, body: `<div class="nx-list" style="padding:0 16px">${transformers.map((t) => ui.li({ ic: 'transformer', color: bandColor(t.band), title: `${t.name} · ${t.rating} MVA`, sub: `${esc(t.duval?.label || 'Normal ageing')} · H₂ <span data-live="${t.id}.H2">—</span> ppm`, end: hiScore(t.hi, t.band), row: t.id })).join('')}</div>` })}</div></div>`;
         },
         mount: (st, ctx) => {
@@ -489,7 +586,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
         render: () => {
           const t = heroTower; const f = t.findings.slice().sort((a, b) => a.condition_score - b.condition_score);
           return `<div class="nx-page">${ui.hero({ kicker: 'Engineering review case', icon: 'doc', text: heroText, meta: [{ label: 'Opened', value: fmt.short(asOf) }, { label: 'Priority', value: fmt.title(t.riskBand || '—') }] })}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Structure condition', sub: 'Component groups on the tower elevation', body: towerTwin(t) })}${ui.card({ cls: 'nx-s5', title: 'Why this tower is at the top', sub: 'Explainable risk build-up', body: `<div class="nx-chart is-md" data-chart="wf"></div>${ui.callout(`Recommendation: structural engineer to review ${esc(t.name)} within 10 working days; raise a grouped work order with the adjacent weak spans on ${esc(t.line)} for the next outage window.`, 'warn', 'wrench')}` })}</div>
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Structure condition', sub: 'Component groups on the tower elevation', body: towerTwin(t) })}${ui.card({ exp: true, cls: 'nx-s5', title: 'Why this tower is at the top', sub: 'Explainable risk build-up', body: `<div class="nx-chart is-md" data-chart="wf"></div>${ui.callout(`Recommendation: structural engineer to review ${esc(t.name)} within 10 working days; raise a grouped work order with the adjacent weak spans on ${esc(t.line)} for the next outage window.`, 'warn', 'wrench')}` })}</div>
           ${ui.card({ title: 'Evidence', sub: 'Findings on this tower across campaigns', flush: true, body: ui.table({ id: 'ev', rowId: (x) => x.finding_id, rows: f, cols: [{ key: 'finding_id', label: 'Finding', render: (x) => `<b>${esc(x.finding_id)}</b>` }, { label: 'Defect', sort: (x) => x.defect_class, render: (x) => esc(DEFECT_LABEL[x.defect_class] || x.defect_class) }, { label: 'Group', sort: (x) => x.group, render: (x) => esc(GROUP_LABEL[x.group] || x.group) }, { key: 'condition_score', label: 'Condition', align: 'c', render: (x) => `<span class="nx-score" style="background:${COND_C[x.condition_score]}1f;color:${COND_C[x.condition_score]}">${x.condition_score}</span>` }, { key: 'review_status', label: 'Review', render: (x) => ui.badge(x.review_status, x.review_status === 'confirmed' ? 'ok' : 'warn') }, { key: 'date', label: 'Date', render: (x) => fmt.date(x.date) }, { label: 'Confidence', align: 'r', sort: (x) => x.confidence, render: (x) => fmt.pct(x.confidence * 100) }, { label: '', sort: false, render: (x) => ui.btn('Image', { sm: true, ic: 'camera', attrs: `data-fv="${esc(x.finding_id)}"` }) }] }) })}
           <div class="nx-row nx-c3">${ui.card({ title: `Condition history of ${esc(t.name)}`, sub: 'HI at each campaign end and findings sighted per campaign', body: ui.chart('chist', 'md') })}${ui.card({ title: 'Neighbouring structures', sub: `Health index of the five towers either side on ${esc(t.line)}`, body: ui.chart('nbr', 'md') })}${ui.card({ title: `Operating stress on ${esc(t.line)}`, sub: 'Live — loading drives conductor and fitting temperature at this structure', body: `${ui.stats([{ label: 'Loading %', value: '—', live: `${t.line}.LOAD` }, { label: 'Conductor °C', value: '—', live: `${t.line}.TC` }, { label: 'Current A', value: '—', live: `${t.line}.I` }])}<div class="nx-chart" style="height:190px" data-chart="cstress"></div>` })}</div>
           ${ui.card({ title: 'Proposed grouped work package', sub: `Open findings within five towers of ${esc(t.name)} that one outage on ${esc(t.line)} can clear`, flush: true, body: '<div data-pkg></div>' })}</div>`;
@@ -530,6 +627,9 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
   // land on the dashboard; the rest follow the module's screen list
   const dash = screens.findIndex((x) => x.id === 'dashboard');
   screens.unshift(...screens.splice(dash, 1));
+  // Asset Health alone is the current condition; together with Operations it is Asset Reliability
+  const GROUP = { dashboard: 'Overview', registry: 'Overview', tower: 'Asset Health', line: 'Asset Health', riskmap: 'Asset Health', history: 'Operations', work: 'Operations', parts: 'Operations', schem: 'Engineering' };
+  for (const sc of screens) sc.group = GROUP[sc.id];
   return { screens, heroText };
 }
 

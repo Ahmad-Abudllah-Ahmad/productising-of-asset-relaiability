@@ -120,7 +120,7 @@
 .a360-root[hidden] { display: none; }
 .a360-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(3px); }
 /* centred dialog: scales in at the middle of the window */
-.a360 { position: absolute; top: 50%; left: 50%; width: min(880px, calc(100vw - 48px)); max-height: calc(100vh - 48px); background: var(--card, #fff); color: var(--ink); border-radius: 16px; border: 1px solid rgba(226, 232, 240, .9); box-shadow: 0 32px 72px -16px rgba(15, 23, 42, 0.45), 0 8px 20px rgba(15, 23, 42, 0.1); overflow-y: auto; transform: translate(-50%, -48%) scale(.97); opacity: 0; transition: transform 0.2s cubic-bezier(.2,.8,.2,1), opacity 0.16s ease; outline: none; font-size: 13px; }
+.a360 { position: absolute; top: 50%; left: 50%; width: min(980px, calc(100vw - 48px)); max-height: calc(100vh - 48px); background: var(--card, #fff); color: var(--ink); border-radius: 16px; border: 1px solid rgba(226, 232, 240, .9); box-shadow: 0 32px 72px -16px rgba(15, 23, 42, 0.45), 0 8px 20px rgba(15, 23, 42, 0.1); overflow-y: auto; transform: translate(-50%, -48%) scale(.97); opacity: 0; transition: transform 0.2s cubic-bezier(.2,.8,.2,1), opacity 0.16s ease; outline: none; font-size: 13px; }
 .a360.is-in { transform: translate(-50%, -50%); opacity: 1; }
 .a360 .a360-bar { border-radius: 16px 16px 0 0; }
 @media (prefers-reduced-motion: reduce) { .a360 { transition: none; } }
@@ -185,6 +185,35 @@
 .a360-skel-block { height: 110px; margin-bottom: 12px; }
 @media (prefers-reduced-motion: reduce) { .a360-skel { animation: none; } }
 @media (max-width: 640px) { .a360-scores, .a360-duvalrow { grid-template-columns: 1fr; } }
+
+/* ---- Asset 360 tabs: six tabs in two groups. Asset Health (condition) + Operations (maintenance, work orders, stock)
+        = Asset Reliability. Dashed amber = experimental; indigo = read from the ERP. */
+.a360-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.a360-tabs { position: sticky; top: 49px; z-index: 2; background: var(--card, #fff); padding: 10px 16px 0; border-bottom: 1px solid var(--line); }
+.a360-tabgroups { display: grid; grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr); gap: 10px; }
+.a360-tabgroup { border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px 8px; background: #f8fafc; min-width: 0; }
+.a360-tabgroup-h { font-size: 11px; color: var(--muted); padding: 0 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.a360-tabgroup-h b { color: var(--ink); font-weight: 700; }
+.a360-tabrow { display: flex; gap: 6px; flex-wrap: wrap; }
+.a360-tab { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.a360-tab:hover { border-color: var(--blue); }
+.a360-tab.is-on { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 2px 6px rgba(31, 111, 235, .28); }
+.a360-tab.is-exp { border-style: dashed; border-color: #d97706; }
+.a360-tab.is-exp.is-on { border-style: solid; border-color: var(--blue); }
+.a360-tabcount { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: #eef2f6; color: var(--muted); line-height: 1.6; }
+.a360-tab.is-on .a360-tabcount { background: rgba(255, 255, 255, .22); color: #fff; }
+.a360-mark { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 0 6px; border-radius: 999px; line-height: 1.7; white-space: nowrap; vertical-align: middle; }
+.a360-mark-exp { border: 1px dashed #d97706; background: #fffbeb; color: #92400e; }
+.a360-mark-erp { border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; }
+.a360-tabnote { margin: 7px 2px 9px; font-size: 11.5px; color: var(--muted); }
+.a360-panel[hidden] { display: none; }
+.a360-panel { outline: none; }
+.a360-source { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; margin: 0 0 8px; border-radius: 8px; border: 1px solid #c7d2fe; background: #f5f7ff; font-size: 12px; color: #312e81; }
+.a360-source > span:nth-child(2) { flex: 1 1 260px; min-width: 0; }
+.a360-exp { border: 1px dashed #e0a43c; border-radius: 10px; padding: 12px 12px 6px; background: #fffdf7; }
+.a360-exp h3 { display: flex; align-items: center; gap: 8px; }
+.a360-expnote { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: #fffbeb; border: 1px dashed #e8b04a; color: #78350f; font-size: 12px; line-height: 1.45; }
+@media (max-width: 720px) { .a360-tabgroups { grid-template-columns: 1fr; } .a360-tabs { position: static; } }
 
 /* ---- thumbnails are buttons that open the finding viewer; every image says it is a demo */
 .a360-thumb { padding: 0; cursor: pointer; font: inherit; }

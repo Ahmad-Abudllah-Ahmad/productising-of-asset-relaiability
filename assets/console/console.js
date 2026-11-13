@@ -102,6 +102,8 @@ const P = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   cloud: '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18H7Z"/>',
   wind: '<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/>',
+  flask: '<path d="M9 3h6M10 3v6.2L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.4 14.5h9.2"/>',
+  database: '<ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V5.5M5 12v6.5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V12"/>',
 };
 export function icon(name, size) {
   const s = size ? ` width="${size}" height="${size}"` : '';
@@ -145,13 +147,24 @@ export function hash(s) { let x = 0; for (let i = 0; i < s.length; i += 1) x = (
 
 export const ui = {
   badge: (text, t = 'muted', { dot = true, tip } = {}) => `<span class="nx-badge t-${tone(t)}${dot ? '' : ' no-dot'}"${tip ? ` data-tip="${esc(tip)}"` : ''}>${esc(text)}</span>`,
+  /**
+   * Marks a prediction (forecast, risk heatmap, any predicted value) as not validated yet. The label stays until the
+   * model behind it has been tested against real data; models.js records what each model was tested against, and a
+   * click on the badge opens that register. text: 'Experimental' (default) or 'Simulated'.
+   */
+  exp: () => '',
+  /**
+   * Marks a record set as read from the customer's ERP through the integration layer (erp.js), not entered here.
+   * system: 'SAP PM' | 'SAP MM' | …; dataset: key in the integration layer ('workOrders', 'inventory', 'suppliers', 'purchasing').
+   */
+  erp: (system = 'SAP', dataset = '') => `<button type="button" class="nx-badge nx-erp" data-nx-erp="${esc(dataset)}" data-tip="Read from the ERP through the integration layer. The ERP stays the system of record; nothing is re-entered here. Click for the connection.">${icon('database', 12)}ERP · ${esc(system)}</button>`,
   delta(v, { suffix = '%', invert = false, d = 1 } = {}) {
     if (v == null) return '';
     const good = invert ? v < 0 : v > 0;
     const cls = Math.abs(v) < 1e-9 ? 'is-flat' : good ? 'is-up' : 'is-down';
     return `<span class="nx-delta ${cls}">${v > 0 ? '▲' : v < 0 ? '▼' : '•'} ${fmt.n(Math.abs(v), d)}${suffix}</span>`;
   },
-  /** items: [{ label, value, unit, sub, delta, deltaInvert, icon, tone, spark:[...], sparkColor, live:'TAG', tip }] */
+  /** items: [{ label, value, unit, sub, delta, deltaInvert, icon, tone, spark:[...], sparkColor, live:'TAG', tip, exp: true|'Simulated' }] */
   kpis(items, cls = '') {
     return `<div class="nx-kpis ${cls}">${items.map((k) => {
       const color = k.sparkColor || { ok: '#16a34a', warn: '#d97706', crit: '#dc2626', violet: '#7c3aed', info: '#0284c7' }[k.tone] || '#3b82f6';
@@ -159,8 +172,11 @@ export const ui = {
       return `<div class="nx-kpi"${k.tip ? ` data-tip="${esc(k.tip)}"` : ''}${k.id ? ` id="${esc(k.id)}"` : ''}><div class="nx-kpi-top">${k.icon ? `<span class="nx-kpi-ico t-${k.tone || 'accent'}">${icon(k.icon)}</span>` : ''}<span class="nx-kpi-l">${esc(k.label)}</span></div><div class="nx-kpi-v">${val}${k.unit ? `<small>${esc(k.unit)}</small>` : ''}</div><div class="nx-kpi-s">${k.delta != null ? ui.delta(k.delta, { invert: k.deltaInvert, suffix: k.deltaSuffix ?? '%', d: k.deltaDec ?? (Number.isInteger(k.delta) ? 0 : 1) }) : ''}<span>${k.subHtml ?? esc(k.sub ?? '')}</span></div>${k.spark ? spark(k.spark, color) : '<div style="height:14px"></div>'}</div>`;
     }).join('')}</div>`;
   },
-  card({ title, sub, tools = '', body = '', foot = '', cls = '', flush = false, id = '', attrs = '' }) {
-    const head = title || tools ? `<div class="nx-card-h"><div>${title ? `<h3>${esc(title)}</h3>` : ''}${sub ? `<p>${esc(sub)}</p>` : ''}</div>${tools ? `<div class="nx-card-tools">${tools}</div>` : ''}</div>` : '';
+  /** exp: true | 'Experimental' | 'Simulated' marks the card as an unvalidated prediction; erp: 'SAP PM' | ['SAP MM', 'inventory'] marks its records as read from the ERP. */
+  card({ title, sub, tools = '', body = '', foot = '', cls = '', flush = false, id = '', attrs = '', exp, erp }) {
+    const marks = `${erp ? ui.erp(...[].concat(erp)) : ''}`;
+    const allTools = `${marks}${tools}`;
+    const head = title || allTools ? `<div class="nx-card-h"><div>${title ? `<h3>${esc(title)}</h3>` : ''}${sub ? `<p>${esc(sub)}</p>` : ''}</div>${allTools ? `<div class="nx-card-tools">${allTools}</div>` : ''}</div>` : '';
     return `<section class="nx-card ${cls}"${id ? ` id="${esc(id)}"` : ''} ${attrs}>${head}<div class="nx-card-b${flush ? ' is-flush' : ''}">${body}</div>${foot ? `<div class="nx-card-f">${foot}</div>` : ''}</section>`;
   },
   chart: (id, size = '') => `<div class="nx-chart ${size ? `is-${size}` : ''}" data-chart="${esc(id)}"></div>`,
@@ -497,7 +513,7 @@ export const drawer = {
     drawerEl = document.createElement('aside'); drawerEl.className = `nx-drawer${wide ? ' is-wide' : ''}`; drawerEl.setAttribute('role', 'dialog'); drawerEl.setAttribute('aria-modal', 'true'); drawerEl.setAttribute('aria-label', title);
     const guess = ic || (/work order|WO-/i.test(`${kicker} ${title}`) ? 'clipboard' : /permit|PTW/i.test(`${kicker} ${title}`) ? 'key' : /crew|person|EMP-/i.test(`${kicker} ${title}`) ? 'users' : /tower|T-\d/i.test(`${kicker} ${title}`) ? 'tower' : /transformer|TX-/i.test(`${kicker} ${title}`) ? 'transformer' : /part|SKU|stock|damper|insulator/i.test(`${kicker} ${title}`) ? 'box' : /supplier|PO-|purchase/i.test(`${kicker} ${title}`) ? 'cart' : /finding|F-\d/i.test(`${kicker} ${title}`) ? 'camera' : /incident|hazard|safety/i.test(`${kicker} ${title}`) ? 'shield' : /\$|cost|budget/i.test(`${kicker} ${title}`) ? 'dollar' : 'doc');
     const tabBar = tabs?.length ? `<div class="nx-drawer-tabs" role="tablist">${tabs.map((t, i) => `<button type="button" data-dtab="${i}" class="${i ? '' : 'is-on'}">${esc(t.name)}</button>`).join('')}</div>` : '';
-    drawerEl.innerHTML = `<div class="nx-drawer-h${tabBar ? '' : ' no-tabs'}"><div class="nx-drawer-top"><span class="nx-drawer-ico">${icon(guess)}</span><div class="nx-drawer-ttl"><small>${esc(kicker)}</small><h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="nx-drawer-tools"><button type="button" class="nx-iconbtn" data-dwide title="${wide ? 'Narrow' : 'Expand'}" aria-label="Expand panel">${icon('layers')}</button><button type="button" class="nx-iconbtn nx-drawer-x" aria-label="Close">${icon('x')}</button></div></div>${badges.length ? `<div class="nx-drawer-badges">${badges.map(([t, tn]) => ui.badge(t, tn)).join('')}</div>` : ''}${tabBar}</div><div class="nx-drawer-b"></div><div class="nx-drawer-f"><span class="nx-drawer-meta">${icon('clock', 13)}${meta ? esc(meta) : `Updated ${new Date().toLocaleTimeString('en-GB')} · Esc to close`}</span>${actions.map((a, i) => `<button type="button" class="nx-btn${a.primary ? ' is-primary' : ''}${a.danger ? ' is-danger' : ''}" data-act="${i}">${a.icon ? icon(a.icon) : ''}${esc(a.label)}</button>`).join('')}${actions.length ? '' : '<button type="button" class="nx-btn" data-dclose>Close</button>'}</div>`;
+    drawerEl.innerHTML = `<div class="nx-drawer-h${tabBar ? '' : ' no-tabs'}"><div class="nx-drawer-top"><span class="nx-drawer-ico">${icon(guess)}</span><div class="nx-drawer-ttl"><small>${esc(kicker)}</small><h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="nx-drawer-tools"><button type="button" class="nx-iconbtn" data-dwide title="${wide ? 'Narrow' : 'Expand'}" aria-label="Expand panel">${icon('layers')}</button><button type="button" class="nx-iconbtn nx-drawer-x" aria-label="Close">${icon('x')}</button></div></div>${badges.filter(([t]) => !/experimental|simulated/i.test(String(t))).length ? `<div class="nx-drawer-badges">${badges.filter(([t]) => !/experimental|simulated/i.test(String(t))).map(([t, tn]) => ui.badge(t, tn)).join('')}</div>` : ''}${tabBar}</div><div class="nx-drawer-b"></div><div class="nx-drawer-f"><span class="nx-drawer-meta">${icon('clock', 13)}${meta ? esc(meta) : `Updated ${new Date().toLocaleTimeString('en-GB')} · Esc to close`}</span>${actions.map((a, i) => `<button type="button" class="nx-btn${a.primary ? ' is-primary' : ''}${a.danger ? ' is-danger' : ''}" data-act="${i}">${a.icon ? icon(a.icon) : ''}${esc(a.label)}</button>`).join('')}${actions.length ? '' : '<button type="button" class="nx-btn" data-dclose>Close</button>'}</div>`;
     document.body.append(scrimEl, drawerEl);
     requestAnimationFrame(() => { scrimEl.classList.add('is-on'); drawerEl.classList.add('is-on'); });
     scrimEl.addEventListener('click', () => drawer.close());
@@ -880,12 +896,19 @@ export function mountApp(app) {
   if (!app.screens[cur]?.tabs[tabI]) tabI = 0;
   const collapsed = (() => { try { return localStorage.getItem('nx.rail') === '1'; } catch { return false; } })();
 
-  const nav = app.screens.map((s, i) => `<button type="button" data-go="${i}" class="${i === cur ? 'is-on' : ''}" title="${esc(s.name)}" aria-label="${esc(s.name)}">${icon(s.icon)}<span>${esc(s.name)}</span>${s.count ? `<em class="nx-nav-count">${esc(s.count)}</em>` : ''}</button>`).join('');
-  document.body.innerHTML = `<div class="nx-app shell${collapsed ? ' is-collapsed' : ''}"><aside class="nx-rail"><a class="nx-brand" href="/" aria-label="NEXUS OS home"><svg class="nx-logo" width="158" height="36" viewBox="0 0 158 36" role="img" aria-label="NEXUS OS"><text class="nx-word" x="0" y="27" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.03em">NEXUS OS</text></svg></a><div class="nx-module"><small>Module ${esc(app.code)}</small><b title="${esc(app.product)}">${esc(app.product)}</b></div><nav class="nx-nav" aria-label="Application screens"><div class="nx-nav-label">Application screens</div>${nav}</nav><div class="nx-rail-foot"><button type="button" data-collapse>${icon('collapse')}<span>Collapse</span></button><a href="${esc(app.back || '/')}">${icon('back')}<span>Back to suite</span></a><button type="button" data-logout>${icon('logout')}<span>Log out</span></button></div></aside><header class="nx-top"><div class="nx-crumb"><small>NEXUS OS · Module ${esc(app.code)} · ${esc(app.product)}</small><h1 id="nx-title"></h1></div><div class="nx-top-spacer"></div><label class="nx-search">${icon('search', 15)}<input type="search" id="nx-gsearch" placeholder="Search towers, lines, work orders…" autocomplete="off"/><kbd>/</kbd></label><span class="nx-pill is-live" data-tip="Telemetry and records refresh every second from the simulated SCADA/EMS historian."><span class="nx-dot is-pulse"></span>Live · <span id="nx-clock" class="nx-num"></span></span><span class="nx-pill" data-tip="Records are scored as of this date.">${icon('calendar', 14)}As of ${esc(fmt.date(app.asOf || '2026-11-11'))}</span><button type="button" class="nx-iconbtn" id="nx-bell" aria-label="Alarms">${icon('bell')}<span class="nx-badge-dot" hidden></span></button><span class="nx-avatar" title="Signed in · Reliability engineer">RE</span></header><main class="nx-main"><div class="nx-tabs" id="tabs" role="tablist"></div><div class="nx-stage" id="stage"></div></main></div><div id="nx-gresults" class="nx-map-panel" style="position:fixed;display:none;z-index:70;width:360px;max-height:380px;overflow:auto;padding:6px"></div>`;
+  // screens may carry { group } (a rail section label, e.g. 'Asset Health' / 'Operations') and { exp } (the whole screen is an unvalidated prediction)
+  let navGroup = null;
+  const nav = app.screens.map((s, i) => {
+    const label = s.group && s.group !== navGroup ? `<div class="nx-nav-label">${esc(s.group)}</div>` : '';
+    if (s.group) navGroup = s.group;
+    return `${label}<button type="button" data-go="${i}" class="${i === cur ? 'is-on' : ''}" title="${esc(s.name)}" aria-label="${esc(s.name)}">${icon(s.icon)}<span>${esc(s.name)}</span>${s.count ? `<em class="nx-nav-count">${esc(s.count)}</em>` : ''}</button>`;
+  }).join('');
+  document.body.innerHTML = `<div class="nx-app shell${collapsed ? ' is-collapsed' : ''}"><aside class="nx-rail"><a class="nx-brand" href="/" aria-label="NEXUS OS home"><svg class="nx-logo" width="158" height="36" viewBox="0 0 158 36" role="img" aria-label="NEXUS OS"><text class="nx-word" x="0" y="27" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.03em">NEXUS OS</text></svg></a><div class="nx-module"><small>Module ${esc(app.code)}</small><b title="${esc(app.product)}">${esc(app.product)}</b></div><nav class="nx-nav" aria-label="Application screens">${app.screens[0]?.group ? '' : '<div class="nx-nav-label">Application screens</div>'}${nav}</nav><div class="nx-rail-foot"><button type="button" data-collapse>${icon('collapse')}<span>Collapse</span></button><a href="${esc(app.back || '/')}">${icon('back')}<span>Back to suite</span></a><button type="button" data-logout>${icon('logout')}<span>Log out</span></button></div></aside><header class="nx-top"><div class="nx-crumb"><small>NEXUS OS · Module ${esc(app.code)} · ${esc(app.product)}</small><h1 id="nx-title"></h1></div><div class="nx-top-spacer"></div><label class="nx-search">${icon('search', 15)}<input type="search" id="nx-gsearch" placeholder="Search towers, lines, work orders…" autocomplete="off"/><kbd>/</kbd></label><span class="nx-pill is-live" data-tip="Telemetry and records refresh every second from the simulated SCADA/EMS historian."><span class="nx-dot is-pulse"></span>Live · <span id="nx-clock" class="nx-num"></span></span><button type="button" class="nx-pill is-erp" data-nx-erp="" data-tip="Open the data connectors. Work orders, inventory, suppliers and purchasing are read from the customer ERP (SAP) through the integration layer.">${icon('database', 14)}ERP<span> · SAP</span><i class="nx-erp-dot"></i><em>Simulated</em></button><span class="nx-pill" data-tip="Records are scored as of this date.">${icon('calendar', 14)}As of ${esc(fmt.date(app.asOf || '2026-11-11'))}</span><button type="button" class="nx-iconbtn" id="nx-bell" aria-label="Alarms">${icon('bell')}<span class="nx-badge-dot" hidden></span></button><span class="nx-avatar" title="Signed in · Reliability engineer">RE</span></header><main class="nx-main"><div class="nx-tabs" id="tabs" role="tablist"></div><div class="nx-expbar" id="nx-expbar" hidden></div><div class="nx-stage" id="stage"></div></main></div><div id="nx-gresults" class="nx-map-panel" style="position:fixed;display:none;z-index:70;width:360px;max-height:380px;overflow:auto;padding:6px"></div>`;
 
   document.body.append(tipEl, toastsEl); // the shell markup replaced the body; keep the shared overlays
   const shell = document.querySelector('.nx-app');
   const stage = document.getElementById("stage"); const tabsEl = document.getElementById("tabs"); const titleEl = document.getElementById('nx-title');
+  const expBar = document.getElementById('nx-expbar');
   let ctx = null;
   let legacyCleanup = null;
 
@@ -897,6 +920,7 @@ export function mountApp(app) {
     const s = app.screens[cur]; const t = s.tabs[tabI];
     titleEl.textContent = s.name;
     tabsEl.innerHTML = s.tabs.map((x, i) => `<button type="button" role="tab" data-tab="${i}" class="${i === tabI ? 'is-on' : ''}" aria-selected="${i === tabI}">${x.icon ? icon(x.icon, 15) : ''}${esc(x.name)}</button>`).join('') + (s.note ? `<span class="nx-tabs-note">${s.note}</span>` : '');
+    expBar.hidden = true; expBar.innerHTML = '';
     stage.className = `nx-stage${t.full ? ' is-full' : ''}${t.legacy ? ' is-legacy' : ''}`;
     stage.scrollTop = 0;
     ctx = makeCtx(stage);

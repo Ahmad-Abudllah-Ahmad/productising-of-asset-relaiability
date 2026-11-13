@@ -8,10 +8,50 @@ import { mountApp, ui, ch, live, esc, fmt, icon, drawer, toast, SEV, addDays, da
 import * as sx from '../schematics.js';
 import { loadNetwork, networkLayers, SEV_TONE, LINE_NAME } from '../network.js';
 import { drawingTabs } from '../drawings.js';
+import { models } from '../models.js';
+import { erp as erpHub, erpRequest } from '../erp.js';
 
 const net = await loadNetwork();
 const AS_OF = net.asOf;
 const R = rng(303);
+
+// Planning heuristics and estimates this module shows. All of them run on simulated demo data and none has been tested
+// against real data, so their outputs stay labelled / Simulated in the interface (register: models.js).
+const MODEL_MODULE = '03 · Field Operations';
+models.register([
+  { id: 'ops-visit-grouping', name: 'Visit grouping and saving estimate', module: MODEL_MODULE,
+    predicts: 'Which open work orders share one visit, how long the visit takes, and the mobilisation, outage-hour and switching savings claimed for grouping',
+    method: 'Greedy clustering of open orders within 8 towers on one circuit (at most 6 per visit; the featured visit is the tightest run of five on L-220-03). Saving = avoided trips × a fixed mobilisation cost + avoided outages × a fixed outage cost. Duration = labour hours ÷ (crew size × 9 h).',
+    needs: 'Actual mobilisation, travel and outage costs per trip from SAP PM order settlements, and the history of grouped versus single visits.' },
+  { id: 'ops-crew-schedule', name: 'Crew schedule and planned crew-day load', module: MODEL_MODULE,
+    predicts: 'The crew and window of each grouped visit and the booked hours per crew-day over the next 14 days',
+    method: 'First crew holding the visit’s lead skill; outage visits take the line’s next agreed window, live-line visits run on consecutive weekdays. Daily load = visit hours ÷ days ÷ half the crew size, capped at 10 h.',
+    needs: 'Time confirmations and actual visit durations per crew from SAP PM (AFRU) and the field app.' },
+  { id: 'ops-autolevel', name: 'Workload auto-levelling optimiser', module: MODEL_MODULE,
+    predicts: 'Visit moves that flatten the 14-day crew load, and the peak-load reduction they give',
+    method: 'Not implemented in the prototype: the button returns a fixed illustrative result and no optimisation is run.',
+    needs: 'A real levelling algorithm, then a back-test on historical crew bookings and outage windows.' },
+  { id: 'ops-workload', name: 'Labour demand and backlog burn-down projection', module: MODEL_MODULE,
+    predicts: 'Labour hours per week by skill against crew capacity (8 weeks), peak load by depot, the skill gap, and the 12-week backlog burn-down with and without contractor crews',
+    method: 'Labour hours of the grouped visits by start week plus a flat per-skill allowance from week 4; capacity = a fixed share of crew hours; burn-down = open hours + a constant 48 h/week inflow − capacity.',
+    needs: 'Two or more years of planned versus confirmed labour hours and work-order inflow per skill from SAP PM.' },
+  { id: 'ops-transfer-margin', name: 'Transfer margin during outage windows', module: MODEL_MODULE,
+    predicts: 'Loading of the parallel path while each line is out of service',
+    method: 'Fixed illustrative values in the prototype; in production the figures come from the EMS N-1 contingency study.',
+    needs: 'EMS contingency-study results per outage window, compared with the loading measured during past outages.' },
+  { id: 'ops-wr-priority', name: 'Work-request priority score (P1–P4)', module: MODEL_MODULE,
+    predicts: 'Relative urgency of each verified defect that has no work order, and its P1–P4 class',
+    method: 'Severity weight × tower criticality × (1 + tower risk score ÷ 400, clamped to 0.2–1.5), with fixed thresholds at 60 / 30 / 15. It inherits the risk score.',
+    needs: 'Planner priority decisions and defect-to-failure history to calibrate the weights and thresholds.' },
+  { id: 'ops-eta', name: 'Crew ETA', module: MODEL_MODULE,
+    predicts: 'Minutes until a travelling crew reaches its next site',
+    method: 'Simulated countdown from a fixed starting value per travelling crew; not computed from route, distance or traffic.',
+    needs: 'AVL position history and actual arrival times per trip.' },
+  { id: 'ops-switching-sim', name: 'Switching and isolation simulation', module: MODEL_MODULE,
+    predicts: 'Energised or de-energised state of the line and work zone after each switching step, and the interlock refusals',
+    method: 'Rule-based topology: a section is live when its switches are closed back to a busbar; interlocks are fixed rules. Device states and power flows are simulated, not read from SCADA.',
+    needs: 'Live switch positions from SCADA / EMS and the substation interlocking scheme, checked against executed switching programmes.' },
+]);
 
 /* ================================================================== styles local to this module */
 const css = document.createElement('style');
@@ -207,16 +247,33 @@ const requests = net.findings.filter((f) => f.review_status === 'confirmed' && !
   const score = Math.round(SEV_W[f.severity] * crit * (1 + riskN) * 10) / 10;
   return { ...f, tower: t, crit, score, pri: score >= 60 ? 'P1' : score >= 30 ? 'P2' : score >= 15 ? 'P3' : 'P4' };
 }).sort((a, b) => b.score - a.score);
-const converted = new Set();
+// finding id → ERP reference of the work-order request sent for it. The ERP creates and owns the order; this
+// workspace keeps only the reference of the request it sent.
+const converted = new Map();
 
-// SAP PM holds line assets; IBM Maximo holds substation plant. Both sync both ways through the integration hub.
+// SAP PM holds line assets; IBM Maximo holds substation plant. Both stay the system of record: orders are read in
+// through the integration hub, and only requests and status / scheduling updates go back.
 const sysOf = (w) => (w.line ? 'SAP PM' : 'IBM Maximo');
+const erpSystem = (line) => (line ? 'SAP PM' : 'IBM Maximo');
+/** Send a request or a status for a work order to the system that owns it. quiet = no toast (the caller reports). */
+function sendToErp(line, what, payload, quiet = false) {
+  const opts = { system: erpSystem(line) };
+  return quiet ? erpHub.request('workOrders', what, payload, opts) : erpRequest('workOrders', what, payload, opts);
+}
+/** Ask the ERP to create a work order for a verified defect. Returns the ERP reference of the request. */
+function requestWorkOrder(f, quiet = false) {
+  if (converted.has(f.finding_id)) { if (!quiet) toast(`${f.finding_id} is already requested in ${erpSystem(f.line)} as ${converted.get(f.finding_id)}`, 'warn'); return converted.get(f.finding_id); }
+  const r = sendToErp(f.line, `Work-order request · ${f.finding_id} ${f.label}`, { finding: f.finding_id, asset: f.tower_id || f.asset_id, defect: f.defect_class, priority: f.pri }, quiet);
+  converted.set(f.finding_id, r.ref);
+  return r.ref;
+}
 const syncLog = (() => {
   const out = []; const fields = ['status', 'planned date', 'crew', 'priority', 'labour hours', 'materials', 'long text', 'functional location'];
   let t = Date.parse(`${AS_OF}T16:42:00Z`);
   for (let i = 0; i < 34; i += 1) {
     const w = WO[(i * 11 + 5) % WO.length]; t -= (3 + R() * 22) * 60000;
-    const dir = R() > 0.45 ? 'out' : 'in';
+    // outbound = status / scheduling write-back only (status, planned date, crew); every other field is only read from the ERP
+    const dir = R() > 0.45 && i % fields.length < 3 ? 'out' : 'in';
     const st = w.sync === 'conflict' && i % 3 === 0 ? 'conflict' : R() > 0.94 ? 'retry' : 'ok';
     out.push({ id: `MSG-${88412 - i * 3}`, time: new Date(t).toISOString().slice(11, 16), date: new Date(t).toISOString().slice(0, 10), wo: w, sys: sysOf(w), dir, field: fields[i % fields.length], st, ms: Math.round(380 + R() * 1400) });
   }
@@ -260,7 +317,7 @@ function woTimeline(w) {
   const f = firstFindingDate(w);
   const items = [
     { when: fmt.date(f), title: 'Defect confirmed by engineering review', text: w.findings.map((x) => `${esc(x.finding_id)} ${esc(x.label)}`).join(' · ') || 'Inspection finding', tone: 'crit' },
-    { when: fmt.date(w.created_at), title: `Work request raised → ${esc(w.sap)} (${sysOf(w)})`, text: `Priority ${esc(w.priority)} · est. ${fmt.money(w.estCost)}`, tone: 'info' },
+    { when: fmt.date(w.created_at), title: `Order created in ${sysOf(w)} → ${esc(w.sap)}`, text: `Priority ${esc(w.priority)} · est. ${fmt.money(w.estCost)}`, tone: 'info' },
     { when: fmt.date(w.planned_date), title: 'Planned in maintenance plan', text: visitOf.get(w.id) ? `Grouped into ${esc(visitOf.get(w.id).id)} · ${esc(visitOf.get(w.id).window)}` : 'Stand-alone task', tone: 'muted' },
   ];
   if (w.stage === 'in_progress') items.push({ when: 'Today', title: `On site — ${esc(w.crewName)}`, text: 'Permit active · job progress reported from the field app', tone: 'warn' });
@@ -292,16 +349,17 @@ function showWO(id) {
     ${sec('Lifecycle', woTimeline(w))}`;
   const defects = `${w.findings.length ? `<div class="ops-ev">${w.findings.slice(0, 4).map((f, i) => evImg(f, i)).join('')}</div>` : ''}
     ${sec('Source defects', `<div class="nx-list">${w.findings.map((f) => ui.li({ ic: 'camera', color: SEV[f.severity], title: `${f.finding_id} · ${f.label}`, sub: `${fmt.date(f.date)} · ${f.sensor.toUpperCase()} · confidence ${Math.round(f.confidence * 100)}% · ${f.review_status} by ${esc(f.confirmed_by || '—')}`, end: sevBadge(f.severity) })).join('') || ui.empty('No linked findings')}</div>`)}
-    ${tw ? sec(`Tower ${tw.name} condition`, `<div class="nx-chart" style="height:180px" data-chart="wo-grp"></div><div class="nx-note">Component-group scores (5 = as new). Risk ${tw.risk != null ? fmt.n(tw.risk, 0) : '—'} · ${esc(tw.type || '')} · zone ${esc(tw.zone || '—')}</div>`) : ''}`;
-  const erp = `<div class="nx-drawer-grid">${sec('SAP PM', ui.kv([['Order (AUFNR)', `<span class="nx-mono">${esc(w.sap)}</span>`], ['Order type', w.line ? 'PM02 — corrective' : '—'], ['Functional location', `<span class="nx-mono">${esc(w.line ? `AZ-TL-${w.line.slice(2)}-${(w.towerName || '').replace('T-', '')}` : '—')}</span>`], ['Planner group', 'P-North']]))}
+    ${tw ? sec(`Tower ${tw.name} condition`, `<div class="nx-chart" style="height:180px" data-chart="wo-grp"></div><div class="nx-note">Component-group scores (5 = as new). Risk ${tw.risk != null ? `${fmt.n(tw.risk, 0)} ${ui.exp('Experimental')}` : '—'} · ${esc(tw.type || '')} · zone ${esc(tw.zone || '—')}</div>`) : ''}`;
+  const erp = `<div class="nx-note" style="margin-bottom:10px">${ui.erp(sysOf(w), 'workOrders')} ${w.line ? esc(erpHub.syncedText('workOrders')) : 'IBM Maximo · read through the integration hub'}. The order is created and owned there; this workspace reads it and sends back only status and requests.</div>
+    <div class="nx-drawer-grid">${sec('SAP PM', ui.kv([['Order (AUFNR)', `<span class="nx-mono">${esc(w.sap)}</span>`], ['Order type', w.line ? 'PM02 — corrective' : '—'], ['Functional location', `<span class="nx-mono">${esc(w.line ? `AZ-TL-${w.line.slice(2)}-${(w.towerName || '').replace('T-', '')}` : '—')}</span>`], ['Planner group', 'P-North']]))}
     ${sec('IBM Maximo', ui.kv([['Work order', `<span class="nx-mono">${esc(w.maximo)}</span>`], ['Asset', `<span class="nx-mono">${esc(w.asset)}</span>`], ['Status', esc(STAGE_LABEL[w.stage].toUpperCase())], ['Site', w.line ? 'TRANS' : 'SUBS']]))}</div>
     ${sec('Synchronisation', `${ui.kv([['System of record', sysOf(w)], ['Sync state', ui.badge(w.sync, w.sync === 'synced' ? 'ok' : w.sync === 'pending' ? 'warn' : 'crit')], ['Last change', syncLog.find((m) => m.wo.id === w.id) ? `${syncLog.find((m) => m.wo.id === w.id).time} · ${esc(syncLog.find((m) => m.wo.id === w.id).field)}` : 'Created · 08:12']])}`)}
-    ${sec('Sync history', ui.timeline([...syncLog.filter((m) => m.wo.id === w.id).slice(0, 3).map((m) => ({ when: `Today ${m.time}`, title: `${m.dir === 'out' ? `NEXUS → ${m.sys}` : `${m.sys} → NEXUS`} · ${m.field}`, text: `${m.id} · round trip ${fmt.n(m.ms)} ms`, tone: m.st === 'ok' ? 'ok' : m.st === 'retry' ? 'warn' : 'crit' })), ...(w.stage !== 'requested' ? [{ when: fmt.date(addDays(w.created_at, 2)), title: `Status → ${STAGE_LABEL[w.stage].toUpperCase()} pushed to ${sysOf(w)}`, text: 'Acknowledged by the ERP adapter', tone: 'ok' }] : []), { when: fmt.date(w.created_at), title: `Order created in ${sysOf(w)}`, text: `${w.line ? `Notification M2 → order ${w.sap}` : `Maximo WO ${w.maximo}`} from defect ${w.findings[0]?.finding_id || ''}`, tone: 'info' }]))}
+    ${sec('Sync history', ui.timeline([...syncLog.filter((m) => m.wo.id === w.id).slice(0, 3).map((m) => ({ when: `Today ${m.time}`, title: `${m.dir === 'out' ? `NEXUS → ${m.sys}` : `${m.sys} → NEXUS`} · ${m.field}`, text: `${m.id} · round trip ${fmt.n(m.ms)} ms`, tone: m.st === 'ok' ? 'ok' : m.st === 'retry' ? 'warn' : 'crit' })), ...(w.stage !== 'requested' ? [{ when: fmt.date(addDays(w.created_at, 2)), title: `Status ${STAGE_LABEL[w.stage].toUpperCase()} sent to ${sysOf(w)}`, text: 'Acknowledged by the ERP adapter', tone: 'ok' }] : []), { when: fmt.date(w.created_at), title: `Order created in ${sysOf(w)}`, text: `${w.line ? `Notification M2 → order ${w.sap}` : `Maximo WO ${w.maximo}`} from defect ${w.findings[0]?.finding_id || ''}`, tone: 'info' }]))}
     ${sec(`Related work (${siblings.length})`, `<div class="nx-list">${siblings.slice(0, 6).map((x) => ui.li({ ic: 'clipboard', color: SEV[x.severity], title: `${x.id} · ${fmt.title(x.work_type)}`, sub: `${esc(x.towerName || x.asset)} · ${STAGE_LABEL[x.stage]}`, end: stageBadge(x.stage), row: x.id })).join('') || ui.empty('No other work on this tower or visit')}</div>`)}`;
   drawer.open({
     icon: 'clipboard', kicker: `Work order · ${sysOf(w)} ${w.line ? w.sap : w.maximo}`, title: `${w.id} · ${fmt.title(w.work_type)}`,
     sub: `${esc(w.towerName || w.asset)} · ${esc(lineShort(w.line))}`,
-    badges: [[STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], [fmt.title(w.severity), SEV_TONE[w.severity]], [`Priority ${w.priority}`, PRI_TONE[w.priority]], ...(overdue(w) ? [[`Overdue ${daysBetween(w.planned_date, AS_OF)} d`, 'crit']] : []), [w.outage ? 'Needs outage' : 'Live-line', w.outage ? 'violet' : 'info']],
+    badges: [[STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], [fmt.title(w.severity), SEV_TONE[w.severity]], [`Priority ${w.priority}`, PRI_TONE[w.priority]], ...(overdue(w) ? [[`Overdue ${daysBetween(w.planned_date, AS_OF)} d`, 'crit']] : []), [w.outage ? 'Needs outage' : 'Live-line', w.outage ? 'violet' : 'info'], [`ERP · ${sysOf(w)}`, 'info']],
     tabs: [
       { name: 'Overview', body: overview, mount: (el, c) => c.chart('[data-chart="wo-cost"]', { ...ch.donut({ data: [{ name: 'Labour', value: cb.lab, color: '#2563eb' }, { name: 'Materials', value: cb.mat, color: '#f59e0b' }, { name: 'Equipment & travel', value: cb.eqp, color: '#14b8a6' }], center: 'estimate', value: fmt.money(w.estCost), legend: 'right' }), tooltip: { trigger: 'item', formatter: (p) => `${p.name}<br/><b>${fmt.money(p.value)}</b> (${p.percent}%)` } }) },
       { name: `Defects & evidence (${w.findings.length})`, body: defects, mount: (el, c) => { if (tw) { const g = tw.hiGroups; c.chart('[data-chart="wo-grp"]', { ...ch.bar({ x: g.map((x) => fmt.title(x.group)), series: [{ name: 'Score', data: g.map((x) => ({ value: +x.score.toFixed(1), itemStyle: { color: x.score <= 2 ? '#dc2626' : x.score <= 3 ? '#d97706' : '#16a34a', borderRadius: [0, 4, 4, 0] } })) }], horizontal: true, max: 5, legend: false, grid: { left: 4, top: 4 } }), tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps) => `${ps[0].name}<br/>Score <b>${ps[0].value} / 5</b>` } }); } } },
@@ -309,7 +367,7 @@ function showWO(id) {
     ],
     actions: [
       { label: 'Asset 360', icon: 'tower', onClick: () => { location.href = reliabilityLink(w.towerId); } },
-      { label: 'Push to ERP', icon: 'sync', onClick: () => toast(`${w.id} pushed to ${sysOf(w)} · ${w.line ? w.sap : w.maximo} acknowledged in ${live.text('OPS.SYNC.LAT')} s`) },
+      { label: `Send status to ${sysOf(w)}`, icon: 'sync', onClick: () => sendToErp(w.line, `Status update · ${w.id} ${STAGE_LABEL[w.stage]} (order ${w.line ? w.sap : w.maximo})`, { order: w.line ? w.sap : w.maximo, status: w.stage }) },
       { label: w.stage === 'in_progress' ? 'Message crew' : 'Assign crew', primary: true, icon: 'users', onClick: (close) => { toast(`${w.crewName} notified on the field app for ${w.id}`); close(); } },
     ],
   });
@@ -326,7 +384,7 @@ function openCrew(id) {
     badges: [[c.status, c.status === 'on site' ? 'warn' : c.status === 'travelling' ? 'info' : 'ok'], [`${c.size} people`, 'muted'], [`Utilisation ${c.utilisation}%`, c.utilisation > 88 ? 'high' : 'accent'], [certAttn ? `${certAttn} cert. to renew` : 'All certs valid', certAttn ? 'warn' : 'ok']],
     tabs: [
       { name: 'Overview', body: `${ui.stats([{ label: 'ETA min', value: '—', live: `CREW.${c.id}.ETA` }, { label: 'Speed km/h', value: '—', live: `CREW.${c.id}.SPD` }, { label: 'Hours this week', value: c.hoursWeek }, { label: 'Open jobs', value: jobs.length }, { label: 'Closed (YTD)', value: done.length }])}
-        ${sec('Booked hours, next 14 days', '<div class="nx-chart" style="height:180px" data-chart="cr-days"></div>')}
+        ${sec('Booked hours, next 14 days', `<div class="nx-note" style="margin-bottom:6px">${ui.exp('Experimental')} Bookings follow the grouped-visit schedule and the ETA is a travel-time estimate. Neither is tested against real data.</div><div class="nx-chart" style="height:180px" data-chart="cr-days"></div>`)}
         <div class="nx-drawer-grid">${sec('Current job', c.job ? ui.kv([['Work order', esc(c.job)], ['Asset', esc(woById.get(c.job)?.towerName || '')], ['Progress', `<b data-live="JOB.${esc(c.job)}.PCT">—</b> %`], ['Permit', esc(net.permits.find((p) => p.wo === c.job)?.id || 'LLW')]]) : ui.empty(c.status === 'travelling' ? 'En route to next site' : `Available at ${c.baseName}`))}
         ${sec('Vehicle & kit', ui.kv([['Vehicle', esc(c.vehicle.split(' · ')[0])], ['Registration', `<span class="nx-mono">${esc(c.vehicle.split(' · ')[1] || '—')}</span>`], ['Telematics', 'AVL · 1.5 s'], ['Base', esc(c.baseName)]]))}</div>` ,
         mount: (el, cx) => cx.chart('[data-chart="cr-days"]', { ...ch.bar({ x: DAYS.map(fmt.short), series: [{ name: 'Booked h', data: days.map((h) => ({ value: h, itemStyle: { color: h > 10 ? '#dc2626' : h > 0 ? '#2563eb' : '#cbd5e1', borderRadius: [4, 4, 0, 0] } })) }], legend: false, yName: 'h' }), tooltip: { trigger: 'axis', formatter: (ps) => `${ps[0].name}<br/><b>${ps[0].value} h</b> booked of 10 h field day` } }) },
@@ -342,17 +400,17 @@ function openVisit(v) {
   drawer.open({
     icon: 'layers', kicker: `Grouped visit · ${v.outage ? 'outage window' : 'live-line'}`, title: `${v.id} · ${v.corridor === 'Substation' ? 'Substation plant' : `Corridor ${v.corridor}`}`, wide: true,
     sub: `${v.wos.length} tasks · ${esc(v.from)} → ${esc(v.to)} · ${esc(v.window)}`,
-    badges: [[fmt.title(v.severity), SEV_TONE[v.severity]], [v.outage ? 'Outage required' : 'Live-line', v.outage ? 'violet' : 'info'], [`Crew ${v.crew.id}`, 'accent'], ...(v.hero ? [['Featured visit', 'ok']] : [])],
+    badges: [[fmt.title(v.severity), SEV_TONE[v.severity]], [v.outage ? 'Outage required' : 'Live-line', v.outage ? 'violet' : 'info'], [`Crew ${v.crew.id}`, 'accent'], ...(v.hero ? [['Featured visit', 'ok']] : []), ['Experimental', 'warn']],
     tabs: [
       { name: 'Plan', body: `${v.hero ? ui.callout(`<b>${v.wos.length} maintenance tasks grouped into one planned inspection-and-repair visit along Corridor ${esc(v.corridor)}.</b> One mobilisation, one switching programme and one permit instead of ${v.wos.length}.`, 'ok', 'checkCircle') : ''}
-        ${ui.stats([{ label: 'Tasks', value: v.wos.length }, { label: 'Labour', value: `${fmt.n(v.hours)} h` }, { label: 'Duration', value: `${v.days} d` }, { label: 'Estimate', value: fmt.money(v.cost) }, { label: 'Saving', value: fmt.money(v.saving), color: '#15803d' }, { label: 'Section', value: `${v.spanKm} km` }])}
+        ${ui.stats([{ label: 'Tasks', value: v.wos.length }, { label: 'Labour', value: `${fmt.n(v.hours)} h` }, { label: 'Duration', value: `${v.days} d` }, { label: 'Estimate', value: fmt.money(v.cost) }, { label: 'Est. saving', value: fmt.money(v.saving), color: '#15803d' }, { label: 'Section', value: `${v.spanKm} km` }])}
         ${ui.table({ cols: [{ key: 'id', label: 'WO', render: (w) => `<b>${esc(w.id)}</b>` }, { key: 'work_type', label: 'Task', render: (w) => fmt.title(w.work_type) }, { key: 'towerName', label: 'Tower', sort: (w) => towerIdx(w) }, { key: 'severity', label: 'Severity', render: (w) => sevBadge(w.severity), sort: (w) => SEV_ORDER[w.severity] }, { key: 'labourH', label: 'Hours', align: 'r' }, { key: 'estCost', label: 'Estimate', align: 'r', render: (w) => fmt.money(w.estCost) }, { key: 'outage', label: 'Method', render: (w) => (w.outage ? ui.badge('Outage', 'violet', { dot: false }) : ui.badge('Live-line', 'info', { dot: false })) }], rows: v.wos, rowId: (w) => w.id })}`,
         mount: (el, c) => c.on('click', 'tr[data-row]', (e, r) => showWO(r.dataset.row)) },
-      { name: 'Cost & savings', body: `<div class="nx-drawer-grid">${sec('Separate trips vs one visit', '<div class="nx-chart" style="height:220px" data-chart="vi-sv"></div>')}${sec('Labour by task', '<div class="nx-chart" style="height:220px" data-chart="vi-lab"></div>')}</div>${sec('How the saving is built', ui.kv([['Mobilisations avoided', `${v.wos.length - 1} × ${fmt.money(MOB_COST)}`], ['Outages avoided', v.outage ? `${Math.max(0, v.wos.filter((w) => w.outage).length - 1)} × ${fmt.money(OUTAGE_COST)}` : 'None — live-line'], ['Total saving', `<b style="color:#15803d">${fmt.money(v.saving)}</b>`]]))}`,
+      { name: 'Cost & savings', body: `<div class="nx-drawer-grid">${sec('Separate trips vs one visit', '<div class="nx-chart" style="height:220px" data-chart="vi-sv"></div>')}${sec('Labour by task', '<div class="nx-chart" style="height:220px" data-chart="vi-lab"></div>')}</div>${sec('How the saving is built', ui.kv([['Mobilisations avoided', `${v.wos.length - 1} × ${fmt.money(MOB_COST)}`], ['Outages avoided', v.outage ? `${Math.max(0, v.wos.filter((w) => w.outage).length - 1)} × ${fmt.money(OUTAGE_COST)}` : 'None — live-line'], ['Estimated saving', `<b style="color:#15803d">${fmt.money(v.saving)}</b> ${ui.exp('Experimental')}`]]))}`,
         mount: (el, c) => { c.chart('[data-chart="vi-sv"]', { ...ch.bar({ x: ['Separate trips', 'Grouped visit'], series: [{ name: 'Overhead', data: [{ value: sep, itemStyle: { color: '#cbd5e1' } }, { value: grp, itemStyle: { color: '#2563eb' } }] }], labels: true, legend: false }), tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps) => `${ps[0].name}<br/>Mobilisation + outage overhead <b>${fmt.money(ps[0].value)}</b>` } }); c.chart('[data-chart="vi-lab"]', { ...ch.bar({ x: v.wos.map((w) => w.id), series: [{ name: 'Labour h', data: v.wos.map((w) => ({ value: w.labourH, itemStyle: { color: SEV[w.severity], borderRadius: [4, 4, 0, 0] } })) }], legend: false, yName: 'h' }), tooltip: { trigger: 'axis', formatter: (ps) => { const w = v.wos[ps[0].dataIndex]; return `<b>${w.id}</b> · ${fmt.title(w.work_type)}<br/>${w.labourH} labour-hours · ${fmt.money(w.estCost)}`; } } }); } },
       { name: 'Isolation & permits', body: `${sec('Visit plan', ui.kv([['Crew', `${esc(v.crew.id)} · ${esc(v.crew.name)}`], ['Window', esc(v.window)], ['Mobilise from', esc(v.crew.baseName)], ['Isolation', v.outage ? `${esc(v.line || 'Bay')} — both ends Q0/Q9 open, Q8 earthed, portable earths at work site` : 'None — live-line method'], ['Permits', v.outage ? 'PTW-HV + WAH' : 'LLW + WAH']]))}${sec('Permits on these tasks', `<div class="nx-list">${net.permits.filter((p) => v.wos.some((w) => w.id === p.wo)).map((p) => ui.li({ ic: 'key', title: `${p.id} · ${p.type}`, sub: `${esc(p.wo)} · ${esc(p.authorisedBy)} · expires ${fmt.date(p.expires)}`, end: ui.badge(p.state, p.state === 'active' ? 'ok' : p.state === 'draft' ? 'muted' : 'warn') })).join('') || ui.empty('Permits are raised when the visit is released')}</div>`)}` },
     ],
-    actions: [{ label: 'Switching programme', icon: 'schematic', onClick: (close) => { close(); APP.go('switching'); } }, { label: 'Release to crew', primary: true, icon: 'truck', onClick: (close) => { toast(`${v.id} released to ${v.crew.name} · ${v.wos.length} WOs moved to Scheduled in ${v.line ? 'SAP PM' : 'Maximo'}`); close(); } }],
+    actions: [{ label: 'Switching programme', icon: 'schematic', onClick: (close) => { close(); APP.go('switching'); } }, { label: 'Release to crew', primary: true, icon: 'truck', onClick: (close) => { const r = sendToErp(v.line, `Status request · ${v.wos.length} orders of ${v.id} to Scheduled`, { visit: v.id, orders: v.wos.map((w) => (w.line ? w.sap : w.maximo)), status: 'scheduled' }, true); toast(`${v.id} released to ${v.crew.name} · status Scheduled requested in ${erpSystem(v.line)} for ${v.wos.length} orders (${r.ref})`); close(); } }],
   });
 }
 function openRequest(f) {
@@ -360,13 +418,13 @@ function openRequest(f) {
   const parts = net.parts.filter((p) => p.defects.includes(f.defect_class));
   drawer.open({
     icon: 'camera', kicker: `Verified defect · ${f.campaign_id}`, title: `${f.finding_id} · ${f.label}`, sub: `${esc(f.towerName || f.assetName || '')} · ${esc(f.line || 'Substation')}`,
-    badges: [[f.pri, { P1: 'crit', P2: 'high', P3: 'warn', P4: 'muted' }[f.pri]], [fmt.title(f.severity), SEV_TONE[f.severity]], [`${f.sensor.toUpperCase()} · ${Math.round(f.confidence * 100)}%`, 'info'], [converted.has(f.finding_id) ? 'Work request raised' : 'No work order', converted.has(f.finding_id) ? 'ok' : 'warn']],
+    badges: [[f.pri, { P1: 'crit', P2: 'high', P3: 'warn', P4: 'muted' }[f.pri]], [fmt.title(f.severity), SEV_TONE[f.severity]], [`${f.sensor.toUpperCase()} · ${Math.round(f.confidence * 100)}%`, 'info'], [converted.has(f.finding_id) ? `Requested in ${erpSystem(f.line)} · ${converted.get(f.finding_id)}` : 'No work order', converted.has(f.finding_id) ? 'ok' : 'warn'], ['', 'warn']],
     body: `${ui.stats([{ label: 'Priority', value: f.pri }, { label: 'Score', value: fmt.n(f.score, 1) }, { label: 'Condition', value: `${f.condition_score} / 5` }, { label: 'Tower criticality', value: f.crit }, { label: 'Days unworked', value: daysBetween(f.date, AS_OF) }])}
       <div class="ops-ev">${evImg(f, 0)}${evImg(f, 1)}</div>
       <div class="nx-drawer-grid">${sec('Inspection record', ui.kv([['Severity', sevBadge(f.severity)], ['Sensor', f.sensor.toUpperCase()], ['Inspected', fmt.date(f.date)], ['Reviewed by', esc(f.confirmed_by || '—')], ['GPS', f.lat ? `${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}` : '—']]))}
-      ${sec('Proposed work request', ui.kv([['Task', esc(fmt.title(({ insulators: 'insulator replacement', steel_structure: 'steel repair', foundation: 'foundation repair', conductor: 'conductor repair', conductor_accessories: 'fitting replacement', lightning_protection: 'earthwire repair', clearance: 'corridor clearing' })[f.group] || 'fitting replacement'))], ['Plan within', { P1: '14 days', P2: '45 days', P3: 'Next grouped visit', P4: 'Next inspection cycle' }[f.pri]], ['Tower risk', tw?.risk != null ? fmt.n(tw.risk, 0) : '—'], ['Tower HI', tw?.hi != null ? fmt.n(tw.hi, 0) : '—']]))}</div>
-      ${sec(`Approved parts (${parts.length})`, `<div class="nx-list">${parts.map((p) => ui.li({ ic: 'box', title: `${p.sku} · ${p.name}`, sub: `${p.available} available · lead ${p.lead} d · ${fmt.money(p.unitCost)} / ${p.uom}`, end: p.available > 2 ? ui.badge('In stock', 'ok') : ui.badge('Low', 'warn') })).join('') || ui.empty('No catalogue item mapped')}</div>`)}`,
-    actions: [{ label: 'Asset 360', icon: 'tower', onClick: () => { location.href = reliabilityLink(f.tower_id); } }, { label: 'Create work request', primary: true, icon: 'plus', onClick: (close) => { converted.add(f.finding_id); toast(`Work request WR-${f.finding_id.slice(2)} raised`); close(); APP.rerender(); } }],
+      ${sec('Proposed work request', ui.kv([['Task', esc(fmt.title(({ insulators: 'insulator replacement', steel_structure: 'steel repair', foundation: 'foundation repair', conductor: 'conductor repair', conductor_accessories: 'fitting replacement', lightning_protection: 'earthwire repair', clearance: 'corridor clearing' })[f.group] || 'fitting replacement'))], ['Plan within', { P1: '14 days', P2: '45 days', P3: 'Next grouped visit', P4: 'Next inspection cycle' }[f.pri]], ['Tower risk', tw?.risk != null ? `${fmt.n(tw.risk, 0)} ${ui.exp('Experimental')}` : '—'], ['Tower HI', tw?.hi != null ? fmt.n(tw.hi, 0) : '—']]))}</div>
+      ${sec(`Approved parts (${parts.length})`, `<div class="nx-note" style="margin-bottom:6px">${ui.erp('SAP MM', 'inventory')} ${esc(erpHub.syncedText('inventory'))} · stock, lead time and price are read from the ERP</div><div class="nx-list">${parts.map((p) => ui.li({ ic: 'box', title: `${p.sku} · ${p.name}`, sub: `${p.available} available · lead ${p.lead} d · ${fmt.money(p.unitCost)} / ${p.uom}`, end: p.available > 2 ? ui.badge('In stock', 'ok') : ui.badge('Low', 'warn') })).join('') || ui.empty('No catalogue item mapped')}</div>`)}`,
+    actions: [{ label: 'Asset 360', icon: 'tower', onClick: () => { location.href = reliabilityLink(f.tower_id); } }, { label: `Request work order in ${erpSystem(f.line)}`, primary: true, icon: 'plus', onClick: (close) => { requestWorkOrder(f); close(); APP.rerender(); } }],
   });
 }
 function openLine(l) {
@@ -385,17 +443,17 @@ function mapCfg(compact) {
   layers.push({
     id: 'visits', name: 'Grouped visits', color: '#2563eb', on: true, count: visits.length,
     circles: visits.filter((v) => v.lat).map((v) => ({ lat: v.lat, lng: v.lng, r: v.hero ? 1700 : 1100, color: v.hero ? '#2563eb' : CORR_COLOR[v.corridor] || '#64748b', opacity: v.hero ? 0.16 : 0.08, weight: v.hero ? 2 : 0 })),
-    points: visits.filter((v) => v.lat).map((v) => ({ id: v.id, lat: v.lat + 0.006, lng: v.lng, size: 18, shape: 'dia', icon: 'layers', color: v.hero ? '#2563eb' : '#475569', label: v.hero ? `${v.id} · 5 tasks` : null, z: 700, search: `${v.corridor} visit`, tip: `${v.id} · ${v.wos.length} tasks · ${v.window}`, info: () => ({ kicker: 'Grouped visit', title: `${v.id} · ${v.wos.length} tasks`, sub: `${esc(v.from)} → ${esc(v.to)} · ${esc(v.window)}`, badges: [[v.outage ? 'Outage window' : 'Live-line', v.outage ? 'violet' : 'info'], [`Saves ${fmt.money(v.saving)}`, 'ok']], fields: [['Crew', esc(v.crew.name)], ['Labour', `${fmt.n(v.hours)} h`], ['Estimate', fmt.money(v.cost)], ['Duration', `${v.days} d`]], actions: [{ label: 'Open visit', primary: true, onClick: () => openVisit(v) }] }) })),
+    points: visits.filter((v) => v.lat).map((v) => ({ id: v.id, lat: v.lat + 0.006, lng: v.lng, size: 18, shape: 'dia', icon: 'layers', color: v.hero ? '#2563eb' : '#475569', label: v.hero ? `${v.id} · 5 tasks` : null, z: 700, search: `${v.corridor} visit`, tip: `${v.id} · ${v.wos.length} tasks · ${v.window}`, info: () => ({ kicker: 'Grouped visit', title: `${v.id} · ${v.wos.length} tasks`, sub: `${esc(v.from)} → ${esc(v.to)} · ${esc(v.window)}`, badges: [[v.outage ? 'Outage window' : 'Live-line', v.outage ? 'violet' : 'info'], [`Est. saving ${fmt.money(v.saving)}`, 'ok'], ['Experimental', 'warn']], fields: [['Crew', esc(v.crew.name)], ['Labour', `${fmt.n(v.hours)} h`], ['Estimate', fmt.money(v.cost)], ['Duration', `${v.days} d`]], actions: [{ label: 'Open visit', primary: true, onClick: () => openVisit(v) }] }) })),
   });
   layers.push({
     id: 'wos', name: 'Open work orders', color: '#ea580c', count: openWO.length,
     points: openWO.filter((w) => w.lat).map((w, i) => ({ id: w.id, lat: w.lat + ((i % 3) - 1) * 0.0009, lng: w.lng + ((i % 5) - 2) * 0.0009, size: w.severity === 'critical' ? 15 : w.severity === 'high' ? 13 : 10, color: SEV[w.severity], pulse: w.severity === 'critical' && w.stage === 'in_progress', search: `${w.work_type} ${w.towerName}`, tip: `${w.id} · ${w.work_type} · ${w.towerName || w.asset}`,
-      info: () => ({ kicker: `Work order · ${STAGE_LABEL[w.stage]}`, title: `${w.id}`, sub: `${fmt.title(w.work_type)} · ${esc(w.towerName || w.asset)}`, badges: [[fmt.title(w.severity), SEV_TONE[w.severity]], [STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], ...(overdue(w) ? [['Overdue', 'crit']] : [])], fields: [['Line', esc(lineShort(w.line))], ['Crew', esc(w.crewName)], ['Planned', fmt.date(w.planned_date)], ['Estimate', fmt.money(w.estCost)], ['SAP PM', `<span class="nx-mono">${esc(w.sap)}</span>`], ['Visit', visitOf.get(w.id)?.id || '—']], actions: [{ label: 'Open work order', primary: true, onClick: () => showWO(w.id) }, { label: 'Assign crew', onClick: () => toast(`${w.crewName} assigned to ${w.id}`) }] }) })),
+      info: () => ({ kicker: `Work order · ${STAGE_LABEL[w.stage]}`, title: `${w.id}`, sub: `${fmt.title(w.work_type)} · ${esc(w.towerName || w.asset)}`, badges: [[fmt.title(w.severity), SEV_TONE[w.severity]], [STAGE_LABEL[w.stage], STAGE_TONE[w.stage]], ...(overdue(w) ? [['Overdue', 'crit']] : []), [`ERP · ${sysOf(w)}`, 'info']], fields: [['Line', esc(lineShort(w.line))], ['Crew', esc(w.crewName)], ['Planned', fmt.date(w.planned_date)], ['Estimate', fmt.money(w.estCost)], ['SAP PM', `<span class="nx-mono">${esc(w.sap)}</span>`], ['Visit', visitOf.get(w.id)?.id || '—']], actions: [{ label: 'Open work order', primary: true, onClick: () => showWO(w.id) }, { label: 'Assign crew', onClick: () => toast(`${w.crewName} assigned to ${w.id}`) }] }) })),
   });
   layers.push({
     id: 'crews', name: 'Crews (AVL)', color: '#7c3aed', count: net.crews.length,
     points: net.crews.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng, size: 26, icon: 'truck', color: c.status === 'on site' ? '#d97706' : c.status === 'travelling' ? '#7c3aed' : '#16a34a', label: compact || c.status === 'available' ? null : c.id, z: 1000, search: `${c.name} ${c.lead}`, tip: `${c.id} · ${c.name} · ${c.status}`,
-      info: () => ({ kicker: `Crew · ${c.status}`, title: `${c.id} · ${c.name}`, sub: `${esc(c.lead)} · ${c.size} people · ${esc(c.vehicle)}`, badges: [[c.status, c.status === 'on site' ? 'warn' : c.status === 'travelling' ? 'violet' : 'ok'], [SKILL_LABEL[c.skill], 'muted']], fields: [['Current job', c.job ? `<b>${esc(c.job)}</b>` : '—'], ['ETA', `<span data-live="CREW.${c.id}.ETA">—</span> min`], ['Speed', `<span data-live="CREW.${c.id}.SPD">—</span> km/h`], ['Utilisation', `${c.utilisation}%`], ['Base', esc(c.baseName)]], actions: [{ label: 'Crew details', primary: true, onClick: () => openCrew(c.id) }, ...(c.job ? [{ label: 'Open job', onClick: () => showWO(c.job) }] : [])] }) })),
+      info: () => ({ kicker: `Crew · ${c.status}`, title: `${c.id} · ${c.name}`, sub: `${esc(c.lead)} · ${c.size} people · ${esc(c.vehicle)}`, badges: [[c.status, c.status === 'on site' ? 'warn' : c.status === 'travelling' ? 'violet' : 'ok'], [SKILL_LABEL[c.skill], 'muted']], fields: [['Current job', c.job ? `<b>${esc(c.job)}</b>` : '—'], ['ETA', `<span data-live="CREW.${c.id}.ETA">—</span> min${c.status === 'travelling' ? ` ${ui.exp('Experimental')}` : ''}`], ['Speed', `<span data-live="CREW.${c.id}.SPD">—</span> km/h`], ['Utilisation', `${c.utilisation}%`], ['Base', esc(c.baseName)]], actions: [{ label: 'Crew details', primary: true, onClick: () => openCrew(c.id) }, ...(c.job ? [{ label: 'Open job', onClick: () => showWO(c.job) }] : [])] }) })),
   });
   layers.push({
     id: 'depots', name: 'Depots & stores', color: '#0284c7', shape: 'sq', count: net.depots.length,
@@ -464,12 +522,12 @@ const commandCenter = {
     {
       name: 'Overview', icon: 'dashboard',
       render: () => `<div class="nx-page">
-        ${ui.hero({ kicker: 'Operational output · grouped visit', text: `<b>${heroVisit.wos.length} maintenance tasks grouped into one planned inspection-and-repair visit along Corridor North</b> — ${esc(heroVisit.from)} → ${esc(heroVisit.to)} on L-220-03, ${esc(heroVisit.window)}, crew ${esc(heroVisit.crew.id)}. Saves ${fmt.money(heroVisit.saving)} and ${heroVisit.wos.length - 1} mobilisations.`, icon: 'layers', meta: [{ label: 'Tasks', value: heroVisit.wos.length }, { label: 'Labour h', value: fmt.n(heroVisit.hours) }, { label: 'L-220-03 load %', value: '—', live: 'L-220-03.LOAD' }], actions: ui.btn('Open visit', { attrs: 'data-hero' }) })}
+        ${ui.hero({ kicker: 'grouped visit', text: `<b>${heroVisit.wos.length} maintenance tasks grouped into one planned inspection-and-repair visit along Corridor North</b> — ${esc(heroVisit.from)} → ${esc(heroVisit.to)} on L-220-03, ${esc(heroVisit.window)}, crew ${esc(heroVisit.crew.id)}. Estimated saving ${fmt.money(heroVisit.saving)} and ${heroVisit.wos.length - 1} fewer mobilisations.`, icon: 'layers', meta: [{ label: 'Tasks', value: heroVisit.wos.length }, { label: 'Labour h', value: fmt.n(heroVisit.hours) }, { label: 'L-220-03 load %', value: '—', live: 'L-220-03.LOAD' }], actions: ui.btn('Open visit', { attrs: 'data-hero' }) })}
         ${kpiRow()}
         <div class="nx-row nx-c12">
           <div class="nx-s8">${ui.card({ title: 'Live field picture', sub: 'Crews (AVL every 1.5 s), open work by severity, grouped visits and depots across the three corridors', tools: ui.btn('Full map', { sm: true, ic: 'map', attrs: 'data-fullmap' }), flush: true, body: '<div class="nx-map" id="ops-map" style="height:560px;border-radius:0 0 12px 12px"></div>' })}</div>
           <div class="nx-s4" style="display:flex;flex-direction:column;gap:16px">
-            ${ui.card({ title: 'Crew status', sub: 'Position, job and ETA from the vehicle telematics', body: `<div class="nx-list">${net.crews.map((c) => ui.li({ ic: 'truck', color: c.status === 'on site' ? '#d97706' : c.status === 'travelling' ? '#7c3aed' : '#16a34a', title: `${c.id} · ${c.name}`, sub: c.job ? `On ${c.job} · ${esc(woById.get(c.job)?.towerName || '')}` : c.status === 'travelling' ? `En route · ETA <b data-live="CREW.${c.id}.ETA">—</b> min` : `Available at ${esc(c.baseName)}`, end: ui.badge(c.status, c.status === 'on site' ? 'warn' : c.status === 'travelling' ? 'violet' : 'ok'), row: `crew:${c.id}` })).join('')}</div>` })}
+            ${ui.card({ title: 'Crew status', sub: 'Position and job from the vehicle telematics · the ETA is estimate', body: `<div class="nx-list">${net.crews.map((c) => ui.li({ ic: 'truck', color: c.status === 'on site' ? '#d97706' : c.status === 'travelling' ? '#7c3aed' : '#16a34a', title: `${c.id} · ${c.name}`, sub: c.job ? `On ${c.job} · ${esc(woById.get(c.job)?.towerName || '')}` : c.status === 'travelling' ? `En route · ETA <b data-live="CREW.${c.id}.ETA">—</b> min ${ui.exp('Experimental')}` : `Available at ${esc(c.baseName)}`, end: ui.badge(c.status, c.status === 'on site' ? 'warn' : c.status === 'travelling' ? 'violet' : 'ok'), row: `crew:${c.id}` })).join('')}</div>` })}
           </div>
         </div>
         <div class="nx-row nx-c3">
@@ -477,7 +535,7 @@ const commandCenter = {
           ${ui.card({ title: 'Work mix', sub: 'Open orders by task type', body: ui.chart('mix') })}
           ${ui.card({ title: 'Turnaround time trend', sub: 'Median days from defect confirmation to field closure, by closure month · target 60 d', body: ui.chart('tat') })}
         </div>
-        ${ui.card({ title: 'Priority queue', sub: 'Open work ranked by severity, then age — click a row for the work-order record', tools: ui.search('#ops-pq', 'Filter queue…'), flush: true, body: ui.table({ id: 'ops-pq', rowId: (w) => w.id, rows: openWO.slice().sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || age(b) - age(a)).slice(0, 12), cols: woCols(['id', 'task', 'asset', 'line', 'sev', 'stage', 'crew', 'planned', 'cost', 'sync']) }) })}
+        ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Priority queue', sub: 'Open work ranked by severity, then age — click a row for the work-order record', tools: ui.search('#ops-pq', 'Filter queue…'), flush: true, body: ui.table({ id: 'ops-pq', rowId: (w) => w.id, rows: openWO.slice().sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || age(b) - age(a)).slice(0, 12), cols: woCols(['id', 'task', 'asset', 'line', 'sev', 'stage', 'crew', 'planned', 'cost', 'sync']) }) })}
       </div>`,
       mount: (st, ctx) => {
         mountMap(ctx, '#ops-map', true);
@@ -569,7 +627,7 @@ const workOrders = {
             ${ui.card({ cls: 'nx-s7', title: 'Throughput: raised vs completed', sub: 'Work orders raised and completed per month — is the backlog shrinking?', body: ui.chart('reg-thr', 'sm') })}
             ${ui.card({ cls: 'nx-s5', title: 'Cost vs effort', sub: 'Each open order: estimate against labour hours, coloured by severity', body: ui.chart('reg-ce', 'sm') })}
           </div>
-          ${ui.card({ title: 'Work-order register', sub: 'Every order mirrored from SAP PM (lines) and IBM Maximo (substation plant). Click a row for the full record.', tools: `${ui.chips('wof', [['open', `Open · ${openWO.length}`], ['overdue', `Overdue · ${openWO.filter(overdue).length}`], ['in_progress', 'In progress'], ['scheduled', 'Scheduled'], ['completed', 'Completed'], ['all', 'All']], woFilter)}${ui.search('#ops-wo', 'Search WO, tower, crew…')}${ui.btn('Export', { sm: true, ic: 'download', attrs: 'data-export' })}`, flush: true, body: `<div class="ops-scroll">${ui.table({ id: 'ops-wo', rowId: (w) => w.id, rows: rows.slice().sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || STAGES.indexOf(b.stage) - STAGES.indexOf(a.stage)), cols: woCols(['id', 'task', 'asset', 'line', 'sev', 'pri', 'stage', 'crew', 'visit', 'planned', 'hours', 'cost', 'sync']) })}</div>` })}
+          ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Work-order register', sub: `Every order is read from SAP PM (lines) and IBM Maximo (substation plant) through the integration layer · ${esc(erpHub.syncedText('workOrders'))}. Nothing is re-entered here. Click a row for the full record.`, tools: `${ui.chips('wof', [['open', `Open · ${openWO.length}`], ['overdue', `Overdue · ${openWO.filter(overdue).length}`], ['in_progress', 'In progress'], ['scheduled', 'Scheduled'], ['completed', 'Completed'], ['all', 'All']], woFilter)}${ui.search('#ops-wo', 'Search WO, tower, crew…')}${ui.btn('Export', { sm: true, ic: 'download', attrs: 'data-export' })}`, flush: true, body: `<div class="ops-scroll">${ui.table({ id: 'ops-wo', rowId: (w) => w.id, rows: rows.slice().sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || STAGES.indexOf(b.stage) - STAGES.indexOf(a.stage)), cols: woCols(['id', 'task', 'asset', 'line', 'sev', 'pri', 'stage', 'crew', 'visit', 'planned', 'hours', 'cost', 'sync']) })}</div>` })}
         </div>`;
       },
       mount: (st, ctx) => {
@@ -587,9 +645,9 @@ const workOrders = {
     {
       name: 'Requests from defects', icon: 'ai',
       render: () => `<div class="nx-page">
-        ${ui.hero({ kicker: 'Defect → work request', text: `<b>${requests.length} verified defects have no work order yet.</b> Each is scored <span class="nx-mono">severity × tower criticality × (1 + risk)</span> and turned into a prioritised work request with the task, crew skill and materials pre-filled.`, icon: 'ai', meta: [{ label: 'P1', value: requests.filter((r) => r.pri === 'P1').length }, { label: 'P2', value: requests.filter((r) => r.pri === 'P2').length }, { label: 'P3–P4', value: requests.filter((r) => ['P3', 'P4'].includes(r.pri)).length }], actions: ui.btn('Convert all P1', { attrs: 'data-conv-p1' }) })}
+        ${ui.hero({ kicker: 'defect → work request', text: `<b>${requests.length} verified defects have no work order yet.</b> Each is scored <span class="nx-mono">severity × tower criticality × (1 + risk)</span> (score, not validated) and proposed as a prioritised work request. The planner sends the request to the ERP, which creates and owns the order; nothing is keyed in here.`, icon: 'ai', meta: [{ label: 'P1', value: requests.filter((r) => r.pri === 'P1').length }, { label: 'P2', value: requests.filter((r) => r.pri === 'P2').length }, { label: 'P3–P4', value: requests.filter((r) => ['P3', 'P4'].includes(r.pri)).length }], actions: ui.btn('Request all P1 in ERP', { attrs: 'data-conv-p1' }) })}
         <div class="nx-row nx-c12">
-          <div class="nx-s8">${ui.card({ title: 'Prioritised request queue', sub: 'Confirmed, unrepaired findings in engineering review with condition ≤ 3 and no linked work order', flush: true, tools: ui.search('#ops-req', 'Filter…'), body: `<div class="ops-scroll" style="max-height:880px">${ui.table({ id: 'ops-req', rowId: (f) => f.finding_id, rows: requests, cols: [
+          <div class="nx-s8">${ui.card({ exp: true, title: 'Prioritised request queue', sub: 'Confirmed, unrepaired findings in engineering review with condition ≤ 3 and no linked work order · a request is sent to the ERP, which creates the order', flush: true, tools: ui.search('#ops-req', 'Filter…'), body: `<div class="ops-scroll" style="max-height:880px">${ui.table({ id: 'ops-req', rowId: (f) => f.finding_id, rows: requests, cols: [
             { key: 'pri', label: 'Priority', render: (f) => ui.badge(f.pri, { P1: 'crit', P2: 'high', P3: 'warn', P4: 'muted' }[f.pri], { dot: false }) },
             { key: 'score', label: 'Score', align: 'r', render: (f) => `<b>${fmt.n(f.score, 1)}</b>` },
             { key: 'finding_id', label: 'Finding', render: (f) => `<b>${esc(f.finding_id)}</b><span class="nx-sub">${esc(f.campaign_id)} · ${fmt.date(f.date)}</span>` },
@@ -597,13 +655,13 @@ const workOrders = {
             { key: 'towerName', label: 'Asset', render: (f) => `${esc(f.towerName || f.assetName || '—')}<span class="nx-sub">${esc(f.line || 'Substation')}</span>` },
             { key: 'severity', label: 'Severity', render: (f) => sevBadge(f.severity), sort: (f) => SEV_ORDER[f.severity] },
             { key: 'crit', label: 'Crit.', align: 'c' },
-            { key: 'act', label: '', sort: false, render: (f) => (converted.has(f.finding_id) ? ui.badge(`WR-${f.finding_id.slice(2)}`, 'ok') : `<button type="button" class="nx-btn is-sm is-primary" data-conv="${esc(f.finding_id)}">${icon('plus', 13)}Raise WR</button>`) },
+            { key: 'act', label: '', sort: false, render: (f) => (converted.has(f.finding_id) ? ui.badge(`${converted.get(f.finding_id)} · requested`, 'ok') : `<button type="button" class="nx-btn is-sm is-primary" data-conv="${esc(f.finding_id)}">${icon('plus', 13)}Request in ${f.line ? 'SAP PM' : 'Maximo'}</button>`) },
           ] })}</div>` })}</div>
           <div class="nx-s4" style="display:flex;flex-direction:column;gap:16px">
             ${ui.card({ title: 'Requests by defect type', sub: 'Where the unplanned demand comes from', body: ui.chart('rq-type', 'md') })}
             ${ui.card({ title: 'Days left unworked', sub: 'Age of each verified defect without a work order, by priority', body: ui.chart('rq-age', 'sm') })}
             ${ui.card({ title: 'Where the requests are', sub: 'Unworked verified defects per line, by severity', body: ui.chart('rq-line', 'sm') })}
-            ${ui.card({ title: 'Conversion rules', sub: 'Applied before a request reaches a planner', body: ui.kv([['P1 (score ≥ 60)', 'Plan within 14 days'], ['P2 (30–60)', 'Plan within 45 days'], ['P3 (15–30)', 'Next grouped visit'], ['P4 (< 15)', 'Next inspection cycle'], ['Grouping radius', '8 towers / same outage'], ['Auto-reserve materials', 'Yes — module 05']]) })}
+            ${ui.card({ title: 'Conversion rules', sub: 'Applied before a request reaches a planner', body: ui.kv([['P1 (score ≥ 60)', 'Plan within 14 days'], ['P2 (30–60)', 'Plan within 45 days'], ['P3 (15–30)', 'Next grouped visit'], ['P4 (< 15)', 'Next inspection cycle'], ['Grouping radius', '8 towers / same outage'], ['Materials', 'Reservation requested in SAP MM · module 05']]) })}
           </div>
         </div></div>`,
       mount: (st, ctx) => {
@@ -614,8 +672,8 @@ const workOrders = {
         const lns = ['L-220-03', 'L-132-01', 'L-500-01', null];
         ctx.chart('rq-line', ch.bar({ x: lns.map((l) => l || 'Substation'), horizontal: true, stack: true, series: ['critical', 'high', 'medium'].map((sv) => ({ name: fmt.title(sv), color: SEV[sv], data: lns.map((l) => requests.filter((r) => (r.line || null) === l && r.severity === sv).length) })), grid: { left: 4, top: 26 } }));
         ctx.chart('rq-type', ch.bar({ x: top.map((t) => t[0]), horizontal: true, labels: true, series: [{ name: 'Requests', data: top.map((t) => t[1]), color: '#ea580c' }], grid: { left: 4, top: 8 } }));
-        ctx.on('click', '[data-conv]', (e, b) => { e.stopPropagation(); converted.add(b.dataset.conv); b.outerHTML = ui.badge(`WR-${b.dataset.conv.slice(2)} raised`, 'ok'); toast(`Work request WR-${b.dataset.conv.slice(2)} raised in SAP PM (notification type M2)`); });
-        ctx.on('click', '[data-conv-p1]', () => { const p1 = requests.filter((r) => r.pri === 'P1'); p1.forEach((r) => converted.add(r.finding_id)); toast(`${p1.length} P1 work requests raised and queued for approval`); APP.rerender(); });
+        ctx.on('click', '[data-conv]', (e, b) => { e.stopPropagation(); const f = requests.find((x) => x.finding_id === b.dataset.conv); if (!f) return; b.outerHTML = ui.badge(`${requestWorkOrder(f)} · requested`, 'ok'); });
+        ctx.on('click', '[data-conv-p1]', () => { const p1 = requests.filter((r) => r.pri === 'P1' && !converted.has(r.finding_id)); p1.forEach((r) => requestWorkOrder(r, true)); toast(p1.length ? `${p1.length} P1 work-order requests sent to the ERP (SAP PM / Maximo) — the orders arrive with the next sync` : 'Every P1 defect is already requested in the ERP', p1.length ? 'ok' : 'warn'); APP.rerender(); });
         ctx.on('click', 'tr[data-row]', (e, r) => { if (e.target.closest('[data-conv]')) return; const f = requests.find((x) => x.finding_id === r.dataset.row); if (f) openRequest(f); });
       },
     },
@@ -633,7 +691,7 @@ const workOrders = {
             ${sysCard('IBM Maximo · MAS 9', '#1f2937', mx, 'MX')}
           </div>
           <div class="nx-row nx-c12">
-            <div class="nx-s8">${ui.card({ title: 'Message log', sub: 'Bi-directional field-level changes, most recent first', tools: `${ui.btn('Resolve conflicts', { sm: true, attrs: 'data-resolve' })}${ui.btn('Sync now', { sm: true, primary: true, ic: 'sync', attrs: 'data-sync' })}`, flush: true, body: `<div class="ops-scroll" style="max-height:1090px">${ui.table({ id: 'ops-log', rows: syncLog, rowId: (m) => m.wo.id, cols: [
+            <div class="nx-s8">${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Message log', sub: 'Orders read from the ERP, and the status / scheduling updates sent back, most recent first', tools: `${ui.btn('Resolve conflicts', { sm: true, attrs: 'data-resolve' })}${ui.btn('Sync now', { sm: true, primary: true, ic: 'sync', attrs: 'data-sync' })}`, flush: true, body: `<div class="ops-scroll" style="max-height:1090px">${ui.table({ id: 'ops-log', rows: syncLog, rowId: (m) => m.wo.id, cols: [
               { key: 'time', label: 'Time', render: (m) => `<span class="nx-mono">${m.time}</span>` },
               { key: 'id', label: 'Message', render: (m) => `<span class="nx-mono">${m.id}</span>` },
               { key: 'dir', label: 'Direction', render: (m) => (m.dir === 'out' ? `NEXUS → ${m.sys}` : `${m.sys} → NEXUS`) },
@@ -645,8 +703,8 @@ const workOrders = {
             <div class="nx-s4" style="display:flex;flex-direction:column;gap:16px">
               ${ui.card({ title: 'Round-trip latency', sub: 'Live, seconds (alarm at 5 s)', body: ui.chart('lat', 'sm') })}
               ${ui.card({ title: 'Messages per hour', sub: 'Last 24 h, both systems', body: ui.chart('mph', 'sm') })}
-              ${ui.card({ title: 'Order state by system', sub: 'Synced, pending and conflicting orders in each ERP', body: ui.chart('sy-st', 'sm') })}
-              ${ui.card({ title: 'Conflict queue', sub: 'Field values changed on both sides since the last reconcile', body: `<div class="nx-list">${WO.filter((w) => w.sync !== 'synced').slice(0, 6).map((w) => ui.li({ ic: w.sync === 'conflict' ? 'alert' : 'clock', color: w.sync === 'conflict' ? '#dc2626' : '#d97706', title: `${w.id} · ${sysOf(w)}`, sub: w.sync === 'conflict' ? 'Planned date differs: NEXUS vs ERP' : 'Status change waiting for acknowledgement', end: ui.badge(w.sync, w.sync === 'conflict' ? 'crit' : 'warn'), row: w.id })).join('') || ui.empty('All orders in step')}</div>` })}
+              ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Order state by system', sub: 'Synced, pending and conflicting orders in each ERP', body: ui.chart('sy-st', 'sm') })}
+              ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Conflict queue', sub: 'A status or date sent from NEXUS disagrees with the ERP order since the last reconcile · the ERP value wins', body: `<div class="nx-list">${WO.filter((w) => w.sync !== 'synced').slice(0, 6).map((w) => ui.li({ ic: w.sync === 'conflict' ? 'alert' : 'clock', color: w.sync === 'conflict' ? '#dc2626' : '#d97706', title: `${w.id} · ${sysOf(w)}`, sub: w.sync === 'conflict' ? 'Planned date differs: NEXUS vs ERP' : 'Status change waiting for acknowledgement', end: ui.badge(w.sync, w.sync === 'conflict' ? 'crit' : 'warn'), row: w.id })).join('') || ui.empty('All orders in step')}</div>` })}
               ${ui.card({ title: 'Field mapping', sub: 'NEXUS ↔ ERP master fields', body: ui.kv([['Work order', 'AUFNR ↔ WONUM'], ['Functional location', 'TPLNR ↔ LOCATION'], ['Equipment', 'EQUNR ↔ ASSETNUM'], ['Status', 'STAT ↔ STATUS'], ['Planned date', 'GSTRP ↔ SCHEDSTART'], ['Crew', 'ARBPL ↔ CREWID']]) })}
             </div>
           </div></div>`;
@@ -658,9 +716,9 @@ const workOrders = {
         ctx.chart('sy-st', ch.bar({ x: sysL, horizontal: true, stack: true, series: [['synced', '#16a34a'], ['pending', '#f59e0b'], ['conflict', '#dc2626']].map(([k, c]) => ({ name: fmt.title(k), color: c, data: sysL.map((sy) => WO.filter((w) => sysOf(w) === sy && w.sync === k).length) })), grid: { left: 4, top: 26 } }));
         const hrs = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}h`);
         ctx.chart('mph', ch.bar({ x: hrs, stack: true, series: [{ name: 'SAP PM', color: '#0a6ed1', data: hrs.map((_, i) => Math.round((i > 6 && i < 19 ? 38 : 9) + R() * 14)) }, { name: 'Maximo', color: '#334155', data: hrs.map((_, i) => Math.round((i > 6 && i < 19 ? 14 : 4) + R() * 6)) }] }));
-        ctx.on('click', '[data-sync]', () => { const n = WO.filter((w) => w.sync === 'pending').length; WO.forEach((w) => { if (w.sync === 'pending') w.sync = 'synced'; }); live.set('OPS.SYNC.Q', 0); toast(`Sync complete — ${n} pending orders pushed, ${WO.filter((w) => w.sync === 'conflict').length} conflicts left for review`); APP.rerender(); });
+        ctx.on('click', '[data-sync]', () => { const n = WO.filter((w) => w.sync === 'pending').length; WO.forEach((w) => { if (w.sync === 'pending') w.sync = 'synced'; }); live.set('OPS.SYNC.Q', 0); toast(`Sync complete — ${n} pending status updates sent, latest orders read back from the ERP, ${WO.filter((w) => w.sync === 'conflict').length} conflicts left for review`); APP.rerender(); });
         ctx.on('click', '.nx-li[data-row]', (e, r) => showWO(r.dataset.row));
-        ctx.on('click', '[data-resolve]', () => { const n = WO.filter((w) => w.sync === 'conflict').length; WO.forEach((w) => { if (w.sync === 'conflict') w.sync = 'synced'; }); toast(n ? `${n} conflicts resolved — NEXUS field values kept (planner rule)` : 'No conflicts to resolve', n ? 'ok' : 'warn'); APP.rerender(); });
+        ctx.on('click', '[data-resolve]', () => { const n = WO.filter((w) => w.sync === 'conflict').length; WO.forEach((w) => { if (w.sync === 'conflict') w.sync = 'synced'; }); toast(n ? `${n} conflicts resolved — ERP values kept (the ERP is the system of record)` : 'No conflicts to resolve', n ? 'ok' : 'warn'); APP.rerender(); });
         ctx.on('click', 'tr[data-row]', (e, r) => showWO(r.dataset.row));
       },
     },
@@ -671,18 +729,18 @@ const planner = {
   id: 'planner', name: 'Maintenance Planner', icon: 'layers',
   tabs: [
     {
-      name: 'Visit grouping', icon: 'layers',
+      name: 'Visit grouping', icon: 'layers', 
       render: () => {
         const total = visits.reduce((a, v) => a + v.saving, 0);
         return `<div class="nx-page">
-          ${ui.hero({ kicker: 'Operational output', text: `<b>${heroVisit.wos.length} maintenance tasks grouped into one planned inspection-and-repair visit along Corridor North.</b> ${openWO.length} open orders become ${visits.length} visits — one mobilisation and one isolation per corridor section and outage window.`, icon: 'layers', meta: [{ label: 'Visits', value: visits.length }, { label: 'Trips avoided', value: openWO.length - visits.length }, { label: 'Saving', value: fmt.money(total) }] })}
+          ${ui.hero({ kicker: 'visit grouping', text: `<b>${heroVisit.wos.length} maintenance tasks grouped into one planned inspection-and-repair visit along Corridor North.</b> ${openWO.length} open orders become ${visits.length} visits — one mobilisation and one isolation per corridor section and outage window.`, icon: 'layers', meta: [{ label: 'Visits', value: visits.length }, { label: 'Trips avoided', value: openWO.length - visits.length }, { label: 'Est. saving', value: fmt.money(total) }] })}
           <div class="nx-row nx-c12">
             <div class="nx-s7">${ui.card({ title: 'Visit clusters', sub: 'Open orders within 8 towers on the same circuit, sharing an outage window or live-line method', flush: true, body: '<div class="nx-map" id="ops-vmap" style="height:430px;border-radius:0 0 12px 12px"></div>' })}</div>
-            <div class="nx-s5">${ui.card({ title: 'Mobilisations: separate vs grouped', sub: 'Trips needed per corridor, and money saved by grouping', body: ui.chart('mob', 'lg') })}</div>
+            <div class="nx-s5">${ui.card({ title: 'Mobilisations: separate vs grouped', sub: 'Trips needed per corridor, and the estimated saving from grouping', body: ui.chart('mob', 'lg') })}</div>
           </div>
           <div class="ops-visits">${visits.map((v) => `<div class="ops-visit${v.hero ? ' is-hero' : ''}" data-visit="${esc(v.id)}"><div class="ops-visit-h"><span class="nx-li-ico" style="background:${CORR_COLOR[v.corridor]}1a;color:${CORR_COLOR[v.corridor]}">${icon('layers')}</span><div style="flex:1;min-width:0"><b>${esc(v.id)} · ${v.corridor === 'Substation' ? 'Substation plant' : `Corridor ${esc(v.corridor)}`}</b><span>${esc(v.from)}${v.to !== v.from ? ` → ${esc(v.to)}` : ''} · ${esc(v.window)}</span></div>${v.hero ? ui.badge('Featured', 'accent') : sevBadge(v.severity)}</div>
             <ul>${v.wos.map((w) => `<li data-wo="${esc(w.id)}"><i style="background:${SEV[w.severity]}"></i><b>${esc(w.id)}</b>${esc(fmt.title(w.work_type))} · ${esc(w.towerName || w.asset)}<em>${w.labourH} h</em></li>`).join('')}</ul>
-            <div class="ops-visit-f"><span>Crew <b>${esc(v.crew.id)}</b></span><span>Labour <b>${fmt.n(v.hours)} h</b></span><span>Est. <b>${fmt.money(v.cost)}</b></span><span style="margin-left:auto;color:#15803d">Saves <b style="color:#15803d">${fmt.money(v.saving)}</b></span></div></div>`).join('')}</div>
+            <div class="ops-visit-f"><span>Crew <b>${esc(v.crew.id)}</b></span><span>Labour <b>${fmt.n(v.hours)} h</b></span><span>Est. <b>${fmt.money(v.cost)}</b></span><span style="margin-left:auto;color:#15803d">Est. saving <b style="color:#15803d">${fmt.money(v.saving)}</b></span></div></div>`).join('')}</div>
         </div>`;
       },
       mount: (st, ctx) => {
@@ -706,7 +764,7 @@ const planner = {
       },
     },
     {
-      name: 'Outage windows', icon: 'calendar',
+      name: 'Outage windows', icon: 'calendar', 
       render: () => {
         const rows = [];
         for (const key of ['L-220-03', 'L-132-01', 'L-500-01', 'sub']) {
@@ -718,7 +776,7 @@ const planner = {
           ${ui.card({ title: 'Outage & visit plan — next 6 weeks', sub: 'Click a visit for its task list, isolation and permits', body: `<div style="overflow-x:auto"><div style="min-width:900px">${ui.gantt({ rows, range: [addDays(AS_OF, -2), addDays(AS_OF, 40)], now: AS_OF, ticks: 'week', labelW: 230 })}</div></div>` })}
           <div class="nx-row nx-c2">
             ${ui.card({ title: 'Outage hours requested', sub: 'Per line, grouped vs if every task took its own outage', body: ui.chart('oh') })}
-            ${ui.card({ title: 'Transfer margin during windows', sub: 'Forecast loading of the parallel path while each line is out (EMS contingency study)', body: ui.chart('tm') })}
+            ${ui.card({ exp: true, title: 'Transfer margin during windows', sub: 'Forecast loading of the parallel path while each line is out · illustrative values, to be replaced by the EMS contingency study', body: ui.chart('tm') })}
           </div></div>`;
       },
       mount: (st, ctx) => {
@@ -732,12 +790,12 @@ const planner = {
       },
     },
     {
-      name: 'Workload', icon: 'users',
+      name: 'Workload', icon: 'users', 
       render: () => `<div class="nx-page"><div class="nx-row nx-c12">
         <div class="nx-s8">${ui.card({ title: 'Labour demand vs crew capacity', sub: 'Planned labour hours per week by skill, against available crew hours (8 weeks)', body: ui.chart('wl', 'lg') })}</div>
         <div class="nx-s4">${ui.card({ title: 'Capacity by skill', sub: 'Open demand in crew-days vs crews holding the skill', body: ui.chart('cap', 'lg') })}</div></div>
         <div class="nx-row nx-c2">
-          ${ui.card({ title: 'Backlog burn-down', sub: 'Open labour hours over the next 12 weeks: in-house crews only vs with two contractor crews', body: ui.chart('wl-burn') })}
+          ${ui.card({ exp: true, title: 'Backlog burn-down', sub: 'Projected open labour hours over the next 12 weeks: in-house crews only vs with two contractor crews', body: ui.chart('wl-burn') })}
           ${ui.card({ title: 'Peak weekly crew load by depot', sub: 'Demand on each depot’s crews against the hours they can give (8 weeks)', body: ui.chart('wl-dep') })}
         </div>
         ${ui.card({ title: 'Skill gap', sub: 'Where demand outruns qualified crews over the next 8 weeks', flush: true, body: ui.table({ rows: Object.keys(SKILL_LABEL).map((s) => { const dem = openWO.filter((w) => w.skill === s).reduce((a, w) => a + w.labourH, 0); const crews = net.crews.filter((c) => c.skill === s); const cap = crews.reduce((a, c) => a + c.size * 40 * 8 * 0.12, 0); return { s, dem, crews: crews.length, cap, ratio: cap ? dem / cap : 9 }; }), cols: [{ key: 's', label: 'Skill', render: (r) => `<b>${SKILL_LABEL[r.s]}</b>` }, { key: 'crews', label: 'Crews', align: 'r' }, { key: 'dem', label: 'Open demand h', align: 'r', render: (r) => fmt.n(r.dem) }, { key: 'cap', label: 'Allocable h (8 wk)', align: 'r', render: (r) => fmt.n(r.cap) }, { key: 'ratio', label: 'Load', render: (r) => ui.meter(Math.min(r.ratio * 100, 150), 150, r.ratio > 1 ? '#dc2626' : r.ratio > 0.8 ? '#d97706' : '#16a34a', `${fmt.n(r.ratio * 100)}%`) }, { key: 'x', label: 'Action', sort: false, render: (r) => (r.ratio > 1 ? ui.badge('Add contractor crew', 'crit') : r.ratio > 0.8 ? ui.badge('Watch', 'warn') : ui.badge('Covered', 'ok')) }] }) })}
@@ -776,20 +834,20 @@ const scheduling = {
             { label: 'Outage visits booked', value: visits.filter((v) => v.outage).length, icon: 'outage', tone: 'violet', sub: 'Need switching programmes' },
             { label: 'Utilisation now', value: '—', live: 'OPS.UTIL', unit: '%', icon: 'gauge', tone: 'ok', sub: 'Planner target 75–88 %' },
           ])}
-          ${ui.card({ title: 'Crew × day board', sub: 'Next 14 days. Amber = job in progress · violet = outage visit · corridor colour = live-line visit. Click any block.', tools: ui.btn('Auto-level workload', { sm: true, ic: 'ai', attrs: 'data-level' }), body: `<div style="overflow-x:auto"><div class="ops-board">${head}${rows}</div></div>` })}
+          ${ui.card({ exp: true, title: 'Crew × day board', sub: 'Next 14 days, as placed by the scheduling heuristic. Amber = job in progress · violet = outage visit · corridor colour = live-line visit. Click any block.', tools: ui.btn('Auto-level workload', { sm: true, ic: 'ai', attrs: 'data-level' }), body: `<div style="overflow-x:auto"><div class="ops-board">${head}${rows}</div></div>` })}
         </div>`;
       },
       mount: (st, ctx) => {
         ctx.on('click', '[data-wo]', (e, b) => showWO(b.dataset.wo));
         ctx.on('click', '[data-visit]', (e, b) => openVisit(visits.find((v) => v.id === b.dataset.visit)));
         ctx.on('click', '[data-crew]', (e, b) => openCrew(b.dataset.crew));
-        ctx.on('click', '[data-level]', () => toast('Optimiser re-levelled 14-day workload: 3 visits moved, peak crew load 94 % → 86 %, no window clashes'));
+        ctx.on('click', '[data-level]', () => toast('optimiser (illustrative result, not validated): proposes moving 3 visits, estimated peak crew load 94 % → 86 %. Nothing was changed.'));
       },
     },
     {
       name: 'Utilisation', icon: 'gauge',
       render: () => `<div class="nx-page"><div class="nx-row nx-c12">
-        <div class="nx-s8">${ui.card({ title: 'Planned load per crew-day', sub: 'Booked hours as a share of a 10-hour field day (heat), next 14 days', body: ui.chart('uh', 'lg') })}</div>
+        <div class="nx-s8">${ui.card({ exp: true, title: 'Planned load per crew-day', sub: 'Booked hours as a share of a 10-hour field day (heat), next 14 days', body: ui.chart('uh', 'lg') })}</div>
         <div class="nx-s4">${ui.card({ title: 'Fleet utilisation', sub: 'Live, from vehicle telematics and time bookings', body: ui.chart('ug', 'lg') })}</div></div>
         <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Utilisation by crew', sub: 'Productive hours this week vs travel & standby', body: ui.chart('ub', 'md') })}
         ${ui.card({ cls: 'nx-s5', title: 'Why crews stand by', sub: 'Non-productive hours this month by cause', body: ui.chart('us-cause', 'md') })}</div>
@@ -832,7 +890,7 @@ const approvals = {
             { label: 'Breaching SLA', value: openWO.filter((w, i) => approvalOf(w, i).ageD > approvalOf(w, i).sla && w.stage === 'requested').length, icon: 'event', tone: 'crit', sub: 'P1 3 d · P2 7 d · P3 14 d' },
             { label: 'Auto-approved', value: '38', unit: '%', icon: 'ai', tone: 'ok', sub: '< $5k, live-line, known defect class' },
           ])}
-          ${ui.card({ title: 'Approval pipeline', sub: 'Drag-free review: click a card to see its approval chain and approve or return it', body: ui.kanban(cols) })}
+          ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Approval pipeline', sub: 'Drag-free review: click a card to see its approval chain and approve or return it', body: ui.kanban(cols) })}
         </div>`;
       },
       mount: (st, ctx) => ctx.on('click', '.nx-tile[data-row]', (e, t) => openApproval(t.dataset.row)),
@@ -840,7 +898,7 @@ const approvals = {
     {
       name: 'Approval chain', icon: 'checkCircle',
       render: () => `<div class="nx-page"><div class="nx-row nx-c12">
-        <div class="nx-s8">${ui.card({ title: 'Approvals in flight', sub: 'Current step, approver and age against the SLA for each open order', flush: true, tools: ui.search('#ops-ap', 'Filter…'), body: ui.table({ id: 'ops-ap', rowId: (w) => w.id, rows: openWO.filter((w) => w.stage !== 'in_progress'), cols: [
+        <div class="nx-s8">${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Approvals in flight', sub: 'Current step, approver and age against the SLA for each open order', flush: true, tools: ui.search('#ops-ap', 'Filter…'), body: ui.table({ id: 'ops-ap', rowId: (w) => w.id, rows: openWO.filter((w) => w.stage !== 'in_progress'), cols: [
           { key: 'id', label: 'Order', render: (w) => `<b>${esc(w.id)}</b><span class="nx-sub">${esc(fmt.title(w.work_type))}</span>` },
           { key: 'severity', label: 'Severity', render: (w) => sevBadge(w.severity), sort: (w) => SEV_ORDER[w.severity] },
           { key: 'estCost', label: 'Value', align: 'r', render: (w) => fmt.money(w.estCost) },
@@ -1072,7 +1130,7 @@ const switching = {
   id: 'switching', name: 'Switching & Isolation', icon: 'schematic',
   tabs: [
     {
-      name: 'Live single-line', icon: 'schematic', full: true,
+      name: 'Live single-line', icon: 'schematic', full: true, 
       render: () => '<div class="ops-sw"><div class="nx-hmi is-full" id="ops-hmi"></div><aside class="ops-prog" id="ops-prog"></aside></div>',
       mount: (st, ctx) => {
         const forced = ['L-220-03.MW', 'L-220-03.MVAR', 'L-220-03.KV'];
@@ -1136,7 +1194,7 @@ const switching = {
           ${ui.kpis([
             { label: 'Programmes this period', value: progs.length, icon: 'doc', sub: 'One per grouped outage visit' },
             { label: 'Approved', value: progs.filter((p) => p.state === 'Approved').length, icon: 'checkCircle', tone: 'ok', sub: 'Ready for the control room' },
-            { label: 'Switching operations saved', value: (openWO.filter((w) => w.outage).length - progs.length) * 10, icon: 'zap', tone: 'violet', sub: 'vs one programme per task' },
+            { label: 'Switching operations saved', value: (openWO.filter((w) => w.outage).length - progs.length) * 10, icon: 'zap', tone: 'violet', sub: 'Estimate vs one programme per task', exp: true },
             { label: 'Interlock refusals (30 d)', value: 3, icon: 'lock', tone: 'warn', sub: 'All caught before execution' },
           ])}
           <div class="nx-row nx-c12">

@@ -527,3 +527,80 @@ body.nx-body { font-family: var(--nx-font); color: var(--nx-ink); background: va
 @media (prefers-reduced-motion: reduce) { .sx .sx-flow, .sx .sx-pflow, .sx .sx-rot, .nx-dot.is-pulse::after, .nx-mk.is-pulse::after { animation: none !important; } }
 
 .nx-drawer-b > * { flex-shrink: 0; }
+
+/* ------------------------------------------------------------------ experimental predictions + ERP provenance
+   Management feedback (Nov 2026): every forecast, risk heatmap and predicted value stays labelled Experimental or
+   Simulated until its model is validated against real data, and ERP-owned records show where they are read from. */
+.nx-badge.nx-exp, .nx-badge.nx-erp { border: 0; cursor: pointer; font-family: inherit; }
+.nx-badge.nx-exp::before, .nx-badge.nx-erp::before { display: none; }
+.nx-badge.nx-exp svg, .nx-badge.nx-erp svg { width: 12px; height: 12px; flex: 0 0 auto; }
+.nx-badge.nx-exp { background: #fffbeb; color: #92400e; border: 1px dashed #d97706; padding: 1px 8px; }
+.nx-badge.nx-exp:hover { background: #fef3c7; }
+.nx-badge.nx-erp { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 1px 8px; }
+.nx-badge.nx-erp:hover { background: #e0e7ff; }
+.nx-card.is-exp { border-style: dashed; border-color: #f0b453; }
+.nx-kpi.is-exp { border-style: dashed; border-color: #f0b453; }
+.nx-kpi-v .nx-exp-chip { align-self: center; font-variant-numeric: normal; }
+.nx-exp-chip { margin-left: auto; flex: 0 0 auto; font-family: var(--nx-font, inherit); font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; border: 1px dashed #d97706; background: #fffbeb; color: #92400e; cursor: pointer; }
+.nx-tab-exp, .nx-nav-exp { font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 0 5px; border-radius: 999px; border: 1px dashed #d97706; background: #fffbeb; color: #92400e; line-height: 1.6; }
+.nx-nav button .nx-nav-exp { margin-left: auto; background: rgba(245,158,11,.12); color: #fcd34d; border-color: rgba(245,158,11,.55); }
+.nx-nav button .nx-nav-exp + .nx-nav-count { margin-left: 6px; }
+.nx-app.is-collapsed .nx-nav-exp { display: none; }
+.nx-expbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: #fffbeb; border-bottom: 1px dashed #e8b04a; color: #78350f; font-size: 12.5px; line-height: 1.4; }
+.nx-expbar[hidden] { display: none; }
+.nx-expbar svg { width: 15px; height: 15px; flex: 0 0 auto; color: #b45309; }
+.nx-expbar span { flex: 1 1 auto; min-width: 0; }
+.nx-expbar .nx-btn { flex: 0 0 auto; }
+.nx-pill.is-erp { cursor: pointer; font-family: inherit; border-color: #c7d2fe; background: #eef2ff; color: #3730a3; }
+.nx-pill.is-erp:hover { background: #e0e7ff; }
+.nx-pill.is-erp svg { width: 14px; height: 14px; }
+.nx-pill.is-erp em { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 0 6px; border-radius: 999px; border: 1px dashed #d97706; background: #fffbeb; color: #92400e; }
+@media (max-width: 1180px) { .nx-pill.is-erp em { display: none; } }
+@media (max-width: 1040px) { .nx-pill.is-erp span { display: none; } }
+/* integration + validation dialogs */
+.nx-flow3 { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 28px minmax(0, 1fr); align-items: stretch; gap: 0; }
+.nx-flow3 > div { border: 1px solid var(--nx-line); border-radius: 12px; padding: 12px 14px; background: #fff; }
+.nx-flow3 > div.is-mid { border-color: #93c5fd; background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe; }
+.nx-flow3 > div b { display: block; font-size: 13px; }
+.nx-flow3 > div span { display: block; font-size: 11.5px; color: var(--nx-muted); margin-top: 3px; line-height: 1.45; }
+.nx-flow3 > i { align-self: center; height: 2px; background: #94a3b8; position: relative; }
+.nx-flow3 > i::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: #94a3b8; border-right-width: 0; }
+@media (max-width: 720px) { .nx-flow3 { grid-template-columns: 1fr; gap: 8px; } .nx-flow3 > i { display: none; } }
+
+/* ------------------------------------------------------------------ ERP connector gallery */
+.nx-pill.is-erp .nx-erp-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex: 0 0 auto; }
+[data-erp-connected="1"] .nx-pill.is-erp { border-color: #86efac; background: #f0fdf4; color: #166534; }
+[data-erp-connected="1"] .nx-pill.is-erp .nx-erp-dot { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+.nx-conn { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s ease; padding: 24px; }
+.nx-conn.is-on { opacity: 1; }
+.nx-conn-scrim { position: absolute; inset: 0; background: rgba(15, 23, 42, .5); backdrop-filter: blur(3px); }
+.nx-conn-box { position: relative; width: min(1060px, 100%); max-height: calc(100vh - 48px); overflow: auto; background: #fff; border-radius: 16px; padding: 28px 32px 30px; box-shadow: 0 32px 72px -16px rgba(15,23,42,.45); transform: scale(.97); transition: transform .2s ease; }
+.nx-conn.is-on .nx-conn-box { transform: none; }
+.nx-conn-h { display: flex; align-items: flex-start; gap: 12px; }
+.nx-conn-h > div { flex: 1; }
+.nx-conn-h h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+.nx-conn-h p { margin: 4px 0 0; font-size: 12.5px; color: var(--nx-muted); }
+.nx-conn-x { border: 0; background: none; font-size: 26px; line-height: 1; color: var(--nx-ink-2); cursor: pointer; padding: 0 4px; }
+.nx-conn-q { margin: 16px 0 6px; width: 260px; max-width: 100%; height: 34px; border: 1px solid var(--nx-line); border-radius: 8px; padding: 0 12px; font: inherit; font-size: 13px; background: #fff; }
+.nx-conn-grp { margin-top: 18px; }
+.nx-conn-grp h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.nx-conn-grp h4 span { font-size: 11px; color: var(--nx-muted); }
+.nx-conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.nx-conn-card { display: flex; align-items: center; gap: 12px; text-align: left; min-height: 62px; padding: 10px 14px; border: 1px solid var(--nx-line); border-radius: 8px; background: #fff; font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s; position: relative; }
+.nx-conn-card:hover:not(:disabled) { border-color: var(--nx-accent); box-shadow: 0 2px 10px rgba(37,99,235,.12); }
+.nx-conn-card.is-off { opacity: .55; cursor: not-allowed; background: #f8fafc; }
+.nx-conn-card.is-on { border: 2px solid #16a34a; background: #f0fdf4; box-shadow: 0 0 0 4px rgba(22,163,74,.12); padding: 9px 13px; }
+.nx-conn-logo { flex: 0 0 auto; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 11px; letter-spacing: .02em; }
+.nx-conn-t { display: flex; flex-direction: column; min-width: 0; }
+.nx-conn-t b { font-size: 13.5px; }
+.nx-conn-t small { font-size: 11.5px; color: var(--nx-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nx-conn-st { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--nx-accent); white-space: nowrap; }
+.nx-conn-st.is-muted { color: var(--nx-faint); font-weight: 600; }
+.nx-conn-card.is-on .nx-conn-st { color: #15803d; }
+.nx-conn-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; margin-right: 5px; }
+.nx-conn-sim { font-style: normal; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 0 6px; border-radius: 999px; border: 1px dashed #d97706; background: #fffbeb; color: #92400e; line-height: 1.7; }
+.nx-conn-log { max-height: 190px; overflow: auto; background: #0f172a; border-radius: 10px; padding: 10px 14px; font: 12px/1.7 var(--nx-mono); color: #cbd5e1; }
+.nx-conn-ln { display: flex; gap: 12px; }
+.nx-conn-ln time { color: #64748b; flex: 0 0 auto; }
+.nx-conn-ln.t-ok span { color: #4ade80; } .nx-conn-ln.t-warn span { color: #fbbf24; }
+

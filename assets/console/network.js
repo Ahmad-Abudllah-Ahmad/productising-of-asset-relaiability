@@ -2,10 +2,16 @@
 // repairs come from the Asset Reliability seed and its scoring (health index, risk); everything another module needs
 // on top (crews, people, depots, parts, suppliers, permits, budgets, telemetry) is generated here, deterministically,
 // keyed to those same assets. So T-039 on L-220-03 is the same tower in Field Operations, Finance and Workforce.
+//
+// Work orders, parts and stock, and suppliers are ERP-owned records. They enter every module through the ERP
+// integration layer (erp.ingest in erp.js): fetched from SAP PM / MM, never entered in the dashboards. In this
+// prototype the layer's adapter is simulated, so the records below are the demo data that adapter returns.
 
 import { repository } from '/reliability/js/data/repository.js';
 import { loadSnapshot, AS_OF } from '/reliability/js/app/snapshot.js';
 import { rng, addDays, daysBetween, live, KV_COLOR } from './console.js';
+import { erp } from './erp.js';
+import './models.js'; // the model validation register behind every Experimental marker
 
 export { AS_OF };
 const R = rng(20261112);
@@ -23,6 +29,9 @@ export const SEV_TONE = { critical: 'crit', high: 'high', medium: 'warn', low: '
 export const CORRIDOR = { 'L-132-01': 'Coastal', 'L-220-03': 'North', 'L-500-01': 'Inland' };
 export const LINE_NAME = { 'L-132-01': 'L-132-01 Coastal 132 kV', 'L-220-03': 'L-220-03 Corridor North 220 kV', 'L-500-01': 'L-500-01 Inland 500 kV' };
 export const kvColor = (kv) => KV_COLOR[kv] || '#64748b';
+
+/** Quantity of each catalogue item one repair of its defect consumes (bill-of-materials rule, shared by Modules 01 and 05). */
+export const PART_QTY = { 'VD-4R-ACSR': 2, 'SP-QUAD-450': 2, 'INS-CL-120': 9, 'INS-LR-220': 1, 'INS-LR-500': 1, 'RS-ACSR-400': 2, 'CND-ACSR-400': 1, 'OPGW-48F': 1, 'STL-L90': 4, 'BLT-M20-HDG': 1, 'CP-SS-8': 1, 'SC-SUS-400': 1, 'ZRP-PAINT-20': 2, 'GRT-FND-25': 12, 'GAB-2X1': 6, 'SA-ZNO-220': 3, 'DS-SIGN-HV': 1, 'BD-DIVERT': 2, 'TX-GSK-KIT': 1, 'TX-BSH-245': 1, 'TX-OIL-IEC': 2, 'TX-RAD-PNL': 2 };
 
 let cache = null;
 export function loadNetwork() { if (!cache) cache = build(); return cache; }
@@ -132,6 +141,7 @@ async function build() {
       estCost: est, labourH: round(labour, 0), materials: Math.round(est * 0.38), outage: ['conductor repair', 'insulator replacement', 'steel repair', 'earthwire repair', 'transformer repair'].includes(w.work_type), ttrDays,
     };
   });
+  erp.ingest('workOrders', workOrders); // SAP PM maintenance orders
   const repairs = all.repairs.map((r) => ({ ...r, wo: workOrders.find((w) => w.work_order_id === r.work_order_id) }));
 
   /* ---------------------------------------------------------------- depots, crews, people */
@@ -222,6 +232,15 @@ async function build() {
     return { sku, name, cat, defects, unitCost: cost, supplier: sup, supplierName: supp.name, uom, lead: Math.round(supp.lead * between(0.85, 1.25)), min, max, stock, onHand, reserved, available: onHand - reserved, demand, monthly: round(demand * scaleQty / 10, 1), critical: cost > 1000 || defects.some((d) => ['broken_strand', 'insulator_cracked', 'bushing_hotspot'].includes(d)) };
   });
 
+  // Primary catalogue item per defect class (the bill-of-materials rule): insulators are chosen by line voltage
+  // (disc strings at 132 kV, long-rods above); otherwise the first non-drum item approved for the defect.
+  const partFor = (defect, kv) => {
+    if (/^insulator_/.test(defect)) return kv >= 500 ? 'INS-LR-500' : kv >= 220 ? 'INS-LR-220' : 'INS-CL-120';
+    return (parts.find((x) => x.defects.includes(defect) && x.uom !== 'drum') || parts.find((x) => x.defects.includes(defect)))?.sku || null;
+  };
+  erp.ingest('inventory', parts);    // SAP MM materials and stock by storage location
+  erp.ingest('suppliers', suppliers); // SAP MM vendor master
+
   /* ---------------------------------------------------------------- permits */
   const PERMIT_TYPES = [['PTW-HV', 'HV permit-to-work'], ['LLW', 'Live-line work permit'], ['SFT', 'Sanction for test'], ['HOT', 'Hot-work permit'], ['EXC', 'Excavation permit'], ['WAH', 'Work-at-height permit']];
   const permits = workOrders.filter((w) => w.stage !== 'completed' && w.stage !== 'requested').map((w, i) => {
@@ -246,7 +265,7 @@ async function build() {
     ...crews.map((c) => ({ kind: 'crew', id: c.id, label: `${c.id} · ${c.name}`, sub: `${c.status} · ${c.baseName}`, icon: 'users' })),
   ];
 
-  return { asOf, snap, repo: repository, all, lines, towers, towerById, spans, substations, transformers, findings, findingById, workOrders, repairs, depots, crews, people, certs: CERTS, parts, suppliers, permits, searchIndex, byId };
+  return { erp, partFor, partQty: PART_QTY, asOf, snap, repo: repository, all, lines, towers, towerById, spans, substations, transformers, findings, findingById, workOrders, repairs, depots, crews, people, certs: CERTS, parts, suppliers, permits, searchIndex, byId };
 }
 
 /** SCADA/EMS tags for every line and transformer: loading (MW/MVA), current, voltage, conductor temp, oil temps. */
