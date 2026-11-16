@@ -495,8 +495,11 @@ test.describe('newly built towers', () => {
     await expect(panel(page).locator('.a360-n').first()).toHaveText('not assessed');
     await expect(panel(page).locator('[data-section="breakdown"]')).toContainText('no evidence on or before 2026-11-11');
     await expect(panel(page).locator('[data-section="findings"]')).toContainText('No open findings');
+    await panel(page).getByTestId('a360-tab-trends').click();
     await expect(panel(page).locator('[data-section="history"]')).toContainText('no history to chart');
-    await expect(panel(page).locator('[data-section="work"]')).toContainText('No work orders');
+    await panel(page).getByTestId('a360-tab-workorders').click();
+    await expect(panel(page).getByTestId('work-orders-open-empty')).toBeVisible();
+    await panel(page).getByTestId('a360-tab-health').click();
     await panel(page).evaluate((el) => { el.scrollTop = 0; });
     await page.setViewportSize({ width: 1440, height: 1500 });
     await panel(page).screenshot({ path: `${SHOTS}/not-assessed-new-tower-panel.png` });

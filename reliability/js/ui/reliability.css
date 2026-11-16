@@ -579,3 +579,15 @@ button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible
 .lr-bigscore .xp-badge { display: block; margin: 2px 0 0; width: fit-content; }
 .lr-qhead { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); z-index: 1; }
 th .xp-badge { margin-left: 4px; font-weight: 700; }
+
+/* ==== Asset 360 tabs in two groups (Phase B). */
+.a360-tabbar { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 12px; border-bottom: 1px solid var(--line); }
+.a360-tabgroup { display: flex; flex-direction: column; gap: 2px; }
+.a360-grouplabel { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-left: 12px; }
+.a360-tabbar .a360-tabs { margin: 0; border: 0; }
+.a360-tabpanel:focus { outline: none; }
+.a360-source { margin: 0 0 8px; padding: 3px 8px; border-left: 3px solid var(--amber); background: var(--rel-surface-2); border-radius: 0 4px 4px 0; }
+.a360-coming { padding: 14px; border: 1px dashed var(--line); border-radius: 8px; background: var(--rel-surface-2); }
+.a360-schematic { margin-bottom: 8px; }
+.a360-tl-defect { display: flex; align-items: center; gap: 8px; min-width: 190px; }
+.a360-tl-defect .a360-thumb { flex: none; width: 64px; height: 44px; }

@@ -85,7 +85,7 @@ test.describe('simulated LiDAR', () => {
     const options = await t(page, 'lidar-span').locator('option').allTextContents();
     expect(options).toHaveLength(2);
     expect(options[0]).toBe('T-012/T-013 (6.8 m)');
-    await t(page, 'a360-tab-overview').click();
+    await t(page, 'a360-tab-health').click();
     await expect(page).not.toHaveURL(/atab/);
     await expect(t(page, 'findings')).toBeVisible();
   });

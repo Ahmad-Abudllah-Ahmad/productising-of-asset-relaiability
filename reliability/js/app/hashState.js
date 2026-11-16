@@ -7,7 +7,7 @@
 // The Line Health and Tower Health screens keep their selection in the same hash, next to the overlays:
 //   view=lines|towers|history|map   line=<line id>  tower=<tower id>  band=normal|moderate|poor|none
 //   view=dashboard (no other keys)   sev=urgent|critical|serious|moderate|minor (history, Open findings tab)
-//   atab=lidar (the LiDAR tab of the Asset 360 panel; only with asset=)
+//   atab=components|trends|lidar|maintenance|workorders|inventory (the tab of the Asset 360 panel; only with asset=; Health & Risk is the default)
 //   unit=<asset id> (history)  show=ineffective  status=<work order status>  layers=lines,towers,...  label=<label id> (map)
 // Opening or closing a panel keeps those keys, and changing them keeps the panel keys.
 // The global filters (flabel, fkv, fcat, asof; see scope.js) are in every hash: hashFor keeps them from the current hash unless the state
@@ -18,8 +18,10 @@ import { SCOPE_KEYS } from './scope.js';
 const MODES = new Set(['rgb', 'thermal', 'compare', 'lidar']);
 
 /** @returns {{asset: string|null, finding: string|null, mode: 'rgb'|'thermal'|'compare'}} */
-/** The Asset 360 tab named in the hash ('lidar' or null). */
-export const panelTab = (hash = '') => (new URLSearchParams(String(hash).replace(/^#/, '')).get('atab') === 'lidar' ? 'lidar' : null);
+/** The Asset 360 tabs. The first is the default and is left out of the URL. */
+export const PANEL_TABS = Object.freeze(['health', 'components', 'trends', 'lidar', 'maintenance', 'workorders', 'inventory']);
+/** The Asset 360 tab named in the hash, or null for the default (Health & Risk). */
+export const panelTab = (hash = '') => { const v = new URLSearchParams(String(hash).replace(/^#/, '')).get('atab'); return PANEL_TABS.includes(v) && v !== PANEL_TABS[0] ? v : null; };
 
 export function parseHash(hash = '') {
   const params = new URLSearchParams(String(hash).replace(/^#/, ''));
@@ -57,7 +59,7 @@ export function hashFor(state = {}, current = typeof location === 'undefined' ? 
     if (v) parts.push(`${k}=${encodeURIComponent(v).replace(/%2C/g, ',')}`); // commas stay readable (layers=spans,towers)
   }
   const keptScope = new URLSearchParams(String(current).replace(/^#/, ''));
-  if (asset) { const v = 'atab' in state ? state.atab : keptScope.get('atab'); if (v === 'lidar') parts.push('atab=lidar'); } // the panel tab goes away with the panel
+  if (asset) { const v = 'atab' in state ? state.atab : keptScope.get('atab'); if (PANEL_TABS.includes(v) && v !== PANEL_TABS[0]) parts.push(`atab=${v}`); } // the panel tab goes away with the panel
   for (const k of SCOPE_KEYS) {
     const v = k in state ? state[k] : keptScope.get(k);
     if (v) parts.push(`${k}=${encodeURIComponent(v)}`);

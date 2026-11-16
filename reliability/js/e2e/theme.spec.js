@@ -55,7 +55,7 @@ test.describe('the toggle', () => {
   });
 
   test('the Asset 360 charts take their colours from the theme, and redraw when it changes', async ({ page }) => {
-    await open(page, '/reliability#asset=TX-2C');
+    await open(page, '/reliability#asset=TX-2C&atab=trends');
     const chart = page.locator('[data-chart="history"]');
     await expect(chart).toHaveAttribute('data-ready', 'true');
     const colour = (t) => page.evaluate(() => window.echarts.getInstanceByDom(document.querySelector('[data-chart="history"]')).getOption().xAxis[0].axisLabel.color);
@@ -87,7 +87,7 @@ test.describe('every main view, both themes', () => {
   });
 
   test('Asset 360 and the finding viewer', async ({ page }) => {
-    await open(page, '/reliability#asset=TWR-132-01-011');
+    await open(page, '/reliability#asset=TWR-132-01-011&atab=trends');
     await expect(page.getByTestId('asset-panel')).toBeVisible();
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
     for (const t of ['light', 'dark']) {

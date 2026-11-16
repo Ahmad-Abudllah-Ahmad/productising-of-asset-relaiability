@@ -240,7 +240,7 @@ test.describe('Line Health', () => {
     await expect(byId(page, 'strip')).toBeVisible();
     await byId(page, 'strip').locator('[data-asset="SPN-132-01-009-010"]').click();
     await expect(panel(page)).toBeVisible();
-    await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
+    await expect(page.getByTestId('asset-id')).toHaveText('SPN-132-01-009-010');
     for (const t of ['light', 'dark']) {
       await page.evaluate((want) => { if ((document.documentElement.dataset.relTheme ?? 'light') !== want) document.getElementById('rel-theme').click(); }, t);
       await expect.poll(() => theme(page)).toBe(t);

@@ -631,7 +631,7 @@ test.describe('Risk Map', () => {
     const box = await byId(page, 'map').boundingBox();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(panel(page)).toBeVisible();
-    await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
+    await expect(page.getByTestId('asset-id')).toBeVisible();
     for (const t of ['light', 'dark']) {
       await page.evaluate((want) => { if ((document.documentElement.dataset.relTheme ?? 'light') !== want) document.getElementById('rel-theme').click(); }, t);
       await expect.poll(() => theme(page)).toBe(t);

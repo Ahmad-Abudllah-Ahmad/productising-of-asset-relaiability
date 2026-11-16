@@ -30,7 +30,7 @@ Real photographs (reference and own inspection images) carry no label; they are 
 | **Risk Map** | Leaflet map: lines, towers, substations, finding clusters, layers, label highlight, a lasso that totals risk. |
 | **Maintenance History** | Timeline (fleet, line or one asset), repairs with HI before and after and whether they held, work orders, open findings. |
 
-Everywhere: **Asset 360** (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
+Everywhere: **Asset 360** is six tabs in two groups. **Asset Health**: Health & Risk (breakdown and cap, open findings, transformer gas/oil/tests, linked assets at the foot), Components (the tower schematic and the components table), Condition Trends (campaign history; the forecast comes later and will be labelled Experimental). **Operations**: Maintenance History (defects over time with thumbnails, repairs), Work Orders (open, planned, completed) and Inventory & Parts (coming with the inventory phase). Towers and spans also keep a LiDAR tab in the Asset Health group. The selected tab is in the URL (`atab=components|trends|lidar|maintenance|workorders|inventory`; Health & Risk is the default), arrow keys move between tabs, and the Operations tabs say where their data comes from. Asset 360 (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
 add DGA, Duval zone, oil, tests, loading) and the **finding viewer** (click any thumbnail: AI box, RGB and thermal,
 campaign compare, confirm / correct / reject / revert with a review history, link to asset).
 

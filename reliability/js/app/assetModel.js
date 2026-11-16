@@ -121,9 +121,10 @@ export async function loadAssetDetail(repo, snap, id) {
   const captures = new Map((await repo.getCaptures()).map((c) => [c.capture_id, c]));
   let counted = [];
   let closedIds = [];
+  let closedList = [];
   if (kind === 'tower' || kind === 'span' || kind === 'transformer') {
     const f = ctx.findingsFor(id, asOf);
-    counted = f.counted; closedIds = f.closed.map((x) => x.finding_id);
+    counted = f.counted; closedList = f.closed; closedIds = f.closed.map((x) => x.finding_id);
   } else if (kind === 'component') counted = snap.findingsByAsset.get(id) ?? [];
   else if (kind === 'line' || kind === 'station' || kind === 'bay') {
     const owners = kind === 'line' ? [...descendants(snap, id)].filter((x) => ['tower', 'span'].includes(snap.byId.get(x)?.class))
@@ -188,8 +189,25 @@ export async function loadAssetDetail(repo, snap, id) {
   const orders = (await repo.getWorkOrders()).filter((w) => subtree.has(w.asset_id));
   const repairs = (await repo.getRepairs()).filter((r) => subtree.has(r.asset_id));
   const nameOf = (x) => snap.byId.get(x)?.name ?? x;
+  const phaseOf = (w) => (['completed', 'cancelled'].includes(w.status) ? 'completed' : w.planned_date > asOf ? 'planned' : 'open');
+  const orderRow = (w) => ({
+    id: w.work_order_id, status: w.status, type: w.work_type, priority: w.priority, assetId: w.asset_id, assetName: nameOf(w.asset_id),
+    findings: w.finding_ids.length, created: w.created_at, planned: w.planned_date, completed: w.completed_at,
+  });
+  const byCreated = [...orders].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  // open: not done and due now or overdue; planned: not done and due after the as-of date; completed: done or cancelled
+  const woGroups = Object.fromEntries(['open', 'planned', 'completed'].map((k) => {
+    const all = byCreated.filter((w) => phaseOf(w) === k);
+    return [k, { total: all.length, rows: all.slice(0, 12).map(orderRow), more: Math.max(0, all.length - 12) }];
+  }));
+  // the defect timeline of this asset: every finding it has had, open or closed by a repair
+  const closedBy = new Map();
+  for (const r of repairs) for (const fid of r.closes_finding_ids) closedBy.set(fid, r);
+  const timeline = [...counted.map((f) => ({ f, closed: false })), ...closedList.map((f) => ({ f, closed: true }))]
+    .sort((a, b) => b.f.date.localeCompare(a.f.date) || a.f.finding_id.localeCompare(b.f.finding_id)).slice(0, 20)
+    .map(({ f, closed }) => ({ ...findingRow(snap, f, captures), closed, repairId: closedBy.get(f.finding_id)?.repair_id ?? null, repairDate: closedBy.get(f.finding_id)?.date ?? null }));
   const work = {
-    ordersTotal: orders.length, repairsTotal: repairs.length,
+    groups: woGroups, timeline, ordersTotal: orders.length, repairsTotal: repairs.length,
     open: orders.filter((w) => ['open', 'in_progress'].includes(w.status)).length,
     orders: orders.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 12).map((w) => ({
       id: w.work_order_id, status: w.status, type: w.work_type, priority: w.priority, assetId: w.asset_id, assetName: nameOf(w.asset_id),
