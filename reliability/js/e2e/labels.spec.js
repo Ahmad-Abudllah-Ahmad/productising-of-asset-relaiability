@@ -24,15 +24,15 @@ const openLinks = async (page) => { await rail(page).nth(2).click(); await page.
 const shot = async (page, name, th) => { await page.waitForTimeout(700); await page.screenshot({ path: `${SHOTS}/${name}-${th}.png` }); };
 
 test.describe('naming', () => {
-  test('the page, the top bar, the rail and the dashboard say Asset Health, and the URL is unchanged', async ({ page }) => {
+  test('the page, the top bar, the rail and the dashboard say Asset Reliability (renamed back in Phase C), and the URL is unchanged', async ({ page }) => {
     await visit(page, '/reliability');
-    await expect(page).toHaveTitle('Asset Health Intelligence');
-    await expect(page.locator('#app-title')).toContainText('Asset Health Intelligence');
-    await expect(page.locator('#app-title')).toContainText('Asset Health Dashboard');
-    await expect(rail(page).first()).toHaveAttribute('aria-label', /Asset Health Dashboard/);
-    await expect(page.getByRole('heading', { name: /Asset Health dashboard/ })).toBeVisible();
+    await expect(page).toHaveTitle('Asset Reliability Intelligence');
+    await expect(page.locator('#app-title')).toContainText('Asset Reliability Intelligence');
+    await expect(page.locator('#app-title')).toContainText('Asset Reliability Dashboard');
+    await expect(rail(page).first()).toHaveAttribute('aria-label', /Asset Reliability Dashboard/);
+    await expect(page.getByRole('heading', { name: /Asset Reliability dashboard/ })).toBeVisible();
     expect(new URL(page.url()).pathname).toBe('/reliability');
-    expect(await page.locator('body').innerText()).not.toMatch(/Reliability dashboard|Asset Reliability/i);
+    expect(await page.locator('body').innerText()).not.toMatch(/Asset Health dashboard|Asset Health Intelligence/i);
   });
 });
 

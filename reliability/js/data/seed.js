@@ -2,6 +2,7 @@
 // Same options -> byte-identical output. No Date.now(), no Math.random().
 // All names, manufacturers and IDs are invented demo data.
 
+import { generateInventory } from './inventory.js';
 import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES, MANAGED_LABELS, LABEL_KINDS } from '../domain/config.js';
 
 const SEED = CONFIG.seed;
@@ -709,8 +710,12 @@ export function generateSeed(options = {}) {
     if (fam) (groundTruth.sameModel[fam] ??= []).push(a.asset_id);
   }
 
+  // inventory, suppliers, purchase orders, reservations and maintenance plans (data/inventory.js); the plans raise planned work orders
+  const inventory = generateInventory({ assets, findings, workOrders }, { seed: options.seed ?? SEED.seed, referenceDate: SEED.referenceDate });
+  const { plannedWorkOrders, ...inventoryRecords } = inventory;
   return {
     assets, links, labels: [...labelMap.values()].sort((x, y) => x.label_id.localeCompare(y.label_id)),
-    campaigns, captures, findings, workOrders, repairs, dga, visualFeatures, groundTruth,
+    campaigns, captures, findings, workOrders: [...workOrders, ...plannedWorkOrders], repairs, dga, visualFeatures, groundTruth,
+    ...inventoryRecords,
   };
 }

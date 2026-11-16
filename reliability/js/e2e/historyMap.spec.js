@@ -57,11 +57,11 @@ async function both(page, name, height = 1300, ready) {
 // ======================================================================================== Maintenance History
 
 test.describe('Maintenance History', () => {
-  test('opens from the rail with four tabs, KPI cards, "Scores as of" and its selection in the URL', async ({ page }) => {
+  test('opens from the rail with five tabs, KPI cards, "Scores as of" and its selection in the URL', async ({ page }) => {
     const errors = await open(page);
     await rail(page).nth(6).click();
     await expect(page.locator('#app-title')).toContainText('Maintenance History');
-    await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders', 'Open findings']);
+    await expect(page.locator('#tabs [data-tab]')).toHaveText(['Timeline', 'Repairs', 'Work orders', 'Open findings', 'Parts & Inventory']);
     await expect(byId(page, 'findings-card')).toBeVisible();
     expect(await hash(page)).toBe('#view=history');
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
@@ -266,7 +266,7 @@ test.describe('Maintenance History', () => {
     await expect(byId(page, 'turnaround')).toContainText('median of 24 days');
     await expect(byId(page, 'turnaround')).toContainText('median 22.5 days');
     await expect(byId(page, 'turnaround')).toContainText('26 work orders are past the planned date');
-    await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(127);
+    await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(160); // 127 raised from findings and 33 planned by maintenance plans
     await expect(byId(page, 'workorders').locator('.tag.r', { hasText: 'overdue' })).toHaveCount(26);
     await byId(page, 'status-select').selectOption('in_progress');
     await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(16);

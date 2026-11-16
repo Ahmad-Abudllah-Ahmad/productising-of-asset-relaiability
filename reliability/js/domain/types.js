@@ -141,8 +141,8 @@ export const SENSORS = Object.freeze(['rgb', 'thermal', 'lidar']);
  *   present when a reviewer changed the finding: what they changed, and the AI's original values
  */
 
-/** @typedef {'open'|'in_progress'|'completed'|'cancelled'} WorkOrderStatus */
-export const WORK_ORDER_STATUSES = Object.freeze(['open', 'in_progress', 'completed', 'cancelled']);
+/** @typedef {'planned'|'open'|'in_progress'|'completed'|'cancelled'} WorkOrderStatus  planned: raised by a maintenance plan, due later */
+export const WORK_ORDER_STATUSES = Object.freeze(['planned', 'open', 'in_progress', 'completed', 'cancelled']);
 
 /**
  * @typedef {Object} WorkOrder
@@ -155,6 +155,8 @@ export const WORK_ORDER_STATUSES = Object.freeze(['open', 'in_progress', 'comple
  * @property {string} created_at          ISO date
  * @property {string} planned_date        ISO date
  * @property {string|null} completed_at   ISO date; set when status is completed
+ * @property {string} [plan_id]           the maintenance plan that raised it (planned work only)
+ * @property {string} [task]              the plan's task (planned work only)
  */
 
 /**

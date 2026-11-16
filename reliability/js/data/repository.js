@@ -325,6 +325,11 @@ export function createRepository(data, options = {}) {
         (!filter.finding_id || w.finding_ids.includes(filter.finding_id)));
     },
 
+    /** Inventory records (ERP-shaped; see data/inventory.js). Read-only: reviewer decisions never touch them. */
+    async getInventory() {
+      return { materials: base.materials ?? [], suppliers: base.suppliers ?? [], stock: base.stock ?? [], purchaseOrders: base.purchaseOrders ?? [], reservations: base.reservations ?? [], maintenancePlans: base.maintenancePlans ?? [], warehouses: base.warehouses ?? [] };
+    },
+
     /** @returns {Promise<import('../domain/types.js').Repair[]>} */
     async getRepairs(filter = {}) {
       return v().repairs.filter((r) =>

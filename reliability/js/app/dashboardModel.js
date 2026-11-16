@@ -7,6 +7,7 @@ import { CONFIG } from '../domain/config.js';
 import { linksKpis } from './registryModel.js';
 import { listLines } from './healthModel.js';
 import { freshnessOf } from './freshness.js';
+import { blockedWorkOrders } from './inventoryModel.js';
 
 export const BANDS = Object.freeze(['poor', 'moderate', 'normal', 'none']);
 export const BAND_WORD = Object.freeze({ poor: 'poor', moderate: 'moderate', normal: 'normal', none: 'not assessed' });
@@ -48,12 +49,15 @@ export function loadDashboard(snap) {
   const nowF = findingsSeries.at(-1);
   const unreviewedUrgent = owners.reduce((n, o) => n + snap.ctx.findingsFor(o.asset_id, asOf).unreviewed.filter((f) => f.condition_score <= 2).length, 0);
 
-  // ---- work orders overdue (planned date passed, not completed, not cancelled), at each date and today
+  // ---- work orders overdue (planned date passed, not completed, not cancelled; planned work from maintenance plans is not open yet), at each date and today
   const workOrders = snap.workOrders.filter((w) => snap.inScope(w.asset_id));
-  const overdueAt = (date) => workOrders.filter((w) => w.created_at <= date && w.planned_date < date && w.status !== 'cancelled' && !(w.completed_at && w.completed_at <= date)).length;
-  const openOrders = workOrders.filter((w) => w.created_at <= asOf && w.status !== 'cancelled' && !(w.completed_at && w.completed_at <= asOf));
+  const overdueAt = (date) => workOrders.filter((w) => w.created_at <= date && w.planned_date < date && w.status !== 'cancelled' && w.status !== 'planned' && !(w.completed_at && w.completed_at <= date)).length;
+  const openOrders = workOrders.filter((w) => w.created_at <= asOf && w.status !== 'cancelled' && w.status !== 'planned' && !(w.completed_at && w.completed_at <= asOf));
   const overdueList = openOrders.filter((w) => w.planned_date < asOf);
   const oldest = overdueList.length ? Math.max(...overdueList.map((w) => daysBetween(w.planned_date, asOf))) : 0;
+
+  // ---- work orders waiting on parts (a part line on order or short)
+  const blocked = blockedWorkOrders(snap);
 
   // ---- links awaiting review
   const links = linksKpis(snap)[0];
@@ -95,6 +99,7 @@ export function loadDashboard(snap) {
       findings: { critical: nowF.crit, serious: nowF.serious, urgent: nowF.crit + nowF.serious, all: nowF.all, unreviewedUrgent, series: findingsSeries.map((x) => x.crit + x.serious) },
       overdue: { count: overdueList.length, open: openOrders.length, oldestDays: oldest, series: snap.dates.map(overdueAt) },
       links: { awaiting, sub: links.s },
+      parts: { waiting: blocked.length, short: blocked.reduce((n, b) => n + b.short, 0), onOrder: blocked.reduce((n, b) => n + b.onOrder, 0), available: snap.inventory.available },
     },
     trend, risks: ranked, lines: lineRows,
     empty: !snap.assets.length,

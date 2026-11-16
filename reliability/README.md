@@ -1,4 +1,4 @@
-# Asset Health workspace (`/reliability`)
+# Asset Reliability workspace (`/reliability`)
 
 One linked workspace for line assets, substation transformers and visual-inspection evidence, with explainable health and
 risk scores. It is the `/reliability` page of the Nexus OS site: seven screens in the rail, an Asset 360 panel, a finding
@@ -9,7 +9,7 @@ the original page is `docs/reliability-audit.md`.
 
 ## Names and labels
 
-The page is called **Asset Health** for now: it covers health, risk, maintenance history and work orders. It becomes Asset Reliability once inventory and ERP data are in (see `docs/management-feedback-plan.md`). The URL (`/reliability`) and the code names do not change.
+The page is called **Asset Reliability**: health and risk, maintenance history, work orders, and inventory and parts. (Between the labelling phase and the inventory phase it was called Asset Health, because it covered less; ERP data is still to come, see `docs/management-feedback-plan.md`.) The URL (`/reliability`) and the code names did not change.
 
 Two labels are used the same way everywhere:
 
@@ -22,15 +22,15 @@ Real photographs (reference and own inspection images) carry no label; they are 
 
 | Screen | What you can do |
 | --- | --- |
-| **Asset Health Dashboard** | Four KPI cards, condition across campaigns, health index by category, the ten biggest risks, one row per line. Every number opens the list behind it. |
+| **Asset Reliability Dashboard** | Four KPI cards, condition across campaigns, health index by category, the ten biggest risks, one row per line. Every number opens the list behind it. |
 | **Drawing** | The original SS-North single-line sheets. A fixed reference; the filters do not change it. |
 | **Asset Registry** | Lines, towers, spans, components, substations, transformers, and **Links** (the Link Review queue: accept, reject, merge duplicates, audit log). |
 | **Tower Health** | One tower: schematic coloured by the condition of each scoring group, findings with thumbnails, campaign comparison. |
 | **Line Health** | One line: every tower and span in order, an HI profile, the line score with its breakdown, not-assessed units. |
 | **Risk Map** | Leaflet map: lines, towers, substations, finding clusters, layers, label highlight, a lasso that totals risk. |
-| **Maintenance History** | Timeline (fleet, line or one asset), repairs with HI before and after and whether they held, work orders, open findings. |
+| **Maintenance History** | Timeline (fleet, line or one asset), repairs with HI before and after and whether they held, work orders (including planned work raised by maintenance plans), open findings, and **Parts & Inventory** (work orders waiting on parts, low stock, open purchase order lines, stock by depot). |
 
-Everywhere: **Asset 360** is six tabs in two groups. **Asset Health**: Health & Risk (breakdown and cap, open findings, transformer gas/oil/tests, linked assets at the foot), Components (the tower schematic and the components table), Condition Trends (campaign history; the forecast comes later and will be labelled Experimental). **Operations**: Maintenance History (defects over time with thumbnails, repairs), Work Orders (open, planned, completed) and Inventory & Parts (coming with the inventory phase). Towers and spans have a Schematic / LiDAR switch inside Components. The selected tab is in the URL (`atab=components|trends|maintenance|workorders|inventory`, and `atab=lidar` for the LiDAR view of Components; Health & Risk is the default), arrow keys move between tabs, and the Operations tabs say where their data comes from. Asset 360 (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
+Everywhere: **Asset 360** is six tabs in two groups. **Asset Health**: Health & Risk (breakdown and cap, open findings, transformer gas/oil/tests, linked assets at the foot), Components (the tower schematic and the components table), Condition Trends (campaign history; the forecast comes later and will be labelled Experimental). **Operations**: Maintenance History (defects over time with thumbnails, repairs), Work Orders (open, planned, completed) and Inventory & Parts (the parts for the asset's open and planned work, each reserved, available, on order with its date, or short). Towers and spans have a Schematic / LiDAR switch inside Components. The selected tab is in the URL (`atab=components|trends|maintenance|workorders|inventory`, and `atab=lidar` for the LiDAR view of Components; Health & Risk is the default), arrow keys move between tabs, and the Operations tabs say where their data comes from. Asset 360 (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
 add DGA, Duval zone, oil, tests, loading) and the **finding viewer** (click any thumbnail: AI box, RGB and thermal,
 campaign compare, confirm / correct / reject / revert with a review history, link to asset).
 
@@ -112,6 +112,7 @@ the theme is under `nexus.reliability.theme`.
 | **Criticality and consequence** (invented from voltage, customers and redundancy rules) | The client's criticality and consequence model |
 | **Inspection intervals** (180 / 365 days, A9) | The client's inspection policy |
 | **LiDAR** (`domain/lidar/simulate.js`): simulated point clouds, catenary conductors, generated vegetation | Real scans per span (LAS/LAZ converted by a provider), the client's clearance standard (limits in `config.js`), real tower geometry |
+| **Inventory** (`data/inventory.js`, `domain/inventory.js`): 40 materials, stock in two depots, 5 suppliers, purchase order lines, reservations, maintenance plans and the planned work orders they raise, all generated in the shape of SAP/Maximo records, with a few deliberate shortages. The defect-to-parts table is in `config.js` (A26) | The ERP's material master, stock, purchase orders, reservations and maintenance plans, and its bill of materials or task lists instead of the defect-to-parts table (the integration layer is the next phase) |
 | **Resemblance model** (`domain/linking/resemblance.js`): identifier, attribute and spatial signals, plus a visual stub on seeded feature vectors | Musharraf's model: `scorePair(a, b) -> { score, reasons[] }` is the interface; image embeddings replace `visualStub.js`. Thresholds (auto-link 0.90, review 0.60) are in `config.js` |
 | **Map tiles** (OpenStreetMap, the only request that leaves the site; each tile request reveals the viewed area) | A tile source the client approves, in `CONFIG.map` |
 

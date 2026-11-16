@@ -71,7 +71,9 @@ test('getWorkOrders and getRepairs filter by asset, status and work order', asyn
   const done = await repo.getWorkOrders({ status: 'completed' });
   assert.ok(done.length > 0 && done.every((w) => w.status === 'completed'));
   const open = await repo.getWorkOrders({ status: ['open', 'in_progress'] });
-  assert.equal(open.length + done.length, all.length);
+  const planned = await repo.getWorkOrders({ status: 'planned' });
+  assert.ok(planned.length > 10 && planned.every((w) => w.plan_id), 'planned work comes from maintenance plans');
+  assert.equal(open.length + done.length + planned.length, all.length);
   const one = done[0];
   assert.deepEqual((await repo.getRepairs({ work_order_id: one.work_order_id })).map((r) => r.asset_id), [one.asset_id]);
   assert.ok((await repo.getWorkOrders({ finding_id: one.finding_ids[0] })).some((w) => w.work_order_id === one.work_order_id));

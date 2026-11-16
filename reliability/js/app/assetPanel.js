@@ -15,6 +15,8 @@ import { schematicSvg, conditionLegend } from './schematic.js';
 import { TOWER_GROUPS } from './healthModel.js';
 import { experimentalBadge } from './badge.js';
 import { mountLidar } from './lidarView.js';
+import { stateTag, STATE_TONE } from './partsScreen.js';
+import { STATE_WORD } from '../domain/inventory.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview, openScreen } from './navigation.js';
 import { openFinding } from './findingViewer.js';
@@ -45,9 +47,9 @@ export function initAssetPanel(deps) {
 }
 
 /** Open the panel for an asset. The id goes into the URL hash, so Back closes the panel again. */
-export function openAsset(id, { opener } = {}) {
+export function openAsset(id, { opener, tab = null } = {}) {
   ctl.state.opener = opener ?? document.activeElement;
-  const target = hashFor({ asset: id });
+  const target = hashFor({ asset: id, ...(tab ? { atab: tab } : {}) });
   if (location.hash === target) { if (!ctl.state.open) show(id); } else location.hash = target;
 }
 
@@ -238,7 +240,7 @@ function tabContent(d, tab) {
   if (tab === 'trends') return [historyView(d), forecastNote()];
   if (tab === 'maintenance') return [sourceLine(), maintenanceView(d)];
   if (tab === 'workorders') return [sourceLine(), ...workOrdersView(d)];
-  if (tab === 'inventory') return [sourceLine(), inventoryView()];
+  if (tab === 'inventory') return [sourceLine(), inventoryView(d)];
   // Health & Risk: the breakdown and cap note, transformer gas, oil and test data, open findings, then linked assets at the foot
   return [breakdownView(d), ...(d.transformer ? transformerViews(d) : []), findingsView(d), linksView(d)];
 }
@@ -525,7 +527,7 @@ function forecastNote() {
 }
 
 const woTable = (d, rows, testid) => h('table', { class: 'a360-table', 'data-testid': testid }, th('Work order', 'Status', 'Priority', 'On', 'Findings', 'Created', 'Done / due'),
-  h('tbody', {}, rows.map((o) => h('tr', {}, h('th', { scope: 'row' }, o.id), h('td', {}, tag(humanize(o.status), STATUS_TONE[o.status])), h('td', {}, o.priority),
+  h('tbody', {}, rows.map((o) => h('tr', {}, h('th', { scope: 'row' }, o.id, o.task ? h('div', { class: 'a360-muted a360-small', title: `Raised by maintenance plan ${o.planId}` }, o.task) : null), h('td', {}, tag(humanize(o.status), STATUS_TONE[o.status])), h('td', {}, o.priority),
     h('td', {}, o.assetId === d.id ? o.assetName : assetLink(o.assetId, o.assetName)), h('td', {}, String(o.findings)), h('td', {}, o.created), h('td', {}, o.completed ?? `due ${o.planned}`)))));
 
 /** Work Orders tab: open, planned and completed, each its own list. */
@@ -535,9 +537,9 @@ function workOrdersView(d) {
     g[key].total ? woTable(d, g[key].rows, `work-orders-${key}`) : h('p', { class: 'a360-muted a360-note', 'data-testid': `work-orders-${key}-empty` }, empty),
     g[key].more ? note(`Showing the ${g[key].rows.length} newest of ${g[key].total}.`) : null);
   return [
-    h('p', { class: 'a360-muted a360-note' }, `${d.work.ordersTotal} work order${d.work.ordersTotal === 1 ? '' : 's'} on this asset and its parts. Open: not done and due now or overdue. Planned: not done and due later. Completed: done or cancelled.`),
+    h('p', { class: 'a360-muted a360-note' }, `${d.work.ordersTotal} work order${d.work.ordersTotal === 1 ? '' : 's'} on this asset and its parts. Open: not done and due now or overdue. Planned: raised by a maintenance plan, or not done and due later. Completed: done or cancelled.`),
     block('open', 'Open', 'No open work orders.'),
-    block('planned', 'Planned', 'No planned work. Planned work from maintenance plans will appear here once an ERP is connected.'),
+    block('planned', 'Planned', 'No planned work. Maintenance plans raise planned work orders when the next due date is within 120 days.'),
     block('completed', 'Completed', 'No completed work orders.'),
   ];
 }
@@ -562,10 +564,28 @@ function maintenanceView(d) {
     unit ? h('p', {}, h('button', { class: 'lr-btn', type: 'button', 'data-testid': 'open-full-history', onClick: () => { const id = d.id; closeAsset(); openScreen('history', null, { unit: id }); } }, 'Open the full timeline in Maintenance History')) : null);
 }
 
-/** Inventory & Parts tab: a placeholder until Phase C. */
-function inventoryView() {
-  return section('inventory', 'Inventory & Parts', h('div', { class: 'a360-coming', 'data-testid': 'inventory-coming' },
-    h('b', {}, 'Coming in Phase C.'),
-    h('p', { class: 'a360-muted' }, 'This tab will list the parts needed for this asset\'s open and planned work, each marked available, reserved, on order (with the delivery date) or short, with the supplier and lead time.')));
+/** Inventory & Parts tab: the parts for this asset's open and planned work, each reserved, available, on order (date) or short. */
+function inventoryView(d) {
+  const inv = d.inventory;
+  if (!inv.available) return section('inventory', 'Inventory & Parts', note('The data source has no inventory records.'));
+  if (!inv.lines.length) {
+    return section('inventory', 'Inventory & Parts', h('p', { class: 'a360-muted a360-note', 'data-testid': 'inventory-none' },
+      inv.workOrders ? 'The open and planned work on this asset needs no stocked parts (labour only).' : 'No open or planned work on this asset, so no parts are needed.'));
+  }
+  const counts = ['short', 'on_order', 'reserved', 'available'].map((k) => [k, inv.lines.filter((l) => l.state === k).length]);
+  const chips = h('div', { class: 'a360-chips', 'data-testid': 'inventory-counts' }, counts.filter(([, n]) => n).map(([k, n]) => h('span', { class: `tag ${STATE_TONE[k]}` }, `${n} ${STATE_WORD[k]}`)));
+  const byWo = new Map();
+  for (const l of inv.lines) (byWo.get(l.work_order_id) ?? byWo.set(l.work_order_id, []).get(l.work_order_id)).push(l);
+  const blocks = [...byWo.entries()].map(([wo, lines]) => {
+    const w = inv.workOrdersById.get(wo) ?? {};
+    return h('div', { class: 'a360-wopart', 'data-wo': wo },
+      h('h4', {}, `${wo} · ${w.planned ? 'planned' : 'open'} · due ${lines[0].planned_date}`, w.task ? h('span', { class: 'a360-muted a360-small' }, ` · ${w.task}`) : null),
+      h('table', { class: 'a360-table', 'data-testid': 'inventory-lines' }, th('Part', 'Qty', 'Status', 'Supplier (lead time)'),
+        h('tbody', {}, lines.map((l) => h('tr', { 'data-state': l.state },
+          h('th', { scope: 'row' }, l.description, h('div', { class: 'a360-muted a360-small' }, l.material_id)), h('td', {}, `${l.quantity} ${l.unit}`), h('td', {}, stateTag(l)),
+          h('td', {}, l.supplier ? `${l.supplier} (${l.leadTimeDays} d)` : '–'))))));
+  });
+  return section('inventory', `Inventory & Parts (${inv.lines.length} part lines)`, chips, ...blocks,
+    note('Parts come from the defect-to-parts table in config.js (or the maintenance plan). Stock, reservations and purchase orders are the current position.'));
 }
 

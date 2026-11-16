@@ -186,13 +186,13 @@ export async function loadAssetDetail(repo, snap, id) {
 
   // ----------------------------------------------- work orders and repairs
   const subtree = descendants(snap, id);
-  const orders = (await repo.getWorkOrders()).filter((w) => subtree.has(w.asset_id));
+  const orders = (await repo.getWorkOrders()).filter((w) => subtree.has(w.asset_id) && (w.status !== 'planned' || w.created_at <= asOf));
   const repairs = (await repo.getRepairs()).filter((r) => subtree.has(r.asset_id));
   const nameOf = (x) => snap.byId.get(x)?.name ?? x;
-  const phaseOf = (w) => (['completed', 'cancelled'].includes(w.status) ? 'completed' : w.planned_date > asOf ? 'planned' : 'open');
+  const phaseOf = (w) => (['completed', 'cancelled'].includes(w.status) ? 'completed' : w.status === 'planned' || w.planned_date > asOf ? 'planned' : 'open');
   const orderRow = (w) => ({
     id: w.work_order_id, status: w.status, type: w.work_type, priority: w.priority, assetId: w.asset_id, assetName: nameOf(w.asset_id),
-    findings: w.finding_ids.length, created: w.created_at, planned: w.planned_date, completed: w.completed_at,
+    findings: w.finding_ids.length, created: w.created_at, planned: w.planned_date, completed: w.completed_at, task: w.task ?? null, planId: w.plan_id ?? null,
   });
   const byCreated = [...orders].sort((a, b) => b.created_at.localeCompare(a.created_at));
   // open: not done and due now or overdue; planned: not done and due after the as-of date; completed: done or cancelled
@@ -217,6 +217,11 @@ export async function loadAssetDetail(repo, snap, id) {
       id: r.repair_id, workOrderId: r.work_order_id, date: r.date, action: r.action, assetId: r.asset_id, assetName: nameOf(r.asset_id), closes: r.closes_finding_ids.length,
     })),
   };
+
+  // ------------------------------------------------------------ parts for open and planned work
+  const partLines = snap.inventory.available ? snap.inventory.lines.filter((l) => subtree.has(l.asset_id)) : [];
+  const woById = new Map(orders.map((w) => [w.work_order_id, { planned: w.status === 'planned', task: w.task ?? null }]));
+  const inventory = { available: snap.inventory.available, lines: partLines, workOrders: orders.filter((w) => w.created_at <= asOf && !['completed', 'cancelled'].includes(w.status)).length, workOrdersById: woById };
 
   // ------------------------------------------------------------ components
   const children = snap.allAssets.filter((a) => a.parent_id === id);
@@ -262,6 +267,6 @@ export async function loadAssetDetail(repo, snap, id) {
 
   return {
     found: true, id, asOf, kind, header, merged, scores: { hi: { score: hi.score, band: hi.band }, risk: rk ? { score: rk.score, band: rk.band } : null },
-    riskFactors, breakdown, findings, history, links, duplicate, work, components, transformer, evidence,
+    riskFactors, breakdown, findings, history, links, duplicate, work, inventory, components, transformer, evidence,
   };
 }

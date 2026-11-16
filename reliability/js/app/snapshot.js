@@ -2,6 +2,7 @@
 // and links. Built from the repository, so it follows merges and link decisions.
 // Everything is computed here once; the registry tabs then render synchronously from it.
 
+import { buildInventory } from './inventoryModel.js';
 import { CONFIG } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { risk } from '../domain/risk.js';
@@ -25,7 +26,7 @@ const OWNERS = new Set(['tower', 'span', 'power_transformer']);
  * all of them. snap.inScope(id) says whether an asset, or the tower, span or transformer that owns it, is in scope.
  */
 export async function loadSnapshot(repo, asOf = AS_OF, filters = {}) {
-  const [data, ctx, links, campaigns] = await Promise.all([repo.getAll(), repo.getContext(), repo.getLinks(), repo.getCampaigns()]);
+  const [data, ctx, links, campaigns, inventoryRecords] = await Promise.all([repo.getAll(), repo.getContext(), repo.getLinks(), repo.getCampaigns(), repo.getInventory?.() ?? {}]);
   const assets = data.assets.filter((a) => !a.merged_into);
   const scope = { label: filters.label ?? null, kv: filters.kv ?? null, category: filters.category ?? null };
   const match = matcher(scope, (id) => CATEGORIES.find((c) => c.id === id)?.classes ?? []);
@@ -82,5 +83,5 @@ export async function loadSnapshot(repo, asOf = AS_OF, filters = {}) {
   const linkInScope = (l) => !hasFilters(scope) || endInScope(l.from_asset, l.from_kind) || endInScope(l.to_asset, l.to_kind);
   /** The name of a date in a chart: the campaign that ended on it, "Today" for the reference date, else the date. */
   const endLabel = (d) => campaigns.find((c) => c.end === d)?.name ?? (d === AS_OF ? 'Today' : d);
-  return { asOf, endLabel, dates, ctx, assets: inView, allAssets: assets, scope, inScope, linkInScope, byId, scores, captures: new Map((await repo.getCaptures()).map((c) => [c.capture_id, c])), findingsById, workOrders: data.workOrders, repairs: data.repairs, findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
+  return { asOf, endLabel, dates, ctx, assets: inView, allAssets: assets, scope, inScope, linkInScope, byId, scores, captures: new Map((await repo.getCaptures()).map((c) => [c.capture_id, c])), findingsById, workOrders: data.workOrders, repairs: data.repairs, inventory: buildInventory(data, inventoryRecords, asOf), findingsByAsset, findingsByOwner, unreviewedByOwner, linkCounts, links, dupRecord, dupOriginal, labelValue, campaigns };
 }

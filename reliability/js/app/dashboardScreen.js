@@ -1,4 +1,4 @@
-// Asset Health Dashboard, rebuilt on the repository data in the legacy look. Sparse on purpose: four KPI cards, a trend, a
+// Asset Reliability Dashboard, rebuilt on the repository data in the legacy look. Sparse on purpose: four KPI cards, a trend, a
 // distribution, the ten biggest risks and one row per line, on one screen at 1920 x 1080.
 //
 // Every number and row drills down:
@@ -43,7 +43,7 @@ function mountDashboard(stage, deps) {
 function draw(m, ctx) {
   if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show', `No asset is in view.${scopeNote(ctx.snap)}`)];
   const kit = ctx.deps.kit;
-  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Health dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
+  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
   return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), distributionCard(m)), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
 }
 
@@ -78,7 +78,9 @@ function kpiRow(m, kit) {
   const overdue = button('o', 'dash-kpi-overdue', 'kpi-overdue', 'Overdue work orders', String(o.count), o.count ? `of ${o.open} open · oldest ${o.oldestDays} days late` : `of ${o.open} open`, o.count ? 'warn' : 'ok', o.series, () => openScreen('history', 'Work orders', { status: 'overdue' }));
   const l = k.links;
   const links = button('l', 'dash-kpi-links', 'kpi-links', 'Links awaiting review', String(l.awaiting), l.sub, l.awaiting ? 'warn' : 'ok', [l.awaiting, l.awaiting], () => openRegistryTab('Links'));
-  const row = h('div', { class: 'kpi4 dash-kpis', 'data-testid': 'hl-kpis' }, assets, findings, overdue, links);
+  const pt = k.parts;
+  const parts = button('p', 'dash-kpi-parts', 'kpi-parts', 'Work orders waiting on parts', String(pt.waiting), pt.available ? `${pt.short} part lines short · ${pt.onOrder} on order` : 'no inventory data', pt.short ? 'bad' : pt.waiting ? 'warn' : 'ok', [pt.waiting, pt.waiting], () => openScreen('history', 'Parts & Inventory'));
+  const row = h('div', { class: 'kpi4 dash-kpis', 'data-testid': 'hl-kpis' }, assets, findings, overdue, parts, links);
   row.setAttribute('data-ready', 'true');
   return row;
 }

@@ -29,7 +29,7 @@ test('there are open, in-progress and completed work orders', () => {
 
 test('every work order points at a real asset and real, non-rejected findings; ids are unique and ordered by creation', () => {
   assert.equal(new Set(seed.workOrders.map((w) => w.work_order_id)).size, seed.workOrders.length);
-  for (const w of seed.workOrders) {
+  for (const w of seed.workOrders.filter((x) => x.status !== 'planned')) { // planned work orders come from maintenance plans and name no finding
     assert.ok(seed.assets.some((a) => a.asset_id === w.asset_id), w.work_order_id);
     assert.ok(w.finding_ids.length >= 1);
     for (const id of w.finding_ids) {

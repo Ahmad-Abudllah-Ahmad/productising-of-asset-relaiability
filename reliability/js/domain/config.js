@@ -83,6 +83,18 @@
 //      closer than the limit are drawn red. The limits (7.0 m at 132 and 220 kV, 9.5 m at 500 kV) are
 //      placeholders for the client's own standard. Conductors are catenaries between flat-configured
 //      attachments (earthwire above); tower height is the seed's height_m. Point counts are capped.
+//  A26. INVENTORY AND PLANNED WORK (demo). The parts catalogue, stock, suppliers, purchase orders and
+//      maintenance plans are generated (data/inventory.js) in the shape of ERP records (SAP material,
+//      stock, business partner, purchase order, reservation, maintenance plan; Maximo item, balance,
+//      company, PO, reservation, PM). The parts a repair needs come from the table inventory.defectParts
+//      (defect class to parts, optionally by voltage); a real ERP would supply a bill of materials or a
+//      task list instead. A work order due within inventory.reserveWithinDays days has its parts reserved
+//      from stock (or from an open purchase order line when stock is short); work further out is checked
+//      against free stock when it is shown. A part line is: reserved (held for the order), available (free
+//      stock would cover it), on order (an open PO line would cover it; the delivery date is shown) or
+//      short (neither). A work order is "waiting on parts" when any line is on order or short. Maintenance
+//      plans raise a planned work order (status "planned") when the next due date is within
+//      inventory.planHorizonDays. A few shortages are deliberate, so the demo has something to show.
 //
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 
@@ -274,6 +286,54 @@ export const CONFIG = deepFreeze({
       line_network: 180, structure: 180, line_component: 180, right_of_way: 180,
       substation: 365, transformer: 365,
     },
+  },
+
+  // A26: inventory and planned work.
+  inventory: {
+    reserveWithinDays: 30,
+    planHorizonDays: 120,
+    lowStockUsesReorderPoint: true,
+    warehouses: [{ id: 'WH-N', name: 'North depot' }, { id: 'WH-S', name: 'South depot' }],
+    // defect class -> parts a typical repair needs. kv limits an entry to those nominal voltages.
+    defectParts: {
+      broken_strand: [{ m: 'MAT-06', q: 2 }, { m: 'MAT-07', q: 1 }],
+      conductor_corrosion: [{ m: 'MAT-07', q: 1 }, { m: 'MAT-06', q: 1 }],
+      sag_excessive: [{ m: 'MAT-09', q: 1 }],
+      damper_displaced: [{ m: 'MAT-12', q: 1 }],
+      damper_damaged: [{ m: 'MAT-12', q: 2 }],
+      spacer_damaged: [{ m: 'MAT-13', q: 2 }],
+      clamp_loose: [{ m: 'MAT-11', q: 2 }],
+      insulator_cracked: [{ m: 'MAT-01', q: 3, kv: [132] }, { m: 'MAT-02', q: 3, kv: [220, 500] }, { m: 'MAT-04', q: 1 }],
+      insulator_contaminated: [{ m: 'MAT-05', q: 1 }],
+      insulator_flashover_mark: [{ m: 'MAT-05', q: 1 }, { m: 'MAT-01', q: 1, kv: [132] }, { m: 'MAT-02', q: 1, kv: [220, 500] }],
+      insulator_missing_disc: [{ m: 'MAT-01', q: 2, kv: [132] }, { m: 'MAT-02', q: 2, kv: [220, 500] }, { m: 'MAT-04', q: 2 }],
+      steel_corrosion: [{ m: 'MAT-21', q: 1 }, { m: 'MAT-22', q: 1 }],
+      bent_member: [{ m: 'MAT-20', q: 2 }, { m: 'MAT-19', q: 4 }],
+      missing_bolt: [{ m: 'MAT-18', q: 6 }],
+      cotter_pin_missing: [{ m: 'MAT-04', q: 2 }],
+      foundation_cracked: [{ m: 'MAT-25', q: 2 }, { m: 'MAT-28', q: 1 }],
+      foundation_erosion: [{ m: 'MAT-26', q: 4 }, { m: 'MAT-25', q: 1 }],
+      earthwire_damaged: [{ m: 'MAT-15', q: 1 }, { m: 'MAT-16', q: 2 }],
+      arrester_damaged: [{ m: 'MAT-17', q: 1 }],
+      bird_nest: [{ m: 'MAT-31', q: 1 }],
+      sign_missing: [{ m: 'MAT-29', q: 1 }, { m: 'MAT-30', q: 1 }],
+      vegetation_encroachment: [],
+      structure_encroachment: [],
+      oil_leak: [{ m: 'MAT-34', q: 1 }, { m: 'MAT-33', q: 1 }],
+      bushing_hotspot: [{ m: 'MAT-36', q: 1, kv: [500] }, { m: 'MAT-37', q: 1, kv: [132, 220] }],
+      radiator_corrosion: [{ m: 'MAT-39', q: 1 }, { m: 'MAT-34', q: 1 }],
+      tank_damage: [{ m: 'MAT-39', q: 1 }, { m: 'MAT-34', q: 1 }, { m: 'MAT-33', q: 1 }],
+    },
+    // maintenance plan templates: which assets, how often, what task, which parts
+    plans: [
+      { id: 'PM-TX-OIL', cls: 'power_transformer', every: 1, interval: 365, task: 'Oil sampling and gasket check', parts: [{ m: 'MAT-38', q: 1 }, { m: 'MAT-34', q: 1 }] },
+      { id: 'PM-TX-BRE', cls: 'power_transformer', every: 1, interval: 183, task: 'Breather and silica gel check', parts: [{ m: 'MAT-40', q: 1 }] },
+      { id: 'PM-TWR-PAINT', cls: 'tower', every: 12, interval: 1825, task: 'Repaint steel structure', parts: [{ m: 'MAT-21', q: 2 }, { m: 'MAT-22', q: 3 }] },
+      { id: 'PM-INS-WASH', cls: 'tower', every: 10, interval: 365, task: 'Insulator cleaning and coating', parts: [{ m: 'MAT-05', q: 1 }] },
+      { id: 'PM-TWR-BOLT', cls: 'tower', every: 15, interval: 730, task: 'Bolt torque check', parts: [{ m: 'MAT-18', q: 8 }, { m: 'MAT-04', q: 2 }] },
+      { id: 'PM-SPAN-VEG', cls: 'span', every: 8, interval: 365, task: 'Vegetation clearing', parts: [] },
+      { id: 'PM-SPAN-MARK', cls: 'span', every: 20, interval: 1095, task: 'Fit marker balls', parts: [{ m: 'MAT-14', q: 2 }] },
+    ],
   },
 
   // A25: simulated LiDAR. Limits are per nominal voltage; clearance is a straight-line distance in metres.

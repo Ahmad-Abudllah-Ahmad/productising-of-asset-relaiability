@@ -596,3 +596,9 @@ th .xp-badge { margin-left: 4px; font-weight: 700; }
 .a360-sw + .a360-sw { border-left: 1px solid var(--line); }
 .a360-sw.is-on { background: var(--blue); color: #fff; }
 .a360-sw:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+/* ==== Inventory and parts (Phase C). */
+.dash-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+@media (max-width: 1500px) { .dash-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+.a360-wopart { margin: 0 0 14px; } .a360-wopart h4 { margin: 6px 0; font-size: 13px; }
+.pt-line { margin: 2px 0; } .pt-bad { color: var(--red); font-weight: 700; }

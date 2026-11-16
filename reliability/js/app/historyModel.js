@@ -22,7 +22,7 @@ const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : nu
 const r1 = (x) => (x === null ? null : Math.round(x * 10) / 10);
 const nameOf = (snap, id) => snap.byId.get(id)?.name ?? id;
 
-export const WO_STATUSES = Object.freeze(['open', 'in_progress', 'completed', 'cancelled']);
+export const WO_STATUSES = Object.freeze(['planned', 'open', 'in_progress', 'completed', 'cancelled']);
 
 /** The line an asset sits on, walking up its parents; null for transformers, bays and stations. */
 function lineOf(snap, id, memo) {
@@ -129,7 +129,7 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     return {
       id: w.work_order_id, type: w.work_type, priority: w.priority, status, assetId: w.asset_id, assetName: nameOf(snap, w.asset_id), ownerId: ownerOf(w.asset_id),
       ownerName: nameOf(snap, ownerOf(w.asset_id)), created: w.created_at, planned: w.planned_date, completed: done ? w.completed_at : null,
-      daysOpen: daysBetween(w.created_at, end), overdue: !done && status !== 'cancelled' && w.planned_date < asOf, findingIds: w.finding_ids, thumbs: w.finding_ids.map((id) => snap.findingsById.get(id)).filter(Boolean).map((f) => thumbOf(snap, f)),
+      daysOpen: daysBetween(w.created_at, end), overdue: !done && status !== 'cancelled' && status !== 'planned' && w.planned_date < asOf, findingIds: w.finding_ids, thumbs: w.finding_ids.map((id) => snap.findingsById.get(id)).filter(Boolean).map((f) => thumbOf(snap, f)),
       repairId: repairByWo.get(w.work_order_id)?.repair_id ?? null,
     };
   }).sort((a, b) => b.created.localeCompare(a.created) || a.id.localeCompare(b.id));
@@ -143,7 +143,7 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
 
   // ---- cumulative counts at each campaign date and today, for the KPI sparklines
   const series = snap.dates.map((d) => ({
-    workOrders: workOrders.filter((w) => w.created <= d).length,
+    workOrders: workOrders.filter((w) => w.created <= d && w.status !== 'planned').length,
     repairs: repairs.filter((r) => r.date <= d).length,
     ineffective: ineffective.filter((r) => r.date <= d).length,
     open: ownerIds.filter(inScope).reduce((n, id) => n + ctx.findingsFor(id, d).counted.length, 0),
@@ -178,8 +178,8 @@ export function loadHistory(snap, { line = null, unit = null } = {}) {
     const perMonth = months.map((mm) => {
       const end = lastDay(mm);
       return {
-        month: mm, raised: workOrders.filter((w) => month(w.created) === mm).length, completed: workOrders.filter((w) => w.completed && month(w.completed) === mm).length,
-        backlog: workOrders.filter((w) => w.created <= end && !(w.completed && w.completed <= end) && w.status !== 'cancelled').length,
+        month: mm, raised: workOrders.filter((w) => month(w.created) === mm && w.status !== 'planned').length, completed: workOrders.filter((w) => w.completed && month(w.completed) === mm).length,
+        backlog: workOrders.filter((w) => w.created <= end && !(w.completed && w.completed <= end) && w.status !== 'cancelled' && w.status !== 'planned').length,
         repairs: repairs.filter((r) => month(r.date) === mm && r.effective).length, ineffective: repairs.filter((r) => month(r.date) === mm && !r.effective).length,
       };
     });

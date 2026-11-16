@@ -11,6 +11,7 @@
 
 import { h } from '../ui/dom.js';
 import { experimentalBadge } from './badge.js';
+import { createPartsTab } from './partsScreen.js';
 import { openScreen } from './navigation.js';
 import { drillKpis, scopeNote, spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { loadHistory, WO_STATUSES } from './historyModel.js';
@@ -19,14 +20,14 @@ import { openAsset, thumb } from './assetPanel.js';
 import { openFinding } from './findingViewer.js';
 import { parseView } from './hashState.js';
 
-const STATUS_LABEL = { open: 'open', in_progress: 'in progress', completed: 'completed', cancelled: 'cancelled' };
+const STATUS_LABEL = { planned: 'planned', open: 'open', in_progress: 'in progress', completed: 'completed', cancelled: 'cancelled' };
 const STATUS_SUB = { open: 'warn', in_progress: 'neutral', completed: 'ok' };
 const SEV_FILTERS = [['urgent', 'Critical and serious'], ['all', 'All severities'], ['critical', 'Critical'], ['serious', 'Serious'], ['moderate', 'Moderate'], ['minor', 'Minor']];
 const SHOW = [['', 'All repairs'], ['ineffective', 'Ineffective only']];
 
 export function createHistoryScreen(deps) {
   const tab = (name, kind) => ({ name, render: () => `<div class="screen hl" data-testid="maintenance-${kind}" data-hl-root></div>`, mount: (stage) => mountHistory(stage, deps, kind) });
-  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders'), tab('Open findings', 'findings')] };
+  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders'), tab('Open findings', 'findings'), createPartsTab(deps)] };
 }
 
 const openAssetFrom = (id, el) => openAsset(id, { opener: el });
@@ -94,7 +95,7 @@ function kpiCards(m, kit) {
   const c = m.statusCounts;
   const bad = m.ineffective.length;
   return kit.kpis([
-    { l: 'Work orders', v: String(m.workOrders.length), s: `${c.open} open · ${c.in_progress} in progress · ${c.completed} completed`, tone: m.overdue ? 'warn' : 'neutral',
+    { l: 'Work orders', v: String(m.workOrders.length - c.planned), s: `${c.open} open · ${c.in_progress} in progress · ${c.completed} completed${c.planned ? ` · ${c.planned} planned` : ''}`, tone: m.overdue ? 'warn' : 'neutral',
       tip: `Work orders raised for the findings of this selection. ${m.overdue} are past their planned date and not done.`, spark: spark(m.series.map((x) => x.workOrders)) },
     { l: 'Finding to repair', v: t.medianDays === null ? '-' : dayWord(t.medianDays), s: t.findings ? `median of ${plural(t.findings, 'finding')} · mean ${fnum(t.meanDays)} · slowest ${t.maxDays}` : 'no repair yet', tone: 'neutral',
       tip: 'Days from the date a finding was recorded to the date of the repair that closed it.', spark: spark(m.series.map((x) => x.repairs)) },

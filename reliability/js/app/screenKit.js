@@ -14,7 +14,7 @@ export const BAND_TONE = BAND_TAG;
 export const BAND_SUB = { normal: 'ok', moderate: 'warn', poor: 'bad', none: 'neutral' };
 export const RISK_SUB = { low: 'ok', medium: 'warn', high: 'bad', critical: 'bad' };
 export const SEV_TONE = SEV_TAG;
-export const STATUS_TONE = { open: 'a', in_progress: 'b', completed: 'g', cancelled: 'x' };
+export const STATUS_TONE = { planned: 'b', open: 'a', in_progress: 'b', completed: 'g', cancelled: 'x' };
 export const COND_CLASS = (n) => (n === null || n === undefined ? 'hl-cn' : `hl-c${n}`);
 export const condWord = (n) => (n === null || n === undefined ? 'not assessed' : SEVERITY[n].condition);
 

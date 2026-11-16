@@ -186,11 +186,6 @@ test.describe('where the content went', () => {
     await expect(t(page, 'work-orders-planned-empty')).toContainText('No planned work');
   });
 
-  test('Inventory & Parts says it is coming in Phase C', async ({ page }) => {
-    await visit(page, '/reliability#asset=TWR-132-01-011&atab=inventory');
-    await expect(t(page, 'inventory-coming')).toContainText('Coming in Phase C');
-    await expect(t(page, 'a360-source')).toContainText('Source: demo data');
-  });
 });
 
 // ---- screenshots: one asset of each kind, every tab, both themes

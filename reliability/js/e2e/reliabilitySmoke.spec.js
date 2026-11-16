@@ -7,7 +7,7 @@ const SHOTS = `docs/screens/${process.env.SHOTS_DIR || 'step3a'}`;
 fs.mkdirSync(SHOTS, { recursive: true });
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
-const RAIL = ['Asset Health Dashboard', 'Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History'];
+const RAIL = ['Asset Reliability Dashboard', 'Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History'];
 const REGISTRY_TABS = ['Lines', 'Towers', 'Spans', 'Components', 'Substations', 'Transformers', 'Links'];
 const OLD_TABS = ['Production', 'Sourcing', 'Overview', 'Matrix', 'Forecast', 'Issues', 'Entities', 'Recommendations', 'Blackboard', 'Schedule', 'Graph', 'Register', 'Hierarchy'];
 // seed: 150 towers + 4 newly built + 5 unmerged duplicates; 151 spans; 2 stations + 10 bays; 6 transformers + 1 duplicate
@@ -34,7 +34,7 @@ test.describe('page structure', () => {
     const errors = await open(page);
     await expect(rail(page)).toHaveCount(7);
     for (let i = 0; i < RAIL.length; i += 1) await expect(rail(page).nth(i)).toHaveAttribute('aria-label', RAIL[i]);
-    await expect(page).toHaveTitle('Asset Health Intelligence');
+    await expect(page).toHaveTitle('Asset Reliability Intelligence');
     expect(errors).toEqual([]);
   });
 

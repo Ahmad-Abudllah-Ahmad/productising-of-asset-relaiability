@@ -22,7 +22,7 @@ test('history: dates are plain day arithmetic', () => {
 test('history, everything: counts match the data, work orders by status, and nothing after the as-of date', async () => {
   const { snap } = await ready();
   const m = loadHistory(snap);
-  assert.deepEqual([m.findings.length, m.repairs.length, m.workOrders.length], [400, 85, 127]);
+  assert.deepEqual([m.findings.length, m.repairs.length, m.workOrders.length], [400, 85, 160]);
   assert.deepEqual(Object.keys(m.statusCounts), WO_STATUSES);
   assert.equal(Object.values(m.statusCounts).reduce((a, b) => a + b, 0), m.workOrders.length);
   assert.ok(m.findings.every((f) => f.date <= snap.asOf) && m.repairs.every((r) => r.date <= snap.asOf));
@@ -212,7 +212,7 @@ test('history, fleet: work orders raised and completed per month, the open backl
   const pm = m.aggregate.perMonth;
   assert.equal(pm[0].month, '2026-02');
   assert.equal(pm.at(-1).month, '2026-11');
-  assert.equal(pm.reduce((n, x) => n + x.raised, 0), m.workOrders.length);
+  assert.equal(pm.reduce((n, x) => n + x.raised, 0), m.workOrders.length - m.statusCounts.planned, 'planned work is not counted as raised');
   assert.equal(pm.reduce((n, x) => n + x.completed, 0), m.statusCounts.completed);
   assert.equal(pm.reduce((n, x) => n + x.repairs + x.ineffective, 0), m.repairs.length);
   assert.equal(pm.reduce((n, x) => n + x.ineffective, 0), m.ineffective.length);
