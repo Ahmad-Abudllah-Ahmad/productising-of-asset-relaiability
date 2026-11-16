@@ -13,6 +13,16 @@ export function experimentalBadge(id, { small = true } = {}) {
   }, 'Experimental');
 }
 
+const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** The same badge as markup, for tables built as HTML strings. */
+export function experimentalBadgeHtml(id) {
+  if (!isExperimental(id)) return '';
+  return ` <span class="xp-badge" tabindex="0" role="note" data-register="${escAttr(id)}" data-testid="xp-${escAttr(id)}" title="${escAttr(explain(id))}" aria-label="${escAttr(`Experimental: ${entryFor(id)?.name ?? id}. ${explain(id)}`)}">Experimental</span>`;
+}
+
+/** The register entry a table column header belongs to ('Health index' or 'Risk'), or null. Badges go once per header, never per row. */
+export const registerIdForColumn = (name) => (/^health index/i.test(name) ? 'health_index' : /^risk$/i.test(name) ? 'risk' : null);
+
 /** Which register entry a KPI card label belongs to, or null. */
 export function registerIdForLabel(text) {
   const t = String(text ?? '').toLowerCase();

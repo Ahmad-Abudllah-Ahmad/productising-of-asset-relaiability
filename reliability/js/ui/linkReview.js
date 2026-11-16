@@ -184,7 +184,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null, 
         h('button', { class: 'lr-btn', type: 'button', onClick: () => { state.status = filtered ? 'proposed' : 'all'; state.type = 'all'; load(); } }, filtered ? 'Show awaiting review' : 'Show all links')));
       return;
     }
-    replace(el.queue, items.map((l) => {
+    replace(el.queue, h('div', { class: 'lr-qhead', 'aria-hidden': 'true' }, h('span', {}, 'Score ', experimentalBadge('resemblance')), h('span', {}, 'Link')), items.map((l) => {
       const on = l.link_id === state.selected;
       return h('div', { class: `lr-row${on ? ' is-on' : ''}`, role: 'option', 'aria-selected': String(on), 'data-testid': 'queue-row', dataset: { link: l.link_id, status: l.status }, onClick: () => select(l.link_id) },
         h('span', { class: `lr-score ${BAND_CLASS[scoreBand(l.confidence)]}` }, l.confidence.toFixed(2)),

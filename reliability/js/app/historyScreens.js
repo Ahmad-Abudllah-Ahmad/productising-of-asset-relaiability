@@ -10,6 +10,7 @@
 // Findings open the finding viewer; assets, work orders and repairs open Asset 360.
 
 import { h } from '../ui/dom.js';
+import { experimentalBadge } from './badge.js';
 import { openScreen } from './navigation.js';
 import { drillKpis, scopeNote, spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { loadHistory, WO_STATUSES } from './historyModel.js';
@@ -214,9 +215,9 @@ function assetView(m, ctx) {
 }
 
 function trendCard(m, ctx) {
-  if (!m.trend) return h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Health index'), h('p', { class: 'a360-muted' }, 'This asset has no health index of its own.'));
+  if (!m.trend) return h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Health index ', experimentalBadge('health_index')), h('p', { class: 'a360-muted' }, 'This asset has no health index of its own.'));
   const el = h('div', { class: 'hl-chart hl-chart-s', 'data-chart': 'history-trend', 'data-testid': 'trend-chart', role: 'img', 'aria-label': `Health index of ${m.trend.targetName}` });
-  const card = h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, `Health index of ${m.trend.targetName}`), el,
+  const card = h('section', { class: 'card hl-card', 'data-testid': 'trend-card' }, h('h3', {}, `Health index of ${m.trend.targetName} `, experimentalBadge('health_index')), el,
     h('p', { class: 'a360-muted a360-small' }, 'Hollow points are the day before a repair, filled points the day of it; dashed lines are repairs. The score uses only evidence and repairs up to each date.'));
   drawChart(el, (p) => historyTrendOption(m.trend, m, p))
     .then((c) => { ctx.track(() => c.dispose()); el.dataset.ready = 'true'; })
@@ -241,7 +242,7 @@ function repairsView(m, ctx) {
   return [h('section', { class: 'card hl-card', 'data-testid': 'repairs-card' }, h('h3', {}, `Repairs (${show.length}${show.length !== m.repairs.length ? ` of ${m.repairs.length}` : ''})`),
     h('p', { class: 'a360-muted a360-small' }, 'The health index of the repaired tower, span or transformer as of the day before the repair and as of the repair day. A repair is ineffective when the defect it closed is sighted again afterwards.'),
     h('div', { class: 'hl-scroll' }, h('table', { class: 'a360-table mh-table', 'data-testid': 'repairs' },
-      h('thead', {}, h('tr', {}, ...['Date', 'Repair', 'Asset', 'Findings closed (days from finding)', 'Health index before → after', 'Result'].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {}, rows))))];
+      h('thead', {}, h('tr', {}, ...['Date', 'Repair', 'Asset', 'Findings closed (days from finding)', 'Health index before → after', 'Result'].map((x) => h('th', { scope: 'col' }, x, x.startsWith('Health index') ? [' ', experimentalBadge('health_index')] : null)))), h('tbody', {}, rows))))];
 }
 
 // ---- open findings

@@ -140,7 +140,7 @@ test.describe('Asset Registry', () => {
     await expect(rows(page).locator('.tag.cond-5', { hasText: 'no open findings' }).first()).toBeVisible();
     await openRegistry(page, 'Transformers');
     const heads = await page.locator('#stage table.reg-table thead th').allTextContents();
-    expect(heads).toEqual(expect.arrayContaining(['Health index', 'Risk', 'Duval zone', 'Weakest input']));
+    expect(heads).toEqual(expect.arrayContaining(['Health index Experimental', 'Risk Experimental', 'Duval zone', 'Weakest input']));
     const arcing = rows(page).filter({ hasText: 'TX-2C' });
     await expect(arcing).toContainText('D2');
     await expect(arcing).toContainText('dga');

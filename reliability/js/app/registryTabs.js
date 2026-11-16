@@ -6,6 +6,7 @@
 // A click or Enter on a row opens the Asset 360 panel for that asset. A "possible duplicate" chip opens the
 // matching link in the Links tab instead.
 
+import { experimentalBadgeHtml, registerIdForColumn } from './badge.js';
 import { CATEGORIES, tableFor, filtersFor, kpisFor, linksKpis } from './registryModel.js';
 import { mountLinkReview } from '../ui/linkReview.js';
 import { openAsset } from './assetPanel.js';
@@ -33,7 +34,8 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
   }
 
   function tableHtml(columns, rows, nested) {
-    const head = `<tr>${columns.map((c, i) => (nested ? `<th scope="col" data-col="${i}">${esc(c)}</th>` : `<th scope="col" tabindex="0" data-col="${i}" aria-sort="none">${esc(c)}</th>`)).join('')}</tr>`;
+    const xp = (c) => { const id = registerIdForColumn(c); return id ? experimentalBadgeHtml(id) : ''; }; // once per column header, not per row
+    const head = `<tr>${columns.map((c, i) => (nested ? `<th scope="col" data-col="${i}">${esc(c)}${xp(c)}</th>` : `<th scope="col" tabindex="0" data-col="${i}" aria-sort="none">${esc(c)}${xp(c)}</th>`)).join('')}</tr>`;
     const body = rows.map((r) => `<tr${tip(r.tip)} data-asset="${esc(r.id)}" data-zone="${esc(r.zone)}" tabindex="0"${r.level ? ` class="reg-${r.level}"` : ''}>${r.cells.map((c) => `<td data-v="${esc(c.sort)}">${tag(c)}</td>`).join('')}</tr>`).join('');
     return `<table class="reg-table${nested ? ' is-nested' : ''}"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }

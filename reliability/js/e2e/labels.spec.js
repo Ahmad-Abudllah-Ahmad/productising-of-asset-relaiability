@@ -105,6 +105,36 @@ test.describe('Experimental badges', () => {
     await expect(page.locator('.lr-detail [data-register="resemblance"]').first()).toBeVisible();
   });
 
+  test('tables: one badge per column header (Health index, Risk), none per row — registry, Maintenance History, the Link Review queue', async ({ page }) => {
+    await visit(page, '/reliability');
+    for (const tabName of ['Lines', 'Towers', 'Spans', 'Transformers']) {
+      await rail(page).nth(2).click();
+      await page.locator('#tabs [data-tab]', { hasText: new RegExp(`^${tabName}$`) }).click();
+      const table = page.locator('#stage table.reg-table');
+      await expect(table).toBeVisible();
+      const heads = await table.locator('thead th').allInnerTexts();
+      const hi = heads.filter((x) => /^Health index/.test(x)).length; const risk = heads.filter((x) => /^Risk/.test(x)).length;
+      await expect(table.locator('thead [data-register="health_index"]')).toHaveCount(hi);
+      await expect(table.locator('thead [data-register="risk"]')).toHaveCount(risk);
+      await expect(table.locator('tbody .xp-badge')).toHaveCount(0);
+    }
+    await rail(page).nth(2).click();
+    await page.locator('#tabs [data-tab]', { hasText: /^Components$/ }).click();
+    await expect(page.locator('#stage table.reg-table thead .xp-badge')).toHaveCount(0);
+    await visit(page, '/reliability#view=history&unit=TWR-132-01-011');
+    await expect(t(page, 'hl-head')).toBeVisible();
+    await page.locator('#tabs [data-tab]', { hasText: /^Repairs$/ }).click();
+    await expect(t(page, 'repairs')).toBeVisible();
+    await expect(t(page, 'repairs').locator('thead [data-register="health_index"]')).toHaveCount(1);
+    await expect(t(page, 'repairs').locator('tbody .xp-badge')).toHaveCount(0);
+    await visit(page, '/reliability#view=history&unit=TWR-132-01-013');
+    await expect(t(page, 'trend-card').locator('[data-register="health_index"]')).toBeVisible();
+    await visit(page, '/reliability');
+    await openLinks(page);
+    await expect(page.locator('.lr-qhead [data-register="resemblance"]')).toHaveCount(1);
+    await expect(page.locator('.lr-row .xp-badge')).toHaveCount(0);
+  });
+
   test('KPI cards still open their drill-downs (the badge does not change the card label)', async ({ page }) => {
     await visit(page, '/reliability#view=lines');
     const card = t(page, 'hl-kpis').locator('.kpi', { hasText: 'Line health index' });
