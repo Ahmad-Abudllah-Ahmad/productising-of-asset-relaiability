@@ -10,7 +10,12 @@
     { "source": "/about", "destination": "/", "permanent": true },
     { "source": "/case-studies", "destination": "/", "permanent": true }
   ],
+  "functions": {
+    "api/erp.js": { "includeFiles": "reliability/js/**", "maxDuration": 15 }
+  },
   "rewrites": [
+    { "source": "/api/erp", "destination": "/api/erp?p=status" },
+    { "source": "/api/erp/:path*", "destination": "/api/erp?p=:path*" },
     { "source": "/api/:path*", "destination": "https://powerlines-management.onrender.com/api/:path*" },
     { "source": "/health", "destination": "https://powerlines-management.onrender.com/health" },
     { "source": "/results/:path*", "destination": "https://powerlines-management.onrender.com/results/:path*" },

@@ -46,6 +46,21 @@ assets, 365 for transformers and substations) is greyed out and marked "stale". 
 
 **Dark theme**: the toggle in the top bar; light is the default; the choice is remembered per browser.
 
+## ERP integration (read-only)
+
+The page reads work orders, maintenance plans, stock, suppliers and purchase orders from the demo seed, or from an ERP through a small server-side API. The switch is in the banner under the top bar (remembered in the browser; `?source=erp` / `?source=seed` for one visit). With nothing configured the API serves a **mock SAP adapter** that answers in SAP's OData V2 shapes, so the whole path is real and nothing needs an environment variable.
+
+```
+browser  ->  /api/erp/*  ->  adapter (mock-sap | sap-s4hana | maximo)  ->  the ERP
+             server.js locally, api/erp.js on Vercel       field mapping (erp/mapping/*.json), ID mapping, cache
+```
+
+- `GET /api/erp/status`, `/records[?refresh=1]` (converted to the dashboard's records, plus the unmatched ones), `/raw/<entity>` (the adapter's own response: work-orders, notifications, assets, materials, stock, purchase-orders, suppliers, reservations, maintenance-plans), `/mapping`. Anything but GET is 405. Code: `reliability/js/erp/`.
+- **Credentials** only ever come from environment variables, read by the adapter on the server; they are never returned or logged. `.env.example` lists the names only; `.env` is git-ignored. `ERP_ADAPTER` = `mock` (default) | `sap-s4hana` | `maximo`; `ERP_CACHE_SECONDS` (default 300). The SAP S/4HANA and Maximo adapters are stubs (interface and TODOs, no live calls): they answer 501 "not configured" or "not implemented".
+- **Field mapping** is data (`erp/mapping/sap.json`): SAP field names, number ranges and status codes to the dashboard's records, so a customer's system changes a JSON file, not code. The mock's `ZZ_` fields stand for what a real system holds elsewhere (finding links, the plan's component list).
+- **ID mapping** uses the registry's `external_ids.sap` (functional location or equipment number). An ERP location that matches no asset goes to **ERP records awaiting a match** at the top of the Links tab, with suggestions from the resemblance matcher; a person links it to an asset or ignores it, and the decision is in the audit log. Its work orders stay out of every screen until then.
+- **Labels**: in ERP mode the Demo data banner is replaced by an "ERP data" banner, and every ERP-sourced panel shows "Source: SAP (mock) · synced 16 Nov, 09:10" (or "Source: demo data"). Findings, images, LiDAR and scores are still the seed's and say so. If the API cannot be reached the page shows the demo data and says why.
+
 ## Run it
 
 ```
@@ -113,6 +128,7 @@ the theme is under `nexus.reliability.theme`.
 | **Inspection intervals** (180 / 365 days, A9) | The client's inspection policy |
 | **LiDAR** (`domain/lidar/simulate.js`): simulated point clouds, catenary conductors, generated vegetation | Real scans per span (LAS/LAZ converted by a provider), the client's clearance standard (limits in `config.js`), real tower geometry |
 | **Inventory** (`data/inventory.js`, `domain/inventory.js`): 40 materials, stock in two depots, 5 suppliers, purchase order lines, reservations, maintenance plans and the planned work orders they raise, all generated in the shape of SAP/Maximo records, with a few deliberate shortages. The defect-to-parts table is in `config.js` (A26) | The ERP's material master, stock, purchase orders, reservations and maintenance plans, and its bill of materials or task lists instead of the defect-to-parts table (the integration layer is the next phase) |
+| **ERP** (`erp/mockSap.js`): a mock SAP adapter built from the seed | A customer's SAP S/4HANA or Maximo: credentials in environment variables, the live adapter (stubbed), the field mapping for their field names and number ranges, and the asset master's `external_ids` |
 | **Resemblance model** (`domain/linking/resemblance.js`): identifier, attribute and spatial signals, plus a visual stub on seeded feature vectors | Musharraf's model: `scorePair(a, b) -> { score, reasons[] }` is the interface; image embeddings replace `visualStub.js`. Thresholds (auto-link 0.90, review 0.60) are in `config.js` |
 | **Map tiles** (OpenStreetMap, the only request that leaves the site; each tile request reveals the viewed area) | A tile source the client approves, in `CONFIG.map` |
 

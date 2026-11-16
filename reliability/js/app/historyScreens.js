@@ -10,7 +10,7 @@
 // Findings open the finding viewer; assets, work orders and repairs open Asset 360.
 
 import { h } from '../ui/dom.js';
-import { experimentalBadge } from './badge.js';
+import { experimentalBadge, sourceBadge } from './badge.js';
 import { loadParts, drawParts } from './partsScreen.js';
 import { openScreen } from './navigation.js';
 import { drillKpis, scopeNote, spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
@@ -117,6 +117,7 @@ function draw(m, ctx, kind) {
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, scopeTitle(m, ctx.snap)), h('p', { class: 'a360-muted a360-small' }, `${plural(m.findings.length, 'finding')} · ${plural(m.workOrders.length, 'work order')} · ${plural(m.repairs.length, 'repair')} up to ${m.asOf}`)));
   if (m.empty) return [h('div', { class: 'hl-main' }, head, kpiHost, emptyReason(m, ctx.snap))];
+  if (kind === 'workorders') head.append(sourceBadge(ctx.deps.repo, { what: 'Work orders' }));
   const body = kind === 'findings' ? openFindingsView(m, ctx) : kind === 'repairs' ? repairsView(m, ctx) : kind === 'workorders' ? workOrdersView(m, ctx) : timelineView(m, ctx);
   return [h('div', { class: 'hl-main' }, head, kpiHost, ...body)];
 }

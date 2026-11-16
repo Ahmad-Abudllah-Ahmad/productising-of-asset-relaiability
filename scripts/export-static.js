@@ -5,6 +5,7 @@ const root = path.join(__dirname, "..");
 const dest = path.join(root, "public");
 const rootSkip = new Set([
   "public",
+  "api",
   "node_modules",
   ".git",
   ".vercel",
@@ -17,6 +18,7 @@ const rootSkip = new Set([
   ".gitignore",
   "firebase-debug.log",
   "vercel.json",
+  ".env.example",
   "azeri enerji dashbaord v3 - Copy"
 ]);
 const skipDirs = new Set(["node_modules", "venv", ".git", "__pycache__", "models", ".vercel"]);

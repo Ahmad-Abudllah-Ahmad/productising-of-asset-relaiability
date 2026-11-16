@@ -14,6 +14,7 @@
 import { generateSeed } from './seed.js';
 import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { createContext } from '../domain/context.js';
+import { scorePair } from '../domain/linking/resemblance.js';
 import { buildRuleLinks } from '../domain/linking/rules.js';
 import { generateResemblanceLinks } from '../domain/linking/candidates.js';
 
@@ -29,13 +30,24 @@ function deepFreeze(obj) {
 
 const withoutKey = ({ groundTruth, ...rest }) => rest;
 const asList = (v) => (v === undefined || v === null ? null : Array.isArray(v) ? v : [v]);
-const freshOverlay = () => ({ version: 1, seq: 0, decisions: {}, merges: [], audit: [], findingEdits: {} });
+const freshOverlay = () => ({ version: 1, seq: 0, decisions: {}, merges: [], audit: [], findingEdits: {}, erpMatches: {}, erpIgnored: {} });
 
 const DEFECT_GROUP = new Map([...DEFECT_CLASSES, ...TX_DEFECT_CLASSES].map((d) => [d.id, d.group]));
 const validBox = (b) => b && ['x', 'y', 'w', 'h'].every((k) => typeof b[k] === 'number' && Number.isFinite(b[k]))
   && b.x >= 0 && b.y >= 0 && b.w > 0.005 && b.h > 0.005 && b.x + b.w <= 1.0001 && b.y + b.h <= 1.0001;
 const round3 = (n) => Math.round(n * 1000) / 1000;
 const EDIT_KEYS = ['review_status', 'defect_class', 'condition_score', 'bbox', 'asset_id', 'tower_id', 'reason', 'by', 'at', 'corrected', 'relinked', 'original'];
+
+/** The seed with the ERP's work orders, maintenance plans and inventory in place of its own. */
+function withErp(data, erp) {
+  const assets = new Set(data.assets.map((a) => a.asset_id));
+  return {
+    ...data,
+    workOrders: erp.workOrders.filter((w) => assets.has(w.asset_id)),
+    maintenancePlans: erp.maintenancePlans.filter((p) => assets.has(p.asset_id)),
+    materials: erp.materials, suppliers: erp.suppliers, stock: erp.stock, purchaseOrders: erp.purchaseOrders, reservations: erp.reservations, warehouses: erp.warehouses,
+  };
+}
 
 function browserStorage() {
   try {
@@ -57,7 +69,12 @@ export function createRepository(data, options = {}) {
   const config = options.config ?? CONFIG;
   const storage = options.storage === undefined ? browserStorage() : options.storage;
   const clock = options.clock ?? (() => new Date().toISOString());
-  const base = deepFreeze(data);
+  // Where the records come from: 'seed' (the built-in generator) or 'erp' (records from the integration API, options.erp). With ERP records the
+  // work orders, maintenance plans and inventory are the ERP's; assets, findings, images and scores still come from the seed.
+  const erp = options.erp ?? null;
+  const source = erp ? 'erp' : 'seed';
+  const base = deepFreeze(erp ? withErp(data, erp) : data);
+  const erpUnmatched = erp?.unmatched ?? [];
 
   // ---- derived links: rules and resemblance, computed once from the seed
   const features = (id) => base.visualFeatures?.[id];
@@ -89,6 +106,9 @@ export function createRepository(data, options = {}) {
         if (assetIds.has(m.from) && assetIds.has(m.into) && m.from !== m.into && !gone.has(m.from) && !gone.has(m.into)) { o.merges.push(m); gone.add(m.from); }
       }
       o.audit = Array.isArray(saved.audit) ? saved.audit : [];
+      const keys = new Set(erpUnmatched.map((u) => u.key));
+      for (const [k, asset] of Object.entries(saved.erpMatches ?? {})) if (keys.has(k) && assetIds.has(asset)) o.erpMatches[k] = asset;
+      for (const [k, v] of Object.entries(saved.erpIgnored ?? {})) if (keys.has(k) && !o.erpMatches[k] && v) o.erpIgnored[k] = v;
       const known = new Set(base.findings.map((f) => f.finding_id));
       for (const [id, e] of Object.entries(saved.findingEdits ?? {})) {
         if (!known.has(id) || !e || typeof e !== 'object' || !e.original) continue;
@@ -115,6 +135,18 @@ export function createRepository(data, options = {}) {
     revision += 1;
     persist();
     for (const fn of [...listeners]) { try { fn(revision); } catch { /* a bad listener must not break writes */ } }
+  }
+
+  /** The registry assets an unmatched ERP location most resembles, best first (at most three, score 0.3 or more). */
+  function erpCandidates(u) {
+    const probe = { asset_id: `erp:${u.key}`, name: u.name, class: u.class, voltage_kv: u.voltage_kv, install_date: u.install_date, location: u.location, labels: [], ext: {}, external_ids: { sap: u.key } };
+    const out = [];
+    for (const a of base.assets) {
+      if (a.class !== u.class || a.merged_into) continue;
+      const r = scorePair(probe, a, { config });
+      if (r.comparable && r.score >= 0.3) out.push({ asset_id: a.asset_id, name: a.name, score: Math.round(r.score * 100) / 100, reasons: r.reasons.map((x) => ({ signal: x.signal, value: Math.round(x.value * 100) / 100, detail: x.detail })) });
+    }
+    return out.sort((x, y) => y.score - x.score || x.asset_id.localeCompare(y.asset_id)).slice(0, 3);
   }
 
   function resolver() {
@@ -147,7 +179,9 @@ export function createRepository(data, options = {}) {
     });
     const findingStatus = new Map(findings.map((f) => [f.finding_id, f.review_status]));
     const repairs = base.repairs.map((r) => (into.has(r.asset_id) ? Object.freeze({ ...r, asset_id: resolve(r.asset_id) }) : r));
-    const workOrders = base.workOrders.map((w) => (into.has(w.asset_id) ? Object.freeze({ ...w, asset_id: resolve(w.asset_id) }) : w));
+    // ERP work orders on a location nobody has matched yet are held back; once a person matches the location they belong to that asset
+    const matchedWo = erpUnmatched.filter((u) => overlay.erpMatches[u.key]).flatMap((u) => u.workOrders.map((w) => ({ ...w, asset_id: overlay.erpMatches[u.key] })));
+    const workOrders = [...base.workOrders, ...matchedWo].map((w) => (into.has(w.asset_id) ? Object.freeze({ ...w, asset_id: resolve(w.asset_id) }) : w));
     const links = allLinks.map((l) => {
       const d = overlay.decisions[l.link_id];
       const obsolete = (l.from_kind === 'asset' && into.has(l.from_asset)) || (l.to_kind === 'asset' && into.has(l.to_asset))
@@ -327,7 +361,53 @@ export function createRepository(data, options = {}) {
 
     /** Inventory records (ERP-shaped; see data/inventory.js). Read-only: reviewer decisions never touch them. */
     async getInventory() {
-      return { materials: base.materials ?? [], suppliers: base.suppliers ?? [], stock: base.stock ?? [], purchaseOrders: base.purchaseOrders ?? [], reservations: base.reservations ?? [], maintenancePlans: base.maintenancePlans ?? [], warehouses: base.warehouses ?? [] };
+      const matchedPlans = erpUnmatched.filter((u) => overlay.erpMatches[u.key]).flatMap((u) => u.maintenancePlans.map((p) => ({ ...p, asset_id: overlay.erpMatches[u.key] })));
+      return { materials: base.materials ?? [], suppliers: base.suppliers ?? [], stock: base.stock ?? [], purchaseOrders: base.purchaseOrders ?? [], reservations: base.reservations ?? [], maintenancePlans: [...(base.maintenancePlans ?? []), ...matchedPlans], warehouses: base.warehouses ?? [] };
+    },
+
+    /** 'seed' or 'erp'. The screens show the Demo data banner only for 'seed'. */
+    source,
+
+    /** Where the records came from, for the source badges: { source, label, syncedAt, adapter }. */
+    sourceInfo() {
+      return source === 'erp'
+        ? { source, label: erp.label ?? 'ERP', adapter: erp.adapter ?? null, syncedAt: erp.syncedAt ?? null }
+        : { source, label: 'demo data', adapter: null, syncedAt: null };
+    },
+
+    /**
+     * ERP records whose location matches no asset, each with the registry assets it most resembles (the resemblance matcher, same
+     * signals as duplicate review) and the decision so far: open, matched (to an asset) or ignored.
+     */
+    async getErpUnmatched() {
+      return erpUnmatched.map((u) => {
+        const matched = overlay.erpMatches[u.key] ?? null;
+        const status = matched ? 'matched' : overlay.erpIgnored[u.key] ? 'ignored' : 'open';
+        return { key: u.key, system: u.system, name: u.name, class: u.class, voltage_kv: u.voltage_kv, install_date: u.install_date, location: u.location, workOrders: u.workOrders.length, maintenancePlans: u.maintenancePlans.length, status, matched, candidates: status === 'open' ? erpCandidates(u) : [] };
+      });
+    },
+
+    /** A person confirms that an ERP location is this asset. Its work orders and plans then belong to the asset. */
+    async confirmErpMatch(key, asset_id, { by = 'reviewer' } = {}) {
+      if (!erpUnmatched.some((u) => u.key === key)) throw new Error(`Unknown ERP record ${key}`);
+      if (!assetIds.has(asset_id)) throw new Error(`Unknown asset ${asset_id}`);
+      overlay.erpMatches[key] = asset_id; delete overlay.erpIgnored[key];
+      audit({ by, action: 'erp_match', detail: `ERP location ${key} matched to ${asset_id}` });
+      changed();
+    },
+
+    async ignoreErpRecord(key, { by = 'reviewer' } = {}) {
+      if (!erpUnmatched.some((u) => u.key === key)) throw new Error(`Unknown ERP record ${key}`);
+      overlay.erpIgnored[key] = by; delete overlay.erpMatches[key];
+      audit({ by, action: 'erp_ignore', detail: `ERP location ${key} ignored` });
+      changed();
+    },
+
+    /** Undo a match or an ignore: the record goes back to the unmatched list. */
+    async reopenErpRecord(key, { by = 'reviewer' } = {}) {
+      delete overlay.erpMatches[key]; delete overlay.erpIgnored[key];
+      audit({ by, action: 'erp_reopen', detail: `ERP location ${key} reopened` });
+      changed();
     },
 
     /** @returns {Promise<import('../domain/types.js').Repair[]>} */
@@ -357,8 +437,6 @@ export function createRepository(data, options = {}) {
 
     /** Number that changes after every write; lets a screen know to redraw. */
     getRevision() { return revision; },
-    /** Where the records come from: 'seed' (the built-in generator) now; 'erp' once the integration layer is on (Phase D). Screens show the Demo data banner for 'seed'. */
-    source: options.source ?? 'seed',
 
     /** Call fn after every write or reset. Returns a function that stops the calls. */
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

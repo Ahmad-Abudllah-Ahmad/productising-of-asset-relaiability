@@ -1,0 +1,83 @@
+{
+  "adapter": "mock-sap",
+  "note": "Field mapping from SAP S/4HANA OData V2 field names to the dashboard's records. A customer edits this file (or adds one) to point at their own fields and number ranges. Spec forms: a string is a source field; {from, transform}; {const}; {template, emptyIfBlank}; {rules: [{when, value}], default}; {switch, cases, default}; transform nested for a list of sub records.",
+  "warehouses": { "1010": { "id": "WH-N", "name": "North depot" }, "1020": { "id": "WH-S", "name": "South depot" } },
+  "entities": {
+    "workOrders": {
+      "work_order_id": { "from": "MaintenanceOrder", "transform": "regex", "rules": [{ "pattern": "^4000(\\d{4})$", "template": "WO-$1" }, { "pattern": "^4100(\\d{4})$", "template": "WO-P-$1" }, { "pattern": "^(\\d+)$", "template": "SAP-$1" }] },
+      "functional_location": "FunctionalLocation",
+      "work_type": { "switch": "MaintenanceOrderType", "cases": { "PM03": { "const": "preventive" } }, "default": "MaintenanceOrderDesc" },
+      "task": { "rules": [{ "when": { "field": "MaintenancePlan", "nonEmpty": true }, "value": { "from": "MaintenanceOrderDesc" } }], "default": { "const": null } },
+      "priority": { "from": "MaintPriority", "transform": "map", "map": { "1": "high", "2": "medium", "3": "low" }, "default": "low" },
+      "status": { "rules": [{ "when": { "field": "MaintenancePlan", "nonEmpty": true, "allOf": [{ "field": "MaintenanceOrderStatus", "in": ["CRTD"] }] }, "value": { "const": "planned" } }], "default": { "from": "MaintenanceOrderStatus", "transform": "map", "map": { "CRTD": "open", "REL": "in_progress", "TECO": "completed", "CNCL": "cancelled" }, "default": "open" } },
+      "plan_id": { "template": "MP-{MaintenancePlan}", "emptyIfBlank": "MaintenancePlan" },
+      "finding_ids": { "from": "ZZ_FindingRefs", "transform": "list" },
+      "created_at": { "from": "CreationDate", "transform": "date" },
+      "planned_date": { "from": "MaintOrdBasicStartDate", "transform": "date" },
+      "completed_at": { "from": "ActualEndDate", "transform": "date" }
+    },
+    "notifications": {
+      "notification_id": { "template": "NOT-{MaintenanceNotification}" },
+      "text": "NotificationText",
+      "functional_location": "FunctionalLocation",
+      "work_order_id": { "from": "MaintenanceOrder", "transform": "regex", "rules": [{ "pattern": "^4000(\\d{4})$", "template": "WO-$1" }] },
+      "created_at": { "from": "NotificationCreationDate", "transform": "date" }
+    },
+    "assets": {
+      "key": "FunctionalLocation",
+      "name": "FunctionalLocationName",
+      "class": { "from": "ObjectType", "transform": "map", "map": { "TOWER": "tower", "TRANSFORMER": "power_transformer" }, "default": "other" },
+      "voltage_kv": { "from": "ZZ_NominalVoltage_kV", "transform": "number" },
+      "install_date": { "from": "ConstructionDate", "transform": "date" },
+      "lat": { "from": "GeoLatitude", "transform": "number" },
+      "lng": { "from": "GeoLongitude", "transform": "number" }
+    },
+    "materials": {
+      "material_id": { "from": "Product", "transform": "regex", "rules": [{ "pattern": "^1000(\\d{2})$", "template": "MAT-$1" }] },
+      "description": "ProductDescription",
+      "unit": "BaseUnit",
+      "unit_price": { "from": "StandardPrice", "transform": "number" },
+      "group": "ProductGroup",
+      "reorder_point": { "from": "ZZ_ReorderPoint", "transform": "number" },
+      "supplier_id": { "from": "PreferredSupplier", "transform": "regex", "rules": [{ "pattern": "^17000(\\d{2})$", "template": "SUP-$1" }] }
+    },
+    "stock": {
+      "material_id": { "from": "Material", "transform": "regex", "rules": [{ "pattern": "^1000(\\d{2})$", "template": "MAT-$1" }] },
+      "warehouse_id": { "from": "Plant", "transform": "plant" },
+      "storage_location": "StorageLocation",
+      "on_hand": { "from": "MatlWrhsStkQtyInMatlBaseUnit", "transform": "number" }
+    },
+    "purchaseOrders": {
+      "po_id": { "template": "PO-{PurchaseOrder}" },
+      "po_line_id": { "template": "PO-{PurchaseOrder}-{PurchaseOrderItem}" },
+      "material_id": { "from": "Material", "transform": "regex", "rules": [{ "pattern": "^1000(\\d{2})$", "template": "MAT-$1" }] },
+      "supplier_id": { "from": "Supplier", "transform": "regex", "rules": [{ "pattern": "^17000(\\d{2})$", "template": "SUP-$1" }] },
+      "quantity": { "from": "OrderQuantity", "transform": "number" },
+      "delivery_date": { "from": "ScheduleLineDeliveryDate", "transform": "date" },
+      "status": { "rules": [{ "when": { "field": "IsCompletelyDelivered", "equals": true }, "value": { "const": "closed" } }], "default": { "const": "open" } }
+    },
+    "suppliers": {
+      "supplier_id": { "from": "Supplier", "transform": "regex", "rules": [{ "pattern": "^17000(\\d{2})$", "template": "SUP-$1" }] },
+      "name": "SupplierName",
+      "lead_time_days": { "from": "PlannedDeliveryDurationInDays", "transform": "number" }
+    },
+    "reservations": {
+      "reservation_id": { "template": "RES-{Reservation}" },
+      "work_order_id": { "from": "OrderID", "transform": "regex", "rules": [{ "pattern": "^4000(\\d{4})$", "template": "WO-$1" }, { "pattern": "^4100(\\d{4})$", "template": "WO-P-$1" }] },
+      "material_id": { "from": "Material", "transform": "regex", "rules": [{ "pattern": "^1000(\\d{2})$", "template": "MAT-$1" }] },
+      "quantity": { "from": "ResvnItmRequiredQtyInBaseUnit", "transform": "number" },
+      "source": { "rules": [{ "when": { "field": "PurchaseOrder", "nonEmpty": true }, "value": { "const": "po" } }], "default": { "const": "stock" } },
+      "warehouse_id": { "from": "Plant", "transform": "plant", "emptyIfBlank": "Plant" },
+      "po_line_id": { "template": "PO-{PurchaseOrder}-{PurchaseOrderItem}", "emptyIfBlank": "PurchaseOrder" },
+      "created_at": { "from": "CreationDate", "transform": "date" }
+    },
+    "maintenancePlans": {
+      "plan_id": { "template": "MP-{MaintenancePlan}" },
+      "task": "MaintenancePlanDesc",
+      "interval_days": { "from": "MaintenancePlanCycleInDays", "transform": "number" },
+      "next_due": { "from": "NextPlannedDate", "transform": "date" },
+      "functional_location": "FunctionalLocation",
+      "parts": { "from": "ZZ_Components", "transform": "nested", "fields": { "material_id": { "from": "Material", "transform": "regex", "rules": [{ "pattern": "^1000(\\d{2})$", "template": "MAT-$1" }] }, "quantity": { "from": "Quantity", "transform": "number" } } }
+    }
+  }
+}

@@ -10,7 +10,7 @@
 // The registry shows today's state, so a click on a segment of an earlier campaign's bar opens today's list (the
 // tooltip says so). The URL holds view=dashboard. ?healthdelay and ?healthfail slow and fail the load, as on the other screens.
 
-import { experimentalBadge } from './badge.js';
+import { experimentalBadge, sourceBadge } from './badge.js';
 import { h } from '../ui/dom.js';
 import { scopeNote, tag, plural, emptyState, mountScreen, asOfNote, writeView, BAND_TONE } from './screenKit.js';
 import { loadDashboard, BANDS, BAND_WORD, CATEGORY } from './dashboardModel.js';
@@ -43,7 +43,7 @@ function mountDashboard(stage, deps) {
 function draw(m, ctx) {
   if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show', `No asset is in view.${scopeNote(ctx.snap)}`)];
   const kit = ctx.deps.kit;
-  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
+  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, sourceBadge(ctx.deps.repo, { what: 'Work orders and parts' }), ' · Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
   return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), distributionCard(m)), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
 }
 

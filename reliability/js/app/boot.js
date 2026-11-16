@@ -7,7 +7,9 @@
 // ?viewerdelay=1200 and ?viewerfail=1 do the same for the finding viewer;
 // ?healthdelay=1200 and ?healthfail=1 do the same for Line Health and Tower Health.
 
-import { repository } from '../data/repository.js';
+import { repository as seedRepository, createRepository } from '../data/repository.js';
+import { generateSeed } from '../data/seed.js';
+import { chooseSource, loadErpRecords, rememberSource } from './dataSource.js';
 import { loadSnapshot } from './snapshot.js';
 import { createRegistryTabs } from './registryTabs.js';
 import { initAssetPanel, openAsset } from './assetPanel.js';
@@ -21,13 +23,26 @@ import { parseView } from './hashState.js';
 import { installBackSupport } from './navigation.js';
 import { parseScope } from './scope.js';
 import { loadManifest } from './evidence.js';
-import { demoBanner } from './badge.js';
+import { dataSourceBanner } from './badge.js';
 import { createFilterBar, SCOPE_EVENT } from './filterBar.js';
 import { managedLabels } from '../domain/labels.js';
 import { AS_OF } from './snapshot.js';
 
 const query = new URLSearchParams(location.search);
 const flags = { delay: Number(query.get('delay')) || 0, fail: query.get('fail') === '1', panelDelay: Number(query.get('paneldelay')) || 0, panelFail: query.get('panelfail') === '1', viewerDelay: Number(query.get('viewerdelay')) || 0, viewerFail: query.get('viewerfail') === '1', healthDelay: Number(query.get('healthdelay')) || 0, healthFail: query.get('healthfail') === '1' };
+
+// the data source: the built-in seed, or the ERP through the integration API; the page falls back to the seed (and says so) if the API fails
+let repository = seedRepository;
+let erpError = null;
+if (chooseSource(query) === 'erp') {
+  try { repository = createRepository(generateSeed(), { erp: await loadErpRecords() }); } catch (e) { erpError = e.message; }
+}
+const switchSource = (value) => {
+  rememberSource(value);
+  const q = new URLSearchParams(location.search); q.delete('source');
+  history.replaceState(history.state, '', location.pathname + (q.toString() ? `?${q}` : '') + location.hash);
+  location.reload(); // the same page, read again with the other source
+};
 
 const state = { snapshot: null };
 const listeners = new Set();
@@ -92,7 +107,7 @@ function createBar() {
   const place = () => {
     const work = document.querySelector('main.work');
     if (work && !work.contains(bar.root)) work.insertBefore(bar.root, document.getElementById('stage'));
-    if (work && !work.querySelector('[data-testid="demo-banner"]')) { const b = demoBanner(repository.source); if (b) work.insertBefore(b, bar.root); } // above the filter bar, on every screen
+    if (work && !work.querySelector('.src-banner')) work.insertBefore(dataSourceBanner(repository.sourceInfo(), { error: erpError, onSwitch: switchSource }), bar.root); // above the filter bar, on every screen
     sync();
   };
   const install = () => {

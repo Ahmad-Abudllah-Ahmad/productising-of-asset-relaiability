@@ -1,0 +1,6 @@
+{
+  "adapter": "maximo",
+  "note": "TODO: field mapping for IBM Maximo REST (mxapiwodetail, mxapiasset, inventory object structures, purchase orders, companies). Not written yet: the Maximo adapter is a stub, so nothing reads this file. Use mapping/sap.json as the model.",
+  "warehouses": {},
+  "entities": {}
+}

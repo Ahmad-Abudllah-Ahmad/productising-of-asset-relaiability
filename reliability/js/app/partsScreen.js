@@ -6,6 +6,7 @@ import { emptyState, drillKpis, tag, plural, scopeNote } from './screenKit.js';
 import { stockRows, blockedWorkOrders, STOCK_NOTE } from './inventoryModel.js';
 import { STATE_WORD } from '../domain/inventory.js';
 import { openAsset } from './assetPanel.js';
+import { sourceBadge } from './badge.js';
 
 export const STATE_TONE = { reserved: 'b', available: 'g', on_order: 'a', short: 'r' };
 const fnum = (x) => String(Math.round(x * 100) / 100);
@@ -50,7 +51,7 @@ export function drawParts(m, ctx) {
   drillKpis(kpiHost, {});
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Parts & Inventory'),
     h('p', { class: 'a360-muted a360-small' }, `${plural(m.rows.length, 'material')}${m.scoped ? ' needed by this selection' : ''} in ${m.warehouses.map((w) => w.name).join(' and ')} · ${plural(m.blocked.length, 'work order')} waiting on parts`),
-    h('p', { class: 'pt-asof', 'data-testid': 'stock-asof' }, STOCK_NOTE)));
+    h('p', { class: 'pt-asof', 'data-testid': 'stock-asof' }, STOCK_NOTE), h('p', { class: 'a360-small' }, sourceBadge(ctx.deps.repo, { what: 'Stock, purchase orders, work orders' }))));
 
   const open = (id) => (e) => openAsset(id, { opener: e.currentTarget, tab: 'inventory' });
   const blocked = m.blocked.length

@@ -82,9 +82,26 @@ function proxyInspection(req, res) {
   req.pipe(preq);
 }
 
+// The Reliability ERP integration API (/api/erp/*): read-only, handled here and not proxied to the inspection service.
+// The code is ES modules shared with the Vercel function in api/erp.js (see reliability/js/erp/).
+function handleErp(req, res, pathname, query) {
+  Promise.all([import("./reliability/js/erp/handler.js"), import("./reliability/js/data/seed.js")])
+    .then(([erp, seedModule]) => erp.respond(req, res, { path: pathname, query, env: process.env, loadSeed: async () => seedModule.generateSeed() }))
+    .catch(() => {
+      if (res.headersSent) return;
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: { code: "internal", message: "The ERP layer failed to start." } }));
+    });
+}
+
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let pathname = decodeURIComponent(parsedUrl.pathname || "/");
+
+  if (pathname === "/api/erp" || pathname.startsWith("/api/erp/")) {
+    handleErp(req, res, pathname, parsedUrl.query);
+    return;
+  }
 
   if (isInspectionApi(pathname)) {
     proxyInspection(req, res);

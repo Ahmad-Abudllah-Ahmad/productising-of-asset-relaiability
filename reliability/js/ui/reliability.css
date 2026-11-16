@@ -603,3 +603,15 @@ th .xp-badge { margin-left: 4px; font-weight: 700; }
 .a360-wopart { margin: 0 0 14px; } .a360-wopart h4 { margin: 6px 0; font-size: 13px; }
 .pt-line { margin: 2px 0; } .pt-bad { color: var(--red); font-weight: 700; }
 .pt-asof { margin: 2px 0 0; font-size: 11px; font-weight: 600; color: var(--amber); }
+
+/* ==== Data source banner, source badge, ERP records in the Links tab (Phase D). */
+.src-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.src-banner .src-switch { margin-left: auto; font-size: 12px; color: var(--ink); } .src-banner select { font: inherit; font-size: 12px; margin-left: 4px; }
+.src-error { color: var(--red); font-weight: 600; }
+.src-badge { display: inline-block; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--rel-surface-2); white-space: nowrap; }
+.src-badge.is-erp { color: var(--blue); border-color: var(--blue); }
+.erp-um { margin: 0 0 10px; } .erp-um h3 { margin: 0 0 4px; }
+.erp-rec { border-top: 1px solid var(--line); padding: 8px 0; display: grid; grid-template-columns: minmax(220px, 1.1fr) 2fr auto; gap: 6px 14px; align-items: start; }
+.erp-cand { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0; }
+.erp-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.erp-done { color: var(--muted); }

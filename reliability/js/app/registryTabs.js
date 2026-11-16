@@ -7,6 +7,7 @@
 // matching link in the Links tab instead.
 
 import { experimentalBadgeHtml, registerIdForColumn } from './badge.js';
+import { mountErpRecords } from './erpLinks.js';
 import { CATEGORIES, tableFor, filtersFor, kpisFor, linksKpis } from './registryModel.js';
 import { mountLinkReview } from '../ui/linkReview.js';
 import { openAsset } from './assetPanel.js';
@@ -121,18 +122,19 @@ export function createRegistryTabs({ kit, repo, getSnapshot, subscribeSnapshot, 
   const linksTab = {
     name: 'Links',
     render() {
-      return `<div class="screen reg" data-testid="registry-links"><div data-lr-kpis>${kpis(linksKpis(getSnapshot()))}</div><div class="card lr-host" data-lr-host></div></div>`;
+      return `<div class="screen reg" data-testid="registry-links"><div data-lr-kpis>${kpis(linksKpis(getSnapshot()))}</div><div class="card erp-um" data-erp-records data-testid="erp-records" hidden></div><div class="card lr-host" data-lr-host></div></div>`;
     },
     mount(stage) {
       const host = stage.querySelector('[data-lr-host]');
       const kpiHost = stage.querySelector('[data-lr-kpis]');
       const select = pendingLink.id ? { id: pendingLink.id, status: pendingLink.status } : null;
       pendingLink.id = null;
+      const offErp = mountErpRecords(stage.querySelector('[data-erp-records]'), { repo });
       const lr = mountLinkReview(host, { repo, flags, select, asOf: getSnapshot().asOf, keep: (l) => getSnapshot().linkInScope(l) });
       // The KPI cards above the review screen follow every decision: boot.js rebuilds the snapshot after each
       // repository change and then tells its listeners.
       const off = subscribeSnapshot(() => { kpiHost.innerHTML = kpis(linksKpis(getSnapshot())); });
-      return () => { off(); lr.destroy(); };
+      return () => { off(); offErp(); lr.destroy(); };
     },
   };
 
