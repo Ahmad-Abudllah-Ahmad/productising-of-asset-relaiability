@@ -15,6 +15,7 @@ import { h, replace } from '../ui/dom.js';
 import { SEV_TAG, COND_TAG } from './palette.js';
 import { loadFindingDetail, DEFECT_OPTIONS } from './findingModel.js';
 import { hasLidar } from './lidarModel.js';
+import { experimentalBadge } from './badge.js';
 import { mountLidar } from './lidarView.js';
 import { parseHash, hashFor } from './hashState.js';
 import { PLACEHOLDER_TEXT, creditsOf } from './evidence.js';
@@ -488,7 +489,7 @@ function sideView(d) {
   out.push(h('dl', { class: 'fv-facts', 'data-testid': 'facts' },
     h('dt', {}, 'Class'), h('dd', { 'data-testid': 'fact-class' }, f.label),
     h('dt', {}, 'Severity'), h('dd', { 'data-testid': 'fact-severity' }, `${f.severity} · condition ${f.condition} (${f.conditionLabel})`),
-    h('dt', {}, 'Confidence'), h('dd', { 'data-testid': 'fact-confidence' }, String(f.confidence)),
+    h('dt', {}, 'Confidence'), h('dd', { 'data-testid': 'fact-confidence-row' }, h('span', { 'data-testid': 'fact-confidence' }, String(f.confidence)), ' ', experimentalBadge('finding_confidence')),
     h('dt', {}, 'Review'), h('dd', {}, f.rejected ? 'rejected' : f.unreviewed ? 'unreviewed (AI proposal)' : 'confirmed'),
     h('dt', {}, 'Campaign'), h('dd', {}, `${f.campaignName} · ${f.date}`),
     h('dt', {}, 'Sensor'), h('dd', {}, `${f.sensor} · capture ${f.captureId}`),

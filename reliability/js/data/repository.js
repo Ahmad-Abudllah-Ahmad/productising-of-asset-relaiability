@@ -352,6 +352,8 @@ export function createRepository(data, options = {}) {
 
     /** Number that changes after every write; lets a screen know to redraw. */
     getRevision() { return revision; },
+    /** Where the records come from: 'seed' (the built-in generator) now; 'erp' once the integration layer is on (Phase D). Screens show the Demo data banner for 'seed'. */
+    source: options.source ?? 'seed',
 
     /** Call fn after every write or reset. Returns a function that stops the calls. */
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

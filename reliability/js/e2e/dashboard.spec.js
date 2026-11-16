@@ -1,4 +1,4 @@
-// The Reliability Dashboard on the repository data. Screenshots (both themes, and the drill-down from each KPI) go to
+// The Asset Health Dashboard on the repository data. Screenshots (both themes, and the drill-down from each KPI) go to
 // docs/screens/phase4c/.
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
@@ -41,7 +41,7 @@ test.describe('the dashboard', () => {
   test('opens from the rail: four KPI cards, "Scores as of", the trend, the distribution, ten risks and a row per line', async ({ page }) => {
     const errors = await open(page, '/reliability');
     await rail(page).nth(0).click();
-    await expect(title(page)).toContainText('Reliability Dashboard');
+    await expect(title(page)).toContainText('Asset Health Dashboard');
     await expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true');
     expect(await hash(page)).toBe('');
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
@@ -216,7 +216,7 @@ test.describe('the dashboard', () => {
     await dashboard(page);
     const backToDashboard = async () => {
       await page.goBack();
-      await expect(title(page)).toContainText('Reliability Dashboard');
+      await expect(title(page)).toContainText('Asset Health Dashboard');
       await expect(byId(page, 'kpi-assets')).toBeVisible();
       await expect(byId(page, 'trend-chart')).toHaveAttribute('data-ready', 'true');
       expect(await hash(page)).toBe('');
@@ -262,13 +262,13 @@ test.describe('the dashboard', () => {
     await expect(panel(page)).toBeVisible();
     await page.goBack();
     await expect(panel(page)).toBeHidden();
-    await expect(title(page)).toContainText('Reliability Dashboard');
+    await expect(title(page)).toContainText('Asset Health Dashboard');
     expect(await hash(page)).toBe('');
   });
 
   test('a link such as #view=dashboard opens the dashboard from anywhere', async ({ page }) => {
     await open(page, '/reliability#view=dashboard');
-    await expect(title(page)).toContainText('Reliability Dashboard');
+    await expect(title(page)).toContainText('Asset Health Dashboard');
   });
 
   test('loading and error states', async ({ page }) => {

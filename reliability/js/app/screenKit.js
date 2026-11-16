@@ -2,6 +2,7 @@
 // Maintenance History, Risk Map): filter column on the left, content on the right, with the loading, error and
 // empty states, the "Scores as of" note, and the screen's selection kept in the URL hash.
 
+import { badgeKpis, kpiLabel } from './badge.js';
 import { h, replace } from '../ui/dom.js';
 import { SEVERITY } from './assetModel.js';
 import { BAND_TAG, SEV_TAG } from './palette.js';
@@ -121,8 +122,10 @@ export function mountScreen(stage, deps, spec) {
  * it stays plain. Cards become keyboard buttons (Enter or Space) with a hover hint. Call it after the cards are in the page.
  */
 export function drillKpis(root, handlers) {
+  badgeKpis(root); // Experimental badges on Health index and Risk cards; the handlers still find a card by its plain label
   for (const card of root.querySelectorAll('.kpi')) {
-    const fn = handlers[card.querySelector('.k')?.textContent?.trim()];
+    const k = card.querySelector('.k');
+    const fn = handlers[k ? kpiLabel(k) : ''];
     if (!fn) continue;
     card.classList.add('is-drill');
     card.setAttribute('role', 'button'); card.tabIndex = 0;

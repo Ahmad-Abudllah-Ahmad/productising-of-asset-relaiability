@@ -11,6 +11,7 @@ import { loadAssetDetail } from './assetModel.js';
 import { healthyExample } from './evidence.js';
 import { parseHash, panelTab, hashFor } from './hashState.js';
 import { hasLidar } from './lidarModel.js';
+import { experimentalBadge } from './badge.js';
 import { mountLidar } from './lidarView.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview } from './navigation.js';
@@ -250,17 +251,17 @@ function headerView(d) {
 
 function scoreRow(d) {
   const hi = d.scores.hi;
-  const card = (label, value, sub, extra) => h('div', { class: 'a360-card' }, h('div', { class: 'a360-k' }, label), h('div', { class: 'a360-n' }, value), sub ? h('div', { class: 'a360-sub' }, sub) : null, extra ?? null);
+  const card = (label, value, sub, extra, xp) => h('div', { class: 'a360-card' }, h('div', { class: 'a360-k' }, label, xp ? [' ', experimentalBadge(xp)] : null), h('div', { class: 'a360-n' }, value), sub ? h('div', { class: 'a360-sub' }, sub) : null, extra ?? null);
   let hiCard;
-  if (hi.score !== null) hiCard = card('Health index', String(hi.score), null, h('div', {}, tag(hi.band, BAND_TONE[hi.band], { 'data-testid': 'hi-band' })));
-  else if (['tower', 'span', 'line', 'transformer'].includes(d.kind)) hiCard = card('Health index', 'not assessed', plain(d.evidence.reason, d.asOf), null);
+  if (hi.score !== null) hiCard = card('Health index', String(hi.score), null, h('div', {}, tag(hi.band, BAND_TONE[hi.band], { 'data-testid': 'hi-band' })), 'health_index');
+  else if (['tower', 'span', 'line', 'transformer'].includes(d.kind)) hiCard = card('Health index', 'not assessed', plain(d.evidence.reason, d.asOf), null, 'health_index');
   else if (d.kind === 'component') {
     const worst = d.findings.rows[0];
     hiCard = card('Condition', worst ? `${worst.condition}` : 'OK', worst ? `${worst.conditionLabel} · ${worst.label}` : 'no open findings', null);
   } else hiCard = card('Health index', 'n/a', 'No health index is defined at this level yet.', null);
 
   const rf = d.riskFactors;
-  if (!rf) return h('div', { class: d.evidence.freshness?.stale ? 'a360-scores is-stale' : 'a360-scores' }, hiCard, h('div', { class: 'a360-card a360-wide' }, h('div', { class: 'a360-k' }, 'Risk'), h('div', { class: 'a360-sub' }, hi.score === null ? 'Risk needs a health index, so there is none here.' : 'Not available.')));
+  if (!rf) return h('div', { class: d.evidence.freshness?.stale ? 'a360-scores is-stale' : 'a360-scores' }, hiCard, h('div', { class: 'a360-card a360-wide' }, h('div', { class: 'a360-k' }, 'Risk ', experimentalBadge('risk')), h('div', { class: 'a360-sub' }, hi.score === null ? 'Risk needs a health index, so there is none here.' : 'Not available.')));
   const op = (t) => h('span', { class: 'a360-op', 'aria-hidden': 'true' }, t);
   const c = rf.consequence;
   return h('div', { class: d.evidence.freshness?.stale ? 'a360-scores is-stale' : 'a360-scores' }, hiCard,
@@ -268,7 +269,7 @@ function scoreRow(d) {
       card('Condition', rf.condition.points.toFixed(1), `100 − ${rf.condition.hi}`),
       op('×'), card('Criticality', String(rf.criticality), 'of 5'),
       op('×'), card('Consequence', String(c.value), c.uplift ? `${c.base} + ${c.uplift} linked${c.capped ? ' (capped at 5)' : ''}` : `${c.base} · ${c.source}`),
-      op('='), h('div', { class: 'a360-card a360-result' }, h('div', { class: 'a360-k' }, 'Risk'), h('div', { class: 'a360-n' }, String(Math.round(rf.score))), h('div', {}, tag(rf.band, RISK_TONE[rf.band])))));
+      op('='), h('div', { class: 'a360-card a360-result' }, h('div', { class: 'a360-k' }, 'Risk ', experimentalBadge('risk')), h('div', { class: 'a360-n' }, String(Math.round(rf.score))), h('div', {}, tag(rf.band, RISK_TONE[rf.band])))));
 }
 
 // ---------------------------------------------------------------- breakdown

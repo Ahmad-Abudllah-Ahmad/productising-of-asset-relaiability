@@ -10,6 +10,7 @@
 // shared. Every tower, span and finding opens Asset 360 or the finding viewer. Loading, empty and error states are
 // real: ?healthdelay=1200 slows the load, ?healthfail=1 makes the first load fail (see boot.js).
 
+import { experimentalBadge } from './badge.js';
 import { h } from '../ui/dom.js';
 import { drillKpis, scopeNote, BAND_TONE, BAND_SUB, RISK_SUB, SEV_TONE, COND_CLASS, condWord, spark, tag, pct, plural, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { CONFIG } from '../domain/config.js';
@@ -96,7 +97,7 @@ function drawLine(m, ctx, kit) {
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' },
     h('div', {}, h('h2', {}, `${line.name}`, h('span', { class: 'a360-muted' }, ` · ${line.kv} kV${line.lengthKm ? ` · ${line.lengthKm} km` : ''}${line.ends.length ? ` · ends ${line.ends.join(', ')}` : ''}`)),
       h('p', { class: 'a360-muted a360-small' }, `${m.towers.length} towers, ${m.spans.length} spans${m.duplicates.length ? `. ${plural(m.duplicates.length, 'duplicate record')} (${m.duplicates.map((d) => d.name).join(', ')}) are not drawn; they are in the registry until merged.` : '.'}`)),
-    h('div', { 'data-testid': 'line-score' }, bandTag(m), m.freshness ? h('span', { class: 'a360-muted a360-small' }, ` newest evidence ${m.freshness.newestEvidenceDate}`) : null));
+    h('div', { 'data-testid': 'line-score' }, bandTag(m), ' ', experimentalBadge('health_index'), m.freshness ? h('span', { class: 'a360-muted a360-small' }, ` newest evidence ${m.freshness.newestEvidenceDate}`) : null));
 
   const kpiHost = h('div', { 'data-testid': 'hl-kpis' });
   kpiHost.innerHTML = lineKpis(m, kit);
@@ -120,7 +121,7 @@ function drawLine(m, ctx, kit) {
   const stopWrap = markWraps(strip);
   ctx.track(stopWrap);
   const chartEl = h('div', { class: 'hl-chart', 'data-chart': 'profile', 'data-testid': 'profile-chart', role: 'img', 'aria-label': `Health index along ${line.name}, tower by tower` });
-  const chartCard = h('section', { class: 'card hl-card' }, h('h3', {}, 'Health index along the line'), chartEl,
+  const chartCard = h('section', { class: 'card hl-card' }, h('h3', {}, 'Health index along the line ', experimentalBadge('health_index')), chartEl,
     h('p', { class: 'a360-muted a360-small' }, 'Circles are towers, diamonds are spans, grey rings are units with no score. Click a point to open it.'));
   drawChart(chartEl, (p) => profileOption(m, p), { onClick: (e) => { const id = e.data?.id; if (id) openAsset(id, { opener: strip.querySelector(`[data-asset="${CSS.escape(id)}"]`) ?? undefined }); } })
     .then((c) => { ctx.track(() => c.dispose()); chartEl.dataset.ready = 'true'; })

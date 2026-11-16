@@ -9,6 +9,7 @@
 // background: ?tiles=off shows that state without trying. The layers and the highlighted label are in the URL hash
 // (view=map, layers=..., label=...). The map is built once; theme and data changes restyle it without moving the view.
 
+import { experimentalBadge } from './badge.js';
 import { h, replace } from '../ui/dom.js';
 import { CONFIG } from '../domain/config.js';
 import { openRegistryTab, openScreen } from './navigation.js';
@@ -96,7 +97,7 @@ function mountMap(stage, deps) {
       ctx.track(() => { controller?.destroy(); controller = null; });
       controller.update(m, ctx.state);
       controller.renderPanel();
-      return [h('div', { class: 'hl-main' }, h('div', { class: 'hl-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Risk map'), h('p', { class: 'a360-muted a360-small' }, `${plural(m.towers.length, 'tower')}, ${plural(m.spans.length, 'span')}, ${plural(m.stations.length, 'substation')} · scores as of ${m.asOf}`))),
+      return [h('div', { class: 'hl-main' }, h('div', { class: 'hl-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Risk map ', experimentalBadge('risk_map')), h('p', { class: 'a360-muted a360-small' }, `${plural(m.towers.length, 'tower')}, ${plural(m.spans.length, 'span')}, ${plural(m.stations.length, 'substation')} · scores as of ${m.asOf}`))),
         kpiHost, h('div', { class: 'rm-grid' }, card, panelHost))];
     },
     redraw(m, ctx) {

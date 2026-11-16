@@ -5,6 +5,7 @@
 // All classes are prefixed lr- so nothing here collides with the legacy page styles (see reliability.css).
 
 import { evidenceOf } from '../app/evidence.js';
+import { experimentalBadge } from '../app/badge.js';
 import { h, replace, fmt } from './dom.js';
 import { loadItems, loadCounts, resolveEnd, sideBySide, reasonsOf, mergeCheck, scoreBand, thresholds, STATUS_OPTIONS, TYPE_LABELS } from './linkReviewModel.js';
 
@@ -225,7 +226,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null, 
     const bTitle = link.relation === 'duplicate_of' ? 'B · record kept (system of record)' : link.to_kind === 'finding' ? 'B · older sighting' : 'B';
     replace(el.detail,
       h('div', { class: 'lr-summary' },
-        h('div', { class: `lr-bigscore ${BAND_CLASS[band]}` }, link.confidence.toFixed(2)),
+        h('div', { class: `lr-bigscore ${BAND_CLASS[band]}` }, link.confidence.toFixed(2), h('div', {}, experimentalBadge('resemblance'))),
         h('div', {},
           meter(link.confidence),
           h('p', { class: 'lr-muted lr-small' }, `${band === 'review' ? 'In the review band' : band === 'auto-link' ? 'At or above the automatic threshold' : 'Below the review band'} · ${TYPE_LABELS[link.type] ?? link.type} · ${link.link_id} · ${link.source}`),
@@ -241,7 +242,7 @@ export function mountLinkReview(root, { repo, flags = {}, select: first = null, 
           h('thead', {}, h('tr', {}, h('th', {}, 'Field'), h('th', {}, 'A'), h('th', {}, 'B'))),
           h('tbody', {}, rows.map((r) => h('tr', { class: r.same ? '' : 'lr-diff' }, h('th', { scope: 'row' }, r.label), h('td', {}, String(r.a)), h('td', {}, String(r.b))))))),
       h('p', { class: 'lr-muted lr-small' }, 'Highlighted rows differ between the two records.'),
-      h('h4', {}, 'Why this score'),
+      h('h4', {}, 'Why this score ', experimentalBadge('resemblance')),
       h('table', { class: 'lr-grid lr-reasons', 'data-testid': 'reasons' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Signal'), h('th', {}, 'Match'), h('th', {}, 'Weight'), h('th', {}, 'Contribution'), h('th', {}, 'Detail'))),
         h('tbody', {}, why.reasons.map((r) => h('tr', {},

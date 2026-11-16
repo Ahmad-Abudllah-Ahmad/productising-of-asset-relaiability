@@ -21,6 +21,7 @@ import { parseView } from './hashState.js';
 import { installBackSupport } from './navigation.js';
 import { parseScope } from './scope.js';
 import { loadManifest } from './evidence.js';
+import { demoBanner } from './badge.js';
 import { createFilterBar, SCOPE_EVENT } from './filterBar.js';
 import { managedLabels } from '../domain/labels.js';
 import { AS_OF } from './snapshot.js';
@@ -91,6 +92,7 @@ function createBar() {
   const place = () => {
     const work = document.querySelector('main.work');
     if (work && !work.contains(bar.root)) work.insertBefore(bar.root, document.getElementById('stage'));
+    if (work && !work.querySelector('[data-testid="demo-banner"]')) { const b = demoBanner(repository.source); if (b) work.insertBefore(b, bar.root); } // above the filter bar, on every screen
     sync();
   };
   const install = () => {

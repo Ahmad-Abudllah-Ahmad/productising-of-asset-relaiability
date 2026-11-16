@@ -1,4 +1,4 @@
-# Asset Reliability workspace (`/reliability`)
+# Asset Health workspace (`/reliability`)
 
 One linked workspace for line assets, substation transformers and visual-inspection evidence, with explainable health and
 risk scores. It is the `/reliability` page of the Nexus OS site: seven screens in the rail, an Asset 360 panel, a finding
@@ -7,11 +7,22 @@ viewer and a global filter bar. Everything runs in the browser from a determinis
 The plan this was built from is `docs/reliability-plan.md` (kept out of git by `.gitignore`; ask for a copy). The audit of
 the original page is `docs/reliability-audit.md`.
 
+## Names and labels
+
+The page is called **Asset Health** for now: it covers health, risk, maintenance history and work orders. It becomes Asset Reliability once inventory and ERP data are in (see `docs/management-feedback-plan.md`). The URL (`/reliability`) and the code names do not change.
+
+Two labels are used the same way everywhere:
+
+- **Simulated**: the data was generated. A **Demo data** banner sits under the top bar of every screen while the data source is the built-in seed (`repository.source === 'seed'`). The simulated LiDAR, the generated thermal view and the demo images say so on the picture.
+- **Experimental**: a model's output that has not been tested against suitable real data. An **Experimental** badge sits next to the health index, the risk score, the Risk Map title, the resemblance (match) scores and the AI finding class and confidence. Hover or focus it for the reason and the register entry. The badges read `reliability/js/domain/validation.js`, the **validation register**: each entry has a status (experimental or validated), what it was tested against, the result, the date and who approved it. All entries start experimental. To remove a label, record the test in the register; every badge for that entry goes. A unit test fails if an entry is "validated" without `testedAgainst` and `result`.
+
+Real photographs (reference and own inspection images) carry no label; they are captioned with their source.
+
 ## What it does
 
 | Screen | What you can do |
 | --- | --- |
-| **Reliability Dashboard** | Four KPI cards, condition across campaigns, health index by category, the ten biggest risks, one row per line. Every number opens the list behind it. |
+| **Asset Health Dashboard** | Four KPI cards, condition across campaigns, health index by category, the ten biggest risks, one row per line. Every number opens the list behind it. |
 | **Drawing** | The original SS-North single-line sheets. A fixed reference; the filters do not change it. |
 | **Asset Registry** | Lines, towers, spans, components, substations, transformers, and **Links** (the Link Review queue: accept, reject, merge duplicates, audit log). |
 | **Tower Health** | One tower: schematic coloured by the condition of each scoring group, findings with thumbnails, campaign comparison. |

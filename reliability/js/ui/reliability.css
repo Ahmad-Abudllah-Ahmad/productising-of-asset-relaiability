@@ -569,3 +569,11 @@ button.dash-kpi:focus-visible, .dash-chip:focus-visible, .dash-seg:focus-visible
 .ld-row-bad td { color: var(--red); font-weight: 600; }
 .ld-fallback { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; }
 .fv-lidar { padding: 4px 0; }
+
+/* ==== Demo data banner and Experimental badge (Phase A). */
+.demo-banner { margin: 8px 12px 0; padding: 5px 12px; border: 1px solid var(--rel-warn-line, var(--amber)); border-radius: 8px; background: var(--rel-warn-bg, #fff6e5); color: var(--ink); font-size: 12px; line-height: 1.35; }
+.demo-banner b { color: var(--amber); text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+.work > .demo-banner + .gf { margin-top: 6px; }
+.xp-badge { display: inline-block; vertical-align: middle; margin-left: 2px; padding: 1px 6px; border: 1px dashed var(--amber); border-radius: 999px; background: transparent; color: var(--amber); font-size: 10px; font-weight: 700; letter-spacing: 0.03em; line-height: 1.5; text-transform: none; white-space: nowrap; cursor: help; }
+.xp-badge:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.lr-bigscore .xp-badge { display: block; margin: 2px 0 0; width: fit-content; }

@@ -78,7 +78,7 @@
   function reliability() {
     return [
       // The Dashboard comes from reliability/js/app/dashboardScreen.js. This single tab only shows if that code could not load.
-      screen("home", "Reliability Dashboard", "pulse", [
+      screen("home", "Asset Health Dashboard", "pulse", [
         tab("Overview", function () {
           return '<div class="screen"><div class="card" data-testid="dashboard-unavailable" style="padding:16px"><b>The Reliability Dashboard could not be loaded.</b><div class="empty-note show">Reload the page. If it keeps failing, the scripts under /reliability/js/app did not start.</div></div></div>';
         })
@@ -512,7 +512,7 @@
   }
 
   var APPS = {
-    reliability: { product: "Asset Reliability Intelligence", back: "/#module-card-01", screens: reliability() }
+    reliability: { product: "Asset Health Intelligence", back: "/#module-card-01", screens: reliability() }
   };
 
   function brandMark() {

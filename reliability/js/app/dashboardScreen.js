@@ -1,4 +1,4 @@
-// Reliability Dashboard, rebuilt on the repository data in the legacy look. Sparse on purpose: four KPI cards, a trend, a
+// Asset Health Dashboard, rebuilt on the repository data in the legacy look. Sparse on purpose: four KPI cards, a trend, a
 // distribution, the ten biggest risks and one row per line, on one screen at 1920 x 1080.
 //
 // Every number and row drills down:
@@ -10,6 +10,7 @@
 // The registry shows today's state, so a click on a segment of an earlier campaign's bar opens today's list (the
 // tooltip says so). The URL holds view=dashboard. ?healthdelay and ?healthfail slow and fail the load, as on the other screens.
 
+import { experimentalBadge } from './badge.js';
 import { h } from '../ui/dom.js';
 import { scopeNote, tag, plural, emptyState, mountScreen, asOfNote, writeView, BAND_TONE } from './screenKit.js';
 import { loadDashboard, BANDS, BAND_WORD, CATEGORY } from './dashboardModel.js';
@@ -42,7 +43,7 @@ function mountDashboard(stage, deps) {
 function draw(m, ctx) {
   if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show', `No asset is in view.${scopeNote(ctx.snap)}`)];
   const kit = ctx.deps.kit;
-  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
+  const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Health dashboard'), h('p', { class: 'a360-muted a360-small' }, 'Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
   return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), distributionCard(m)), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
 }
 
@@ -91,7 +92,7 @@ function bandLegend() {
 
 function trendCard(m, ctx) {
   const el = h('div', { class: 'dash-chart', 'data-chart': 'trend', 'data-testid': 'trend-chart', role: 'img', 'aria-label': 'Towers and spans by health band at each campaign and today' });
-  const card = h('section', { class: 'card hl-card dash-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Condition across campaigns'), bandLegend(), el,
+  const card = h('section', { class: 'card hl-card dash-card', 'data-testid': 'trend-card' }, h('h3', {}, 'Condition across campaigns ', experimentalBadge('health_index')), bandLegend(), el,
     h('p', { class: 'a360-muted a360-small' }, 'Left bar: towers, right bar: spans. Assets count from the day they were installed. Click a segment to open the registry on that band (it lists today\'s state).'));
   drawChart(el, (p) => dashboardTrendOption(m.trend, p), { onClick: (e) => { const d = e.data; if (d?.cls) openBand(d.cls, d.band); } })
     .then((c) => { ctx.track(() => c.dispose()); el.dataset.ready = 'true'; })
@@ -109,7 +110,7 @@ function distributionCard(m) {
       h('div', { class: 'dash-bar', role: 'img', 'aria-label': `${c.title}: ${BANDS.map((b) => `${c.counts[b]} ${BAND_LABEL[b]}`).join(', ')}` },
         BANDS.filter((b) => c.counts[b]).map((b) => h('button', { class: `dash-seg hl-band-${b}`, type: 'button', 'data-cat': c.id, 'data-band': b, style: { flexGrow: String(c.counts[b]) }, title: `${c.counts[b]} ${c.noun}: ${BAND_LABEL[b]} (${Math.round((c.counts[b] / total) * 100)}%). Open the registry on this band.`, 'aria-label': `${c.counts[b]} ${c.noun}, ${BAND_LABEL[b]}`, onClick: () => openBand(c.id, b) }, String(c.counts[b])))));
   });
-  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'distribution-card' }, h('h3', {}, 'Health index by category'), bandLegend(), h('div', { class: 'dash-dists', 'data-testid': 'distribution' }, rows),
+  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'distribution-card' }, h('h3', {}, 'Health index by category ', experimentalBadge('health_index')), bandLegend(), h('div', { class: 'dash-dists', 'data-testid': 'distribution' }, rows),
     h('p', { class: 'a360-muted a360-small' }, 'One bar per category; the length of a segment is its share. Not assessed means no inspection evidence yet, not a good score.'));
 }
 
@@ -124,7 +125,7 @@ function risksCard(m) {
     h('td', { class: `dash-num${r.fresh.stale ? ' is-stale' : ''}`, title: r.fresh.text, 'data-testid': 'evidence-age' }, r.fresh.short),
     h('td', { class: 'dash-num' }, String(r.points)), h('td', { class: 'dash-num' }, String(r.criticality)), h('td', { class: 'dash-num' }, String(r.consequence)),
     h('td', { class: 'dash-num' }, h('b', {}, String(Math.round(r.risk))), ' ', tag(r.riskBand, RISK_TAG[r.riskBand]))));
-  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'risks-card' }, h('h3', {}, 'Top 10 risks'),
+  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'risks-card' }, h('h3', {}, 'Top 10 risks ', experimentalBadge('risk')),
     h('p', { class: 'a360-muted a360-small' }, 'Risk = (100 − health index) × criticality × consequence, with the linked-asset uplift. Towers and transformers together.'),
     m.risks.length ? h('table', { class: 'a360-table dash-table', 'data-testid': 'risks' }, h('thead', {}, h('tr', {}, ...['#', 'Asset', 'Line', 'Health index', 'Evidence', 'Condition', 'Criticality', 'Consequence', 'Risk'].map((x, i) => h('th', { scope: 'col', class: i === 0 || i >= 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows))
       : h('p', { class: 'a360-muted' }, 'Nothing has a risk score yet.'));
@@ -138,7 +139,7 @@ function linesCard(m) {
     h('td', {}, h('span', { class: 'dash-counts', title: `${l.counts.poor} poor, ${l.counts.moderate} moderate, ${l.counts.normal} normal (towers and spans)` }, ...['poor', 'moderate', 'normal'].map((b) => h('span', { class: `dash-count${l.counts[b] ? '' : ' is-zero'}` }, h('i', { class: `hl-swatch hl-band-${b}` }), String(l.counts[b]))))),
     h('td', {}, l.worstTower ? [h('button', { class: 'a360-link', type: 'button', 'data-testid': 'worst-tower', onClick: stop((e) => openAsset(l.worstTower.id, { opener: e.currentTarget })) }, l.worstTower.name), ' ', tag(String(l.worstTower.score), BAND_TONE[l.worstTower.band])] : h('span', { class: 'a360-muted' }, '–')),
     h('td', { class: 'dash-num' }, l.notAssessed ? h('button', { class: 'a360-link', type: 'button', 'data-testid': 'not-assessed-count', title: `${plural(l.notAssessedTowers, 'tower')} and ${plural(l.notAssessed - l.notAssessedTowers, 'span')} with no inspection evidence yet`, onClick: stop(() => openScreen('towers', null, { line: l.id, band: 'none' })) }, String(l.notAssessed)) : h('span', { class: 'a360-muted' }, '0'))));
-  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'lines-card' }, h('h3', {}, 'Lines'),
+  return h('section', { class: 'card hl-card dash-card', 'data-testid': 'lines-card' }, h('h3', {}, 'Lines ', experimentalBadge('health_index')),
     h('p', { class: 'a360-muted a360-small' }, 'Length-weighted health index, units by band, the worst tower, and units with no evidence yet. Click a row to open the line.'),
     h('table', { class: 'a360-table dash-table', 'data-testid': 'lines' }, h('thead', {}, h('tr', {}, ...['Line', 'Health index · evidence', 'Poor · moderate · normal', 'Worst tower', 'Not assessed'].map((x, i) => h('th', { scope: 'col', class: i === 4 ? 'dash-num' : '' }, x)))), h('tbody', {}, rows)));
 }
