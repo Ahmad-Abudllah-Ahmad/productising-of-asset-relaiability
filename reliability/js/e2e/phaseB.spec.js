@@ -26,24 +26,24 @@ async function visit(page, url, th = 'light') {
 const SIX = ['health', 'components', 'trends', 'maintenance', 'workorders', 'inventory'];
 
 test.describe('structure', () => {
-  test('two groups, six tabs; the group names are on the tab bar; LiDAR stays for towers and spans', async ({ page }) => {
+  test('two groups of exactly three tabs; the group names are on the tab bar; LiDAR is a view inside Components', async ({ page }) => {
     const errors = await visit(page, '/reliability#asset=TWR-132-01-011');
     await expect(t(page, 'a360-group')).toHaveText(['Asset Health', 'Operations']);
     const names = await page.locator('.a360-tab').allInnerTexts();
-    expect(names).toEqual(['Health & Risk', 'Components', 'Condition Trends', 'LiDAR', 'Maintenance History', 'Work Orders', 'Inventory & Parts']);
-    await expect(page.locator('[data-group="Asset Health"] .a360-tab')).toHaveText(['Health & Risk', 'Components', 'Condition Trends', 'LiDAR']);
+    expect(names).toEqual(['Health & Risk', 'Components', 'Condition Trends', 'Maintenance History', 'Work Orders', 'Inventory & Parts']);
+    await expect(page.locator('[data-group="Asset Health"] .a360-tab')).toHaveText(['Health & Risk', 'Components', 'Condition Trends']);
     await expect(page.locator('[data-group="Operations"] .a360-tab')).toHaveText(['Maintenance History', 'Work Orders', 'Inventory & Parts']);
     await expect(tabBtn(page, 'health')).toHaveAttribute('aria-selected', 'true');
     for (const id of SIX) await expect(tabBtn(page, id)).toBeVisible();
     expect(errors).toEqual([]);
   });
 
-  test('a component or a line has the six tabs but no LiDAR tab', async ({ page }) => {
-    await visit(page, '/reliability#asset=EW-132-01-011');
-    await expect(tabBtn(page, 'lidar')).toHaveCount(0);
+  test('a component or a line has the six tabs and no Schematic / LiDAR switch', async ({ page }) => {
+    await visit(page, '/reliability#asset=EW-132-01-011&atab=components');
+    await expect(t(page, 'a360-switch')).toHaveCount(0);
     for (const id of SIX) await expect(tabBtn(page, id)).toBeVisible();
     await visit(page, '/reliability#asset=L-132-01');
-    await expect(tabBtn(page, 'lidar')).toHaveCount(0);
+    await expect(t(page, 'a360-switch')).toHaveCount(0);
   });
 
   test('the selected tab is in the URL and survives a reload; Health & Risk is the default and leaves no key', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('structure', () => {
     expect(await hash(page)).not.toContain('atab');
   });
 
-  test('a tab named in the URL for a tab the asset does not have falls back to Health & Risk', async ({ page }) => {
+  test('LiDAR named in the URL for an asset without LiDAR falls back to Health & Risk', async ({ page }) => {
     await visit(page, '/reliability#asset=L-132-01&atab=lidar');
     await expect(tabBtn(page, 'health')).toHaveAttribute('aria-selected', 'true');
   });
@@ -80,7 +80,7 @@ test.describe('structure', () => {
     await page.keyboard.press('ArrowRight');
     await expect(tabBtn(page, 'components')).toBeFocused();
     await expect(tabBtn(page, 'components')).toHaveAttribute('aria-selected', 'true');
-    await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); // trends, lidar
+    await page.keyboard.press('ArrowRight'); // trends
     await page.keyboard.press('ArrowRight'); // first tab of Operations
     await expect(tabBtn(page, 'maintenance')).toBeFocused();
     expect(await hash(page)).toBe('#asset=TWR-132-01-011&atab=maintenance');
@@ -95,6 +95,31 @@ test.describe('structure', () => {
     await expect(panel(page)).toHaveAttribute('aria-modal', 'true');
     await expect(t(page, 'a360-panel-health')).toHaveAttribute('role', 'tabpanel');
     await expect(t(page, 'a360-panel-health')).toHaveAttribute('aria-labelledby', 'a360-tab-health');
+  });
+});
+
+test.describe('Schematic / LiDAR switch', () => {
+  test('towers and spans: a switch in Components; LiDAR is atab=lidar in the URL, keeps Components selected, survives a reload and Back to Schematic', async ({ page }) => {
+    await visit(page, '/reliability#asset=TWR-132-01-011&atab=components');
+    await expect(t(page, 'a360-view-schematic')).toHaveText('Schematic');
+    await expect(t(page, 'a360-view-schematic')).toHaveAttribute('aria-pressed', 'true');
+    await t(page, 'a360-view-lidar').click();
+    expect(await hash(page)).toBe('#asset=TWR-132-01-011&atab=lidar');
+    await expect(tabBtn(page, 'components')).toHaveAttribute('aria-selected', 'true');
+    await expect(t(page, 'lidar-label')).toHaveText('Simulated LiDAR');
+    await page.reload();
+    await expect(t(page, 'lidar-label')).toHaveText('Simulated LiDAR');
+    await expect(t(page, 'a360-view-lidar')).toHaveAttribute('aria-pressed', 'true');
+    await t(page, 'a360-view-schematic').click();
+    expect(await hash(page)).toBe('#asset=TWR-132-01-011&atab=components');
+    await expect(t(page, 'a360-schematic')).toBeVisible();
+    await t(page, 'a360-view-lidar').click();
+    await tabBtn(page, 'trends').click(); // leaving Components leaves the LiDAR view
+    expect(await hash(page)).toBe('#asset=TWR-132-01-011&atab=trends');
+    await visit(page, '/reliability#asset=SPN-132-01-012-013&atab=components');
+    await expect(t(page, 'a360-view-schematic')).toHaveText('Components');
+    await t(page, 'a360-view-lidar').click();
+    await expect(t(page, 'lidar-stats')).toContainText('Clearance 6.8 m');
   });
 });
 
@@ -114,7 +139,7 @@ test.describe('where the content went', () => {
     for (const id of ['dga', 'duval', 'oil', 'tests', 'loading']) expect(order).toContain(id);
     expect(order.at(-1)).toBe('links');
     expect(order.indexOf('breakdown')).toBeLessThan(order.indexOf('dga'));
-    await expect(tabBtn(page, 'lidar')).toHaveCount(0);
+    await expect(tabBtn(page, 'components')).toBeVisible();
   });
 
   test('Components: the tower schematic inside the panel, coloured by group, and the components table', async ({ page }) => {
@@ -170,8 +195,8 @@ test.describe('where the content went', () => {
 
 // ---- screenshots: one asset of each kind, every tab, both themes
 const ASSETS = [
-  ['tower', 'TWR-132-01-011', ['health', 'components', 'trends', 'lidar', 'maintenance', 'workorders', 'inventory']],
-  ['span', 'SPN-132-01-012-013', ['health', 'components', 'trends', 'lidar', 'maintenance', 'workorders', 'inventory']],
+  ['tower', 'TWR-132-01-011', [...SIX, 'lidar']],
+  ['span', 'SPN-132-01-012-013', [...SIX, 'lidar']],
   ['transformer', 'TX-2C', SIX],
   ['duplicate', 'MX-TOW-1156', SIX],
   ['never-inspected', 'TWR-132-01-041', SIX],
@@ -189,5 +214,16 @@ test.describe('screenshots', () => {
         }
       }
     });
+  }
+});
+
+test('full-length screenshot of the transformer Health & Risk tab, both themes', async ({ page }) => {
+  for (const th of ['light', 'dark']) {
+    await visit(page, '/reliability#asset=TX-2C', th);
+    await page.setViewportSize({ width: 1440, height: 3600 });
+    await expect(page.locator('[data-chart="dga"]')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('[data-chart="loading"]')).toHaveAttribute('data-ready', 'true');
+    await page.waitForTimeout(800);
+    await panel(page).screenshot({ path: `${SHOTS}/transformer-health-full-${th}.png` });
   }
 });

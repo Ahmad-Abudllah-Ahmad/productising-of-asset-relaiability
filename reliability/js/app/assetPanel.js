@@ -188,13 +188,14 @@ const th = (...cols) => h('thead', {}, h('tr', {}, cols.map((c) => h('th', {}, c
 // ------------------------------------------------------------------- tabs
 
 const TAB_GROUPS = [
-  { group: 'Asset Health', tabs: [['health', 'Health & Risk'], ['components', 'Components'], ['trends', 'Condition Trends'], ['lidar', 'LiDAR']] },
+  { group: 'Asset Health', tabs: [['health', 'Health & Risk'], ['components', 'Components'], ['trends', 'Condition Trends']] },
   { group: 'Operations', tabs: [['maintenance', 'Maintenance History'], ['workorders', 'Work Orders'], ['inventory', 'Inventory & Parts']] },
 ];
 const hasLidarTab = (d) => (d.kind === 'tower' || d.kind === 'span') && hasLidar(ctl.deps.getSnapshot(), d.id);
-/** The groups with the tabs this asset has (LiDAR only for towers and spans). */
-const groupsFor = (d) => TAB_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter(([id]) => id !== 'lidar' || hasLidarTab(d)) }));
-const activeTab = (d) => { const t = panelTab(location.hash) ?? 'health'; return groupsFor(d).some((g) => g.tabs.some(([id]) => id === t)) ? t : 'health'; };
+/** Exactly three tabs in each group. LiDAR is not a tab: it is the second view of Components (towers and spans), kept in the URL as atab=lidar. */
+const groupsFor = () => TAB_GROUPS;
+const lidarView = (d) => panelTab(location.hash) === 'lidar' && hasLidarTab(d);
+const activeTab = (d) => { const t = panelTab(location.hash) ?? 'health'; if (t === 'lidar') return hasLidarTab(d) ? 'components' : 'health'; return TAB_GROUPS.some((g) => g.tabs.some(([id]) => id === t)) ? t : 'health'; };
 
 function setTab(d, tab, { focus = false } = {}) {
   history.replaceState(history.state, '', location.pathname + location.search + hashFor({ asset: d.id, atab: tab === 'health' ? null : tab }));
@@ -207,11 +208,11 @@ function setTab(d, tab, { focus = false } = {}) {
 /** The tab bar: the two group names, then the tabs of each group. Arrow keys, Home and End move between tabs. */
 function tabsView(d) {
   const on = activeTab(d);
-  const groups = groupsFor(d);
+  const groups = groupsFor();
   const all = groups.flatMap((g) => g.tabs.map(([id]) => id));
   const btn = ([id, label]) => h('button', {
     class: 'a360-tab', role: 'tab', type: 'button', id: `a360-tab-${id}`, 'aria-selected': String(on === id), 'aria-controls': 'a360-tabpanel', tabindex: on === id ? '0' : '-1',
-    'data-tab': id, 'data-testid': `a360-tab-${id}`, onClick: () => { if (on !== id) setTab(d, id); },
+    'data-tab': id, 'data-testid': `a360-tab-${id}`, onClick: () => { if ((panelTab(location.hash) ?? 'health') !== id) setTab(d, id); },
   }, label);
   const bar = h('div', { class: 'a360-tabbar', 'data-testid': 'a360-tabs' }, groups.map((g) => h('div', { class: 'a360-tabgroup', 'data-group': g.group },
     h('span', { class: 'a360-grouplabel', 'data-testid': 'a360-group' }, g.group),
@@ -233,7 +234,7 @@ function sourceLine() {
 }
 
 function tabContent(d, tab) {
-  if (tab === 'components') return [componentsTab(d)];
+  if (tab === 'components') return componentsPane(d);
   if (tab === 'trends') return [historyView(d), forecastNote()];
   if (tab === 'maintenance') return [sourceLine(), maintenanceView(d)];
   if (tab === 'workorders') return [sourceLine(), ...workOrdersView(d)];
@@ -248,11 +249,7 @@ function renderDetail(d) {
   ctl.lidarOff?.(); ctl.lidarOff = null;
   const tab = activeTab(d);
   const panel = h('div', { class: 'a360-tabpanel', id: 'a360-tabpanel', role: 'tabpanel', 'aria-labelledby': `a360-tab-${tab}`, 'data-tab-panel': tab, 'data-testid': `a360-panel-${tab}` });
-  if (tab === 'lidar') {
-    const host = h('div', { class: 'a360-lidar', 'data-testid': 'asset-lidar' });
-    ctl.lidarOff = mountLidar(host, { snap: ctl.deps.getSnapshot(), assetId: d.id });
-    panel.append(host);
-  } else panel.append(...tabContent(d, tab).filter(Boolean));
+  panel.append(...tabContent(d, tab).filter(Boolean));
   body.append(tabsView(d), panel);
   parts.push(body);
   return h('div', {}, ...parts);
@@ -495,6 +492,18 @@ function linksView(d) {
 }
 
 // ------------------------------------------------------------ Operations tabs
+
+/** The Components tab: a Schematic / LiDAR switch for towers and spans, then the chosen view. */
+function componentsPane(d) {
+  if (!hasLidarTab(d)) return [componentsTab(d)];
+  const lidar = lidarView(d);
+  const sw = (id, label, on) => h('button', { type: 'button', class: `a360-sw${on ? ' is-on' : ''}`, 'aria-pressed': String(on), 'data-testid': `a360-view-${id}`, onClick: () => { if (!on) setTab(d, id === 'lidar' ? 'lidar' : 'components'); } }, label);
+  const bar = h('div', { class: 'a360-switch', role: 'group', 'aria-label': 'Components view', 'data-testid': 'a360-switch' }, sw('schematic', d.kind === 'tower' ? 'Schematic' : 'Components', !lidar), sw('lidar', 'LiDAR', lidar));
+  if (!lidar) return [bar, componentsTab(d)];
+  const host = h('div', { class: 'a360-lidar', 'data-testid': 'asset-lidar' });
+  ctl.lidarOff = mountLidar(host, { snap: ctl.deps.getSnapshot(), assetId: d.id });
+  return [bar, host];
+}
 
 /** Components tab: the tower schematic (towers) and the components table. */
 function componentsTab(d) {

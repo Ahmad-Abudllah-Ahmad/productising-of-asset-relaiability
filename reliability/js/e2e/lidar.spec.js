@@ -76,11 +76,13 @@ test.describe('simulated LiDAR', () => {
     await expect(t(page, 'lidar-legend')).toContainText('Vegetation');
   });
 
-  test('a tower: the LiDAR tab offers both of its spans, tightest first; the tab is in the URL; Overview returns', async ({ page }) => {
+  test('a tower: the LiDAR view (a switch in Components) offers both of its spans, tightest first; it is in the URL; Health & Risk returns', async ({ page }) => {
     await visit(page, '/reliability#asset=TWR-132-01-013');
-    await expect(t(page, 'a360-tab-lidar')).toBeVisible();
-    await t(page, 'a360-tab-lidar').click();
+    await t(page, 'a360-tab-components').click();
+    await expect(t(page, 'a360-view-lidar')).toBeVisible();
+    await t(page, 'a360-view-lidar').click();
     await expect(page).toHaveURL(/atab=lidar/);
+    await expect(t(page, 'a360-tab-components')).toHaveAttribute('aria-selected', 'true');
     await ready(page);
     const options = await t(page, 'lidar-span').locator('option').allTextContents();
     expect(options).toHaveLength(2);
@@ -90,10 +92,11 @@ test.describe('simulated LiDAR', () => {
     await expect(t(page, 'findings')).toBeVisible();
   });
 
-  test('components and lines have no LiDAR tab', async ({ page }) => {
+  test('components and lines have no LiDAR view', async ({ page }) => {
     await visit(page, '/reliability#asset=EW-132-01-011');
     await expect(panelEl(page)).toBeVisible();
-    await expect(t(page, 'a360-tab-lidar')).toHaveCount(0);
+    await t(page, 'a360-tab-components').click();
+    await expect(t(page, 'a360-switch')).toHaveCount(0);
   });
 
   test('the finding viewer has a LiDAR tab for a finding on a tower or span; a vegetation finding shows its photo on RGB and the scan on LiDAR', async ({ page }) => {
@@ -130,10 +133,11 @@ test.describe('simulated LiDAR', () => {
     const seen = [];
     page.on('request', (r) => { if (/three\.module/.test(r.url())) seen.push(r.url()); });
     await visit(page, `/reliability#asset=${GOOD}`);
-    await expect(t(page, 'a360-tab-lidar')).toBeVisible();
+    await t(page, 'a360-tab-components').click();
+    await expect(t(page, 'a360-view-lidar')).toBeVisible();
     await page.waitForTimeout(600);
     expect(seen).toHaveLength(0);
-    await t(page, 'a360-tab-lidar').click(); await ready(page);
+    await t(page, 'a360-view-lidar').click(); await ready(page);
     expect(seen.length).toBe(1);
   });
 });

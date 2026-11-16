@@ -591,3 +591,8 @@ th .xp-badge { margin-left: 4px; font-weight: 700; }
 .a360-schematic { margin-bottom: 8px; }
 .a360-tl-defect { display: flex; align-items: center; gap: 8px; min-width: 190px; }
 .a360-tl-defect .a360-thumb { flex: none; width: 64px; height: 44px; }
+.a360-switch { display: inline-flex; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.a360-sw { border: 0; background: var(--card); color: var(--ink); padding: 4px 14px; font: inherit; cursor: pointer; }
+.a360-sw + .a360-sw { border-left: 1px solid var(--line); }
+.a360-sw.is-on { background: var(--blue); color: #fff; }
+.a360-sw:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
