@@ -8,6 +8,7 @@ import { CONFIG, DEFECT_CLASSES, TX_DEFECT_CLASSES } from '../domain/config.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { risk } from '../domain/risk.js';
 import { TYPE_LABELS } from '../ui/linkReviewModel.js';
+import { forecastFor } from './forecastModel.js';
 
 export const SEVERITY = Object.freeze({
   1: { word: 'critical', condition: 'very poor' },
@@ -267,6 +268,6 @@ export async function loadAssetDetail(repo, snap, id) {
 
   return {
     found: true, id, asOf, kind, header, merged, scores: { hi: { score: hi.score, band: hi.band }, risk: rk ? { score: rk.score, band: rk.band } : null },
-    riskFactors, breakdown, findings, history, links, duplicate, work, inventory, components, transformer, evidence,
+    riskFactors, breakdown, findings, history, forecast: forecastFor(snap, id), links, duplicate, work, inventory, components, transformer, evidence,
   };
 }

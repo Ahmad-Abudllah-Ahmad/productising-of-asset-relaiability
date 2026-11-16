@@ -8,6 +8,7 @@ import { linksKpis } from './registryModel.js';
 import { listLines } from './healthModel.js';
 import { freshnessOf } from './freshness.js';
 import { blockedWorkOrders } from './inventoryModel.js';
+import { droppingAssets } from './forecastModel.js';
 
 export const BANDS = Object.freeze(['poor', 'moderate', 'normal', 'none']);
 export const BAND_WORD = Object.freeze({ poor: 'poor', moderate: 'moderate', normal: 'normal', none: 'not assessed' });
@@ -101,7 +102,7 @@ export function loadDashboard(snap) {
       links: { awaiting, sub: links.s },
       parts: { waiting: blocked.length, short: blocked.reduce((n, b) => n + b.short, 0), onOrder: blocked.reduce((n, b) => n + b.onOrder, 0), available: snap.inventory.available },
     },
-    trend, risks: ranked, lines: lineRows,
+    trend, risks: ranked, lines: lineRows, forecast: droppingAssets(snap),
     empty: !snap.assets.length,
   };
 }

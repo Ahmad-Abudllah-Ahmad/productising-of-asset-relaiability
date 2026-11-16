@@ -45,7 +45,7 @@ export const REGISTER = Object.freeze([
   },
   {
     id: 'forecast', name: 'Condition forecast',
-    why: 'Planned, not built yet (Phase E). When it exists it is a projection from a few campaigns and stays experimental until tested against later inspections.',
+    why: 'A projection 12 months ahead from only a few campaigns (or DGA samples), with invented method settings (assumptions A27 to A33 in config.js) and a range taken from the past changes seen across the fleet. It has not been compared with later inspections.',
     status: 'experimental', testedAgainst: null, result: null, date: null, approvedBy: null,
   },
 ]);

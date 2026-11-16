@@ -44,7 +44,7 @@ function draw(m, ctx) {
   if (m.empty) return [emptyState('dashboard-empty', 'Nothing to show', `No asset is in view.${scopeNote(ctx.snap)}`)];
   const kit = ctx.deps.kit;
   const head = h('div', { class: 'hl-head dash-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Asset Reliability dashboard'), h('p', { class: 'a360-muted a360-small' }, sourceBadge(ctx.deps.repo, { what: 'Work orders and parts' }), ' · Towers, spans, transformers and lines; every number opens the list behind it.')), asOfNote(ctx.snap));
-  return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), distributionCard(m)), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
+  return [h('div', { class: 'hl-main dash-main' }, head, kpiRow(m, kit), h('div', { class: 'dash-mid' }, trendCard(m, ctx), h('div', { class: 'dash-side' }, distributionCard(m), forecastCard(m))), h('div', { class: 'dash-bottom' }, risksCard(m), linesCard(m)))];
 }
 
 // ---------------------------------------------------------------------------------------------------- KPI cards
@@ -114,6 +114,25 @@ function distributionCard(m) {
   });
   return h('section', { class: 'card hl-card dash-card', 'data-testid': 'distribution-card' }, h('h3', {}, 'Health index by category ', experimentalBadge('health_index')), bandLegend(), h('div', { class: 'dash-dists', 'data-testid': 'distribution' }, rows),
     h('p', { class: 'a360-muted a360-small' }, 'One bar per category; the length of a segment is its share. Not assessed means no inspection evidence yet, not a good score.'));
+}
+
+// ---------------------------------------------------------------------------------------------------- forecast
+
+/** A small card: how many towers, spans and transformers are projected to fall into a lower band within 12 months. The list opens under it. */
+function forecastCard(m) {
+  const f = m.forecast;
+  const list = h('div', { class: 'dash-fc-list', 'data-testid': 'forecast-list', hidden: true });
+  const toggle = h('button', { class: 'dash-fc-n', type: 'button', 'data-testid': 'forecast-count', 'aria-expanded': 'false', 'aria-controls': 'dash-fc-list', title: `${f.count} of ${f.forecastable} forecast assets are projected to fall into a lower band within ${f.horizonMonths} months. Show the list.`, 'aria-label': `${f.count} assets projected to drop a band within ${f.horizonMonths} months. Show the list.`,
+    onClick: () => { const open = list.hidden; list.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); } }, String(f.count));
+  list.id = 'dash-fc-list';
+  list.append(f.count ? h('table', { class: 'a360-table dash-table', 'data-testid': 'forecast-table' }, h('thead', {}, h('tr', {}, ...['Asset', 'Now', 'Falls into', 'Around'].map((x) => h('th', { scope: 'col' }, x)))),
+    h('tbody', {}, f.rows.map((r) => h('tr', { 'data-asset': r.id, tabindex: '0', onClick: (e) => openAsset(r.id, { opener: e.currentTarget, tab: 'trends' }), onKeydown: (e) => { if (e.key === 'Enter') openAsset(r.id, { opener: e.currentTarget, tab: 'trends' }); } },
+      h('td', {}, h('button', { class: 'a360-link', type: 'button', onClick: stop((e) => openAsset(r.id, { opener: e.currentTarget, tab: 'trends' })) }, r.name), h('span', { class: 'a360-muted a360-small' }, ` ${r.kind}`)),
+      h('td', {}, tag(`${r.hi} · ${r.band}`, BAND_TONE[r.band])), h('td', {}, tag(r.into, BAND_TONE[r.into])), h('td', { class: 'dash-num' }, r.date))))) : h('p', { class: 'a360-muted' }, 'None.'));
+  return h('section', { class: 'card hl-card dash-card dash-fc', 'data-testid': 'forecast-card' },
+    h('h3', {}, 'Projected to drop a band within 12 months ', experimentalBadge('forecast')),
+    h('div', { class: 'dash-fc-row' }, toggle, h('p', { class: 'a360-muted a360-small' }, `of ${f.forecastable} towers, spans and transformers with enough history${f.notEnough ? ` (${f.notEnough} have too little)` : ''}. A projection, not a prediction.`)),
+    list);
 }
 
 // ---------------------------------------------------------------------------------------------------- top risks and lines

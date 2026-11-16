@@ -18,7 +18,8 @@ import { mountLidar } from './lidarView.js';
 import { stateTag, STATE_TONE } from './partsScreen.js';
 import { STOCK_NOTE } from './inventoryModel.js';
 import { STATE_WORD } from '../domain/inventory.js';
-import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
+import { drawChart, historyOption, forecastOption, dgaOption, loadingOption } from './charts.js';
+import { methodHover } from './forecastModel.js';
 import { openLinkInReview, openScreen } from './navigation.js';
 import { openFinding } from './findingViewer.js';
 
@@ -240,7 +241,7 @@ function sourceLine() {
 
 function tabContent(d, tab) {
   if (tab === 'components') return componentsPane(d);
-  if (tab === 'trends') return [historyView(d), forecastNote()];
+  if (tab === 'trends') return [historyView(d), forecastView(d)];
   if (tab === 'maintenance') return [sourceLine(), maintenanceView(d)];
   if (tab === 'workorders') return [sourceLine(), ...workOrdersView(d)];
   if (tab === 'inventory') return [sourceLine(), inventoryView(d)];
@@ -465,7 +466,7 @@ function drawCharts() {
   const d = ctl.state.detail;
   for (const el of ctl.body.querySelectorAll('[data-chart]')) {
     const kind = el.dataset.chart;
-    const build = kind === 'history' ? (p) => historyOption(d.history, p) : kind === 'dga' ? (p) => dgaOption(d.transformer.dga, p) : (p) => loadingOption(d.transformer.loading, p);
+    const build = kind === 'history' ? (p) => historyOption(d.history, p) : kind === 'forecast' ? (p) => forecastOption(d.forecast, p) : kind === 'dga' ? (p) => dgaOption(d.transformer.dga, p) : (p) => loadingOption(d.transformer.loading, p);
     drawChart(el, build).then((c) => { if (ctl.state.detail === d && ctl.state.open) ctl.charts.push(c); else c.dispose(); el.dataset.ready = 'true'; })
       .catch((e) => { el.replaceChildren(h('p', { class: 'a360-muted a360-note', role: 'status' }, `The chart could not be drawn (${e.message}). The values are in the table.`)); el.dataset.ready = 'failed'; });
   }
@@ -524,9 +525,29 @@ function componentsTab(d) {
   return d.kind === 'tower' ? section('components-tab', 'Tower and components', ...parts) : h('div', { 'data-section': 'components-tab' }, ...parts);
 }
 
-/** Condition Trends keeps the history chart; the forecast arrives in Phase E and will be labelled Experimental. */
-function forecastNote() {
-  return section('forecast', 'Condition forecast', h('p', { class: 'a360-muted a360-note', 'data-testid': 'forecast-note' }, experimentalBadge('forecast'), ' Not built yet. A projection of the health index will appear here as a dashed line, with its range and the date it crosses into the next band.'));
+/** Condition Trends, below the history: the 12-month forecast (Experimental), or the reason there is none. */
+function forecastView(d) {
+  const f = d.forecast;
+  if (!f) return null;
+  const hover = methodHover(f.method ?? f.kind);
+  const frame = (...kids) => h('section', { class: 'a360-sec', 'aria-labelledby': 'a360-h-forecast', 'data-section': 'forecast' },
+    h('h3', { id: 'a360-h-forecast' }, h('span', { class: 'a360-fc-head', 'data-testid': 'forecast-heading', title: hover, tabindex: '0' }, 'Condition forecast'), ' ', experimentalBadge('forecast')), ...kids);
+  if (f.status === 'not_enough_history') {
+    return frame(h('p', { class: 'a360-muted a360-note a360-fc-none', 'data-testid': 'forecast-none' }, f.reason === 'Not enough history to forecast' ? f.reason : `Not enough history to forecast. ${f.reason}`), f.detail ? note(f.detail) : null);
+  }
+  const c = f.crossing;
+  const dr = f.drivers;
+  const rows = [];
+  if (f.method === 'dga') rows.push(['Main driver', `Gas generation: ${dr.fastestGas ? `${dr.fastestGas.toUpperCase()} is rising fastest (about ${dr.fastestGrowthPerYear}% a year)` : 'no gas is rising'}, from ${dr.samplesUsed} samples since ${dr.windowFrom}.`]);
+  else rows.push(['Trend', dr.noInspectionSinceRepair ? `Flat: no campaign since the repair of ${f.resetAt}.` : dr.pointsUsed < 2 ? 'Flat.' : `${dr.fittedPerYear} points a year from ${dr.pointsUsed} points${f.resetAt ? `, counted from the repair of ${f.resetAt}` : ''}${dr.trendPerYear === 0 && dr.fittedPerYear > 0 ? ' (a rise is not assumed)' : ''}.`]);
+  rows.push(['Defects that came back', dr.recurrence.recurred ? `${dr.recurrence.recurred} of ${dr.recurrence.repairs} repairs: ${dr.recurrence.extraPerYear} points a year extra decline.` : dr.recurrence.repairs ? `None of ${dr.recurrence.repairs} repairs.` : 'No earlier repairs.']);
+  rows.push(['Open serious findings', dr.openFindings.severe ? `${dr.openFindings.severe}: ${dr.openFindings.extraPerYear} points a year extra decline.` : 'None.']);
+  rows.push(['Range', f.range.available ? `${f.range.percentiles[0]}th to ${f.range.percentiles[1]}th percentile of ${f.range.changes} yearly changes seen across this asset class.` : `Not shown: only ${f.range.changes} observed changes in this asset class, ${f.range.needed} needed.`]);
+  return frame(
+    h('p', { class: `a360-fc-cross${c.date ? ' is-drop' : ''}`, 'data-testid': 'forecast-crossing', 'data-drops': String(Boolean(c.date)) }, h('b', {}, c.text), c.date && c.earliestDate && c.earliestDate < c.date ? ` (as early as ${c.earliestDate} on the lower line)` : '', ` · health index ${f.hi} now, ${f.endHi} in ${f.horizonMonths} months`),
+    h('div', { class: 'a360-chart a360-chart-s', 'data-chart': 'forecast', 'data-testid': 'forecast-chart', role: 'img', 'aria-label': `Health index so far and projected ${f.horizonMonths} months ahead${c.date ? `; crosses into ${c.into} around ${c.date}` : `; stays in ${f.band}`}` }),
+    h('table', { class: 'a360-table a360-fc-table', 'data-testid': 'forecast-drivers' }, h('tbody', {}, rows.map(([k, v]) => h('tr', {}, h('th', { scope: 'row' }, k), h('td', {}, v))))),
+    note('A projection from a few campaigns, not a prediction: it has not been tested against later inspections.'));
 }
 
 const woTable = (d, rows, testid) => h('table', { class: 'a360-table', 'data-testid': testid }, th('Work order', 'Status', 'Priority', 'On', 'Findings', 'Created', 'Done / due'),

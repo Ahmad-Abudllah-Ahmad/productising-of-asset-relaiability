@@ -153,12 +153,12 @@ test.describe('where the content went', () => {
     await expect(t(page, 'a360-schematic').locator('[data-condition=""]')).toHaveCount(6); // never inspected: all zones grey
   });
 
-  test('Condition Trends: the history chart and table, and the forecast placeholder carrying the Experimental badge', async ({ page }) => {
+  test('Condition Trends: the history chart and table, and the forecast carrying the Experimental badge', async ({ page }) => {
     await visit(page, '/reliability#asset=TWR-132-01-011&atab=trends');
     await expect(page.locator('[data-chart="history"]')).toHaveAttribute('data-ready', 'true');
     await expect(t(page, 'history-table').locator('tbody tr')).toHaveCount(4);
-    await expect(t(page, 'forecast-note')).toContainText('Not built yet');
-    await expect(t(page, 'forecast-note').locator('[data-register="forecast"]')).toBeVisible();
+    await expect(page.locator('[data-chart="forecast"]')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('[data-section="forecast"] [data-register="forecast"]')).toBeVisible();
   });
 
   test('Maintenance History: defect timeline with thumbnails, repairs, a source line, and a way into the full screen', async ({ page }) => {

@@ -96,6 +96,29 @@
 //      plans raise a planned work order (status "planned") when the next due date is within
 //      inventory.planHorizonDays. A few shortages are deliberate, so the demo has something to show.
 //
+//  A27. FORECAST (Phase E, experimental; validation register entry "forecast"). The health index is projected forecast.horizonMonths
+//      ahead. An asset needs forecast.minCampaigns assessed campaigns (towers, spans) or forecast.minSamples DGA samples (transformers);
+//      with fewer it shows "Not enough history to forecast" and nothing else. Everything uses only data dated on or before the as-of date.
+//  A28. TOWERS AND SPANS: a least-squares line through the health index at each campaign, using only the points since the last
+//      completed repair (the repair date itself counts as the first point, scored as restored, A12). The line never rises
+//      (forecast.trend.allowRise false): a better score is not assumed without a repair. With no inspection since a repair the trend is
+//      taken as flat and the screen says so. The fitted decline is DAMPED: each month's drift is forecast.trend.damping (0.9) times the
+//      month before, so a steep fall over a few months is not assumed to continue at full speed for a year (damping 1 = a straight
+//      line). The range uses the same damping. The 0.9 is an invented default.
+//  A29. RECURRENCE: each repair whose defect came back (the Maintenance History's "ineffective" repairs) adds
+//      forecast.recurrence.pointsPerYearEach points of extra decline per year, up to maxPerYear. The size is an invented default.
+//  A30. OPEN FINDINGS: each open counted finding with condition <= openFindings.severeAtOrBelow (critical, serious) adds
+//      openFindings.pointsPerYearEach points of decline per year, up to maxPerYear. Invented default. The trend line may already
+//      include some of this decline, so the two are small on purpose.
+//  A31. TRANSFORMERS: the DGA generation rate of each gas (least-squares ppm per day over the last transformer.dga.trend.windowDays)
+//      carries the latest sample forward, and the transformer is scored again at each future date with the same rules as today
+//      (gas limits, trend penalty, age). Oil and test results are held at their latest values. Campaign findings do not drive the line.
+//  A32. RANGE: the percentiles in forecast.range.percentiles of the fleet's observed yearly changes in health index for the same asset
+//      class (consecutive campaigns of one asset, intervals with a repair left out), taken relative to the median change, grow
+//      linearly with the time ahead. With fewer than forecast.range.minChanges observed changes there is no range, and the screen says so.
+//  A33. CROSSING DATE: the date the central line first falls below the cut-off of the next band down (A4), found by straight-line
+//      interpolation between monthly points. "Stays in band" means it does not within the horizon.
+//
 // Reference date for all seed data is fixed so screenshots and tests are stable.
 
 /** Eight line component groups used in transmission-line health-index studies. */
@@ -334,6 +357,17 @@ export const CONFIG = deepFreeze({
       { id: 'PM-SPAN-VEG', cls: 'span', every: 8, interval: 365, task: 'Vegetation clearing', parts: [] },
       { id: 'PM-SPAN-MARK', cls: 'span', every: 20, interval: 1095, task: 'Fit marker balls', parts: [{ m: 'MAT-14', q: 2 }] },
     ],
+  },
+
+  // A27 to A33: condition forecast.
+  forecast: {
+    horizonMonths: 12,
+    minCampaigns: 2,
+    minSamples: 2,
+    trend: { allowRise: false, damping: 0.9 },
+    recurrence: { pointsPerYearEach: 3, maxPerYear: 9 },
+    openFindings: { severeAtOrBelow: 2, pointsPerYearEach: 1.5, maxPerYear: 6 },
+    range: { percentiles: [10, 90], minChanges: 8 },
   },
 
   // A25: simulated LiDAR. Limits are per nominal voltage; clearance is a straight-line distance in metres.

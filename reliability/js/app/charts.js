@@ -233,3 +233,47 @@ export async function drawChart(el, buildOption, { onClick } = {}) {
   observer.observe(el);
   return { dispose() { observer.disconnect(); chart.dispose(); } };
 }
+
+/**
+ * Condition Trends forecast: health index so far as a solid line, the projection as a dashed line, the fleet-based range as a shaded
+ * band, and the date the projection falls into the next band as a vertical marker. Time axis, so the gaps between campaigns show.
+ */
+export function forecastOption(f, p) {
+  const past = [...f.history.map((x) => [x.date, x.hi]), ...(f.resetPoint ? [[f.resetPoint.date, f.resetPoint.hi]] : [])].sort((a, b) => a[0].localeCompare(b[0]));
+  if (!past.length || past.at(-1)[0] !== f.asOf) past.push([f.asOf, f.hi]);
+  const ahead = f.points.map((x) => [x.date, x.hi]);
+  const hasRange = f.range.available;
+  const crossLine = f.crossing.date ? [{ xAxis: f.crossing.date, label: { formatter: `falls into ${f.crossing.into}`, color: p.muted, fontSize: 10, position: 'insideEndTop', rotate: 90 }, lineStyle: { color: p.band[f.crossing.into] ?? p.muted, type: 'solid', width: 1.5 } }] : [];
+  const repairLine = f.resetPoint ? [{ xAxis: f.resetPoint.date, label: { formatter: `repair ${f.resetPoint.repair}`, color: p.muted, fontSize: 9, position: 'insideEndTop', rotate: 90 }, lineStyle: { color: p.muted, type: 'dashed' } }] : [];
+  const bandLines = [{ yAxis: 70, label: { formatter: 'normal from 70', color: p.muted, fontSize: 10, position: 'insideStartTop' } }, { yAxis: 40, label: { formatter: 'poor below 40', color: p.muted, fontSize: 10, position: 'insideStartTop' } }]
+    .map((l) => ({ ...l, lineStyle: { color: p.muted, type: 'dotted' } }));
+  const series = [];
+  if (hasRange) {
+    series.push({ name: 'range-base', type: 'line', stack: 'range', symbol: 'none', silent: true, lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, data: f.points.map((x) => [x.date, x.lower]) });
+    series.push({ name: 'Range', type: 'line', stack: 'range', symbol: 'none', silent: true, lineStyle: { opacity: 0 }, areaStyle: { color: p.blue, opacity: 0.18 }, itemStyle: { color: p.blue, opacity: 0.35 }, data: f.points.map((x) => [x.date, Math.round((x.upper - x.lower) * 10) / 10]) });
+  }
+  series.push({ name: 'Forecast', type: 'line', symbol: 'none', lineStyle: { width: 2.5, color: p.blue, type: 'dashed' }, itemStyle: { color: p.blue }, data: ahead, markLine: { silent: true, symbol: 'none', data: [...bandLines, ...repairLine, ...crossLine] } });
+  series.push({ name: 'History', type: 'line', symbolSize: 9, lineStyle: { width: 2.5, color: p.blue }, itemStyle: { color: p.blue }, data: past });
+  return {
+    ...base(p), grid: { left: 40, right: 20, top: 34, bottom: 28 },
+    legend: { top: 0, textStyle: { color: p.muted }, data: ['History', 'Forecast', ...(hasRange ? ['Range'] : [])] },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (items) => {
+        const get = (n) => items.find((i) => i.seriesName === n);
+        const hist = get('History'); const fc = get('Forecast');
+        const lines = [`<b>${items[0]?.axisValueLabel ?? ''}</b>`];
+        if (hist) lines.push(`Health index ${hist.value[1]}`);
+        else if (fc) {
+          const pt = f.points.find((x) => x.date === fc.value[0]);
+          lines.push(`Projected health index ${fc.value[1]}`);
+          if (pt && pt.lower !== null) lines.push(`Range ${pt.lower} to ${pt.upper}`);
+        }
+        return lines.join('<br/>');
+      },
+    },
+    xAxis: { type: 'time', axisLine: { lineStyle: { color: p.line } }, splitLine: { show: false }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series,
+  };
+}

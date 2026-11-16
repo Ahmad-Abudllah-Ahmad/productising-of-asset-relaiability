@@ -30,7 +30,7 @@ Real photographs (reference and own inspection images) carry no label; they are 
 | **Risk Map** | Leaflet map: lines, towers, substations, finding clusters, layers, label highlight, a lasso that totals risk. |
 | **Maintenance History** | Timeline (fleet, line or one asset), repairs with HI before and after and whether they held, work orders (including planned work raised by maintenance plans), open findings, and **Parts & Inventory** (work orders waiting on parts, low stock, open purchase order lines, stock by depot). |
 
-Everywhere: **Asset 360** is six tabs in two groups. **Asset Health**: Health & Risk (breakdown and cap, open findings, transformer gas/oil/tests, linked assets at the foot), Components (the tower schematic and the components table), Condition Trends (campaign history; the forecast comes later and will be labelled Experimental). **Operations**: Maintenance History (defects over time with thumbnails, repairs), Work Orders (open, planned, completed) and Inventory & Parts (the parts for the asset's open and planned work, each reserved, available, on order with its date, or short). Towers and spans have a Schematic / LiDAR switch inside Components. The selected tab is in the URL (`atab=components|trends|maintenance|workorders|inventory`, and `atab=lidar` for the LiDAR view of Components; Health & Risk is the default), arrow keys move between tabs, and the Operations tabs say where their data comes from. Asset 360 (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
+Everywhere: **Asset 360** is six tabs in two groups. **Asset Health**: Health & Risk (breakdown and cap, open findings, transformer gas/oil/tests, linked assets at the foot), Components (the tower schematic and the components table), Condition Trends (campaign history, then the **12-month forecast**, labelled Experimental; see *Condition forecast* below). **Operations**: Maintenance History (defects over time with thumbnails, repairs), Work Orders (open, planned, completed) and Inventory & Parts (the parts for the asset's open and planned work, each reserved, available, on order with its date, or short). Towers and spans have a Schematic / LiDAR switch inside Components. The selected tab is in the URL (`atab=components|trends|maintenance|workorders|inventory`, and `atab=lidar` for the LiDAR view of Components; Health & Risk is the default), arrow keys move between tabs, and the Operations tabs say where their data comes from. Asset 360 (click any asset: score, breakdown, findings, history chart, linked assets, work orders; transformers
 add DGA, Duval zone, oil, tests, loading) and the **finding viewer** (click any thumbnail: AI box, RGB and thermal,
 campaign compare, confirm / correct / reject / revert with a review history, link to asset).
 
@@ -113,6 +113,23 @@ the snapshot (so tests read numbers, not pixels); a screen's **state** is in the
 Local state: reviewer decisions are in `localStorage` under `nexus.reliability.demo.v1` (the Links tab has "Reset demo data");
 the theme is under `nexus.reliability.theme`.
 
+## Condition forecast (Experimental)
+
+**Condition Trends** projects each tower's, span's and transformer's health index 12 months ahead: the history so far is a solid line, the forecast a dashed line with a shaded range, and the text above the chart gives the date the projection falls into the next band, or "Stays in the normal band for 12 months". Hover the heading for the method; the **Experimental** badge reads the validation register entry `forecast`. The **Dashboard** has a small card, "Projected to drop a band within 12 months": the count opens the list (soonest first), and a row opens that asset's Condition Trends. The filters and the "as of" date apply: the forecast uses only what was known on that date.
+
+The method (`domain/forecast.js`, parameters in `CONFIG.forecast`, assumptions A27 to A33):
+
+| Part | How it works |
+| --- | --- |
+| **Towers and spans: trend** | A straight line through the health index at each campaign, using only the history since the last completed repair (the repair date counts as the first point, scored as restored). The line never rises, and its decline is damped (each month's drift is 0.9 of the month before) so a steep fall over a few months is not assumed to continue at full speed for a year. |
+| **Recurrence** | Each repair whose defect came back (the Maintenance History's "did not hold" repairs) adds 3 points a year of extra decline, up to 9. |
+| **Open findings** | Each open critical or serious finding adds 1.5 points a year, up to 6. |
+| **Transformers** | The DGA trend is the main driver: each gas is carried forward at its observed generation rate (ppm a day over the last year), and the transformer is scored again each month with the same rules as today (gas limits, rising-gas penalty, age). Campaign findings do not drive the line. |
+| **Range** | The 10th and 90th percentile of the changes in health index actually observed across the fleet for the same asset class (consecutive campaigns, intervals with a repair left out), taken relative to the median change and applied for the time ahead. Not invented: with fewer than 8 observed changes there is no range, and the screen says so. |
+| **Not enough history** | An asset with fewer than two assessed campaigns (two DGA samples for a transformer) shows "Not enough history to forecast" and no line or date. A never-inspected asset is the same case. |
+
+The method values (3 points, 1.5 points, 0.9 damping, 12 months, the percentiles) are invented defaults, not fitted. The shipped seed has only three campaigns and the transformers' range rests on about ten observed changes, so treat the output as a way of ordering assets, not as a prediction. It stays Experimental until someone records what it was tested against: compare the forecast made at an earlier "as of" date with what the next campaign found.
+
 ## Demo data, and what needs real inputs
 
 **Everything you see is generated.** Replace these to go beyond a demo:
@@ -123,6 +140,7 @@ the theme is under `nexus.reliability.theme`.
 | **Images** (`assets/inspection/manifest.json`): real reference photographs of the same kind of defect from other sources (BGI dataset, Wikimedia Commons; CC BY / CC BY-SA), none from the asset shown; 20 defect classes are still "Placeholder – no real image yet"; vegetation, structure encroachment and sag are LiDAR-only | Real captures: replace a manifest entry's file, box and credit (see `assets/inspection/README.md`). Boxes are fractions of the image, so any resolution works |
 | **Thermal view** (`app/demoImage.js`) | Real radiometric data. The false-colour picture and the temperatures are generated from the photo and the finding id; they mean nothing |
 | **DGA, oil tests, loading** (generated per transformer) | The real DGA, oil and electrical test results and a loading feed |
+| **Forecast method values** (`config.js`, A27 to A33: damping, recurrence and open-finding decline, range percentiles) | Values fitted and checked against later inspections of the client's own assets; then the `forecast` register entry can move to validated |
 | **Health-index weights and bands** (`config.js`: equal weights, 70 / 40 cut-offs) | The client's engineering weights (AHP or their own) and cut-offs. Open question in the plan |
 | **Criticality and consequence** (invented from voltage, customers and redundancy rules) | The client's criticality and consequence model |
 | **Inspection intervals** (180 / 365 days, A9) | The client's inspection policy |
