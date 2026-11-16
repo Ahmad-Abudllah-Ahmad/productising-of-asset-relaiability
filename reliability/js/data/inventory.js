@@ -126,14 +126,21 @@ export function generateInventory(base, { seed, referenceDate }) {
     plan_id: p.plan_id, task: p.task,
   }));
 
+  // one open corrective order for a transformer bushing at 500 kV, so the demo shows "none in stock, one on order" end to end
+  const bushing = base.findings.find((f) => f.defect_class === 'bushing_hotspot' && f.review_status === 'confirmed' && (base.assets.find((a) => a.asset_id === f.asset_id)?.voltage_kv ?? null) === 500 && !base.workOrders.some((w) => w.finding_ids.includes(f.finding_id)));
+  const added = bushing ? [{
+    work_order_id: `WO-${pad(base.workOrders.length + 1, 4)}`, asset_id: bushing.asset_id, work_type: 'transformer repair', priority: 'high', status: 'open', finding_ids: [bushing.finding_id],
+    created_at: today, planned_date: addDays(today, 20), completed_at: null,
+  }] : [];
+
   // the parts of every work order that is not done, then the reservations for what is due soon
   const findingsById = new Map(base.findings.map((f) => [f.finding_id, f]));
   const plansById = new Map(plans.map((p) => [p.plan_id, p]));
   const assetsById = new Map(base.assets.map((a) => [a.asset_id, a]));
   const kvOf = (id) => assetsById.get(id)?.voltage_kv ?? null;
-  const open = [...base.workOrders, ...planned].filter((w) => !['completed', 'cancelled'].includes(w.status));
+  const open = [...base.workOrders, ...added, ...planned].filter((w) => !['completed', 'cancelled'].includes(w.status));
   const lines = open.flatMap((w) => partsFor(w, { findingsById, plansById, kvOf }).map((p) => ({ work_order_id: w.work_order_id, asset_id: w.asset_id, planned_date: w.planned_date, material_id: p.material_id, quantity: p.quantity })));
   const reservations = planReservations(lines, { stock, purchaseOrders }, { today, addDays });
 
-  return { materials, suppliers, stock, purchaseOrders, reservations, maintenancePlans: plans, plannedWorkOrders: planned, warehouses: inv.warehouses.map((w) => ({ ...w })) };
+  return { materials, suppliers, stock, purchaseOrders, reservations, maintenancePlans: plans, plannedWorkOrders: [...added, ...planned], warehouses: inv.warehouses.map((w) => ({ ...w })) };
 }

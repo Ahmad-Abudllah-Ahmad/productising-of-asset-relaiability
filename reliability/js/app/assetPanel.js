@@ -16,6 +16,7 @@ import { TOWER_GROUPS } from './healthModel.js';
 import { experimentalBadge } from './badge.js';
 import { mountLidar } from './lidarView.js';
 import { stateTag, STATE_TONE } from './partsScreen.js';
+import { STOCK_NOTE } from './inventoryModel.js';
 import { STATE_WORD } from '../domain/inventory.js';
 import { drawChart, historyOption, dgaOption, loadingOption } from './charts.js';
 import { openLinkInReview, openScreen } from './navigation.js';
@@ -567,9 +568,10 @@ function maintenanceView(d) {
 /** Inventory & Parts tab: the parts for this asset's open and planned work, each reserved, available, on order (date) or short. */
 function inventoryView(d) {
   const inv = d.inventory;
+  const asOf = h('p', { class: 'a360-muted a360-note', 'data-testid': 'stock-asof' }, STOCK_NOTE);
   if (!inv.available) return section('inventory', 'Inventory & Parts', note('The data source has no inventory records.'));
   if (!inv.lines.length) {
-    return section('inventory', 'Inventory & Parts', h('p', { class: 'a360-muted a360-note', 'data-testid': 'inventory-none' },
+    return section('inventory', 'Inventory & Parts', asOf, h('p', { class: 'a360-muted a360-note', 'data-testid': 'inventory-none' },
       inv.workOrders ? 'The open and planned work on this asset needs no stocked parts (labour only).' : 'No open or planned work on this asset, so no parts are needed.'));
   }
   const counts = ['short', 'on_order', 'reserved', 'available'].map((k) => [k, inv.lines.filter((l) => l.state === k).length]);
@@ -585,7 +587,7 @@ function inventoryView(d) {
           h('th', { scope: 'row' }, l.description, h('div', { class: 'a360-muted a360-small' }, l.material_id)), h('td', {}, `${l.quantity} ${l.unit}`), h('td', {}, stateTag(l)),
           h('td', {}, l.supplier ? `${l.supplier} (${l.leadTimeDays} d)` : '–'))))));
   });
-  return section('inventory', `Inventory & Parts (${inv.lines.length} part lines)`, chips, ...blocks,
-    note('Parts come from the defect-to-parts table in config.js (or the maintenance plan). Stock, reservations and purchase orders are the current position.'));
+  return section('inventory', `Inventory & Parts (${inv.lines.length} part lines)`, asOf, chips, ...blocks,
+    note(`Parts come from the defect-to-parts table in config.js (or the maintenance plan). ${STOCK_NOTE}`));
 }
 

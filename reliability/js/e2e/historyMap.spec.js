@@ -67,8 +67,8 @@ test.describe('Maintenance History', () => {
     await expect(byId(page, 'as-of')).toHaveText('Scores as of 2026-11-11');
     const kpis = byId(page, 'hl-kpis').locator('.kpi');
     await expect(kpis).toHaveCount(4);
-    await expect(kpis.nth(0)).toContainText('127');
-    await expect(kpis.nth(0)).toContainText('26 open · 16 in progress · 85 completed');
+    await expect(kpis.nth(0)).toContainText('128');
+    await expect(kpis.nth(0)).toContainText('27 open · 16 in progress · 85 completed');
     await expect(kpis.nth(1)).toContainText('22.5 days');
     await expect(kpis.nth(2)).toContainText('85');
     await expect(kpis.nth(2)).toContainText('13 ineffective');
@@ -260,13 +260,13 @@ test.describe('Maintenance History', () => {
 
   test('Work orders: status counts, turnaround, overdue ones flagged, and a status filter', async ({ page }) => {
     await history(page, '', 'Work orders');
-    await expect(byId(page, 'status-bar').locator('[data-status="open"]')).toContainText('26 open');
+    await expect(byId(page, 'status-bar').locator('[data-status="open"]')).toContainText('27 open');
     await expect(byId(page, 'status-bar').locator('[data-status="in_progress"]')).toContainText('16 in progress');
     await expect(byId(page, 'status-bar').locator('[data-status="completed"]')).toContainText('85 completed');
     await expect(byId(page, 'turnaround')).toContainText('median of 24 days');
     await expect(byId(page, 'turnaround')).toContainText('median 22.5 days');
     await expect(byId(page, 'turnaround')).toContainText('26 work orders are past the planned date');
-    await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(160); // 127 raised from findings and 33 planned by maintenance plans
+    await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(161); // 128 raised from findings and 33 planned by maintenance plans
     await expect(byId(page, 'workorders').locator('.tag.r', { hasText: 'overdue' })).toHaveCount(26);
     await byId(page, 'status-select').selectOption('in_progress');
     await expect(byId(page, 'workorders').locator('tbody tr')).toHaveCount(16);

@@ -91,6 +91,44 @@ test.describe('Maintenance History: Parts & Inventory', () => {
     await expect(t(page, 'a360-tab-inventory')).toHaveAttribute('aria-selected', 'true');
   });
 
+  test('line and asset filters like the other tabs: they narrow the waiting list and the stock tables to the materials the selection needs, and are in the URL', async ({ page }) => {
+    await visit(page, '/reliability#view=history');
+    await page.locator('#tabs [data-tab]', { hasText: /^Parts & Inventory$/ }).click();
+    const all = await t(page, 'blocked-wo').locator('tbody tr').count();
+    const allStock = await t(page, 'stock-table').locator('tbody tr').count();
+    await t(page, 'line-select').selectOption('L-500-01');
+    await expect.poll(() => hash(page)).toBe('#view=history&line=L-500-01');
+    await expect.poll(() => t(page, 'blocked-wo').locator('tbody tr').count()).toBeLessThan(all);
+    expect(await t(page, 'stock-table').locator('tbody tr').count()).toBeLessThan(allStock);
+    await t(page, 'unit-select').selectOption('TWR-500-01-024');
+    await expect(t(page, 'blocked-wo').locator('tbody tr').first()).toContainText('T-024');
+    await expect(t(page, 'hl-head')).toContainText('needed by this selection');
+    await t(page, 'clear-filters').click();
+    await expect.poll(() => t(page, 'blocked-wo').locator('tbody tr').count()).toBe(all);
+  });
+
+  test('"Stock as of today, not affected by the as-of date" is said on the tab, and in Asset 360 after the as-of date is moved', async ({ page }) => {
+    await visit(page, '/reliability#view=history&asof=2026-05-30');
+    await page.locator('#tabs [data-tab]', { hasText: /^Parts & Inventory$/ }).click();
+    await expect(t(page, 'stock-asof')).toHaveText('Stock as of today, not affected by the as-of date.');
+    await expect(t(page, 'low-card')).toContainText('Stock as of today, not affected by the as-of date.');
+    await expect(t(page, 'po-card')).toContainText('Stock as of today');
+    await expect(t(page, 'stock-card')).toContainText('Stock as of today');
+    await visit(page, '/reliability#asset=TWR-132-01-041&atab=inventory');
+    await expect(t(page, 'stock-asof')).toHaveText('Stock as of today, not affected by the as-of date.');
+  });
+
+  test('an open transformer work order needs the 500 kV bushing: none in stock, one on order (24 Jan), end to end', async ({ page }) => {
+    await visit(page, '/reliability#asset=TX-2C-BSH-HV&atab=inventory');
+    const row = panel(page).locator('tr[data-state="on_order"]').first();
+    await expect(row).toContainText('Bushing 500 kV (HV)');
+    await expect(row.locator('.tag')).toContainText('on order 2027-01-24');
+    await visit(page, '/reliability#view=history');
+    await page.locator('#tabs [data-tab]', { hasText: /^Parts & Inventory$/ }).click();
+    await expect(t(page, 'blocked-wo')).toContainText('Bushing 500 kV (HV)');
+    await expect(t(page, 'low-stock').locator('tr[data-material="MAT-36"]')).toContainText('0 ea');
+  });
+
   test('the global voltage filter narrows the waiting list', async ({ page }) => {
     await visit(page, '/reliability#view=history');
     await page.locator('#tabs [data-tab]', { hasText: /^Parts & Inventory$/ }).click();

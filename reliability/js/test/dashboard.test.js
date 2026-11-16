@@ -34,7 +34,7 @@ test('dashboard: open critical and serious findings, overdue work orders and lin
   assert.equal(k.findings.series.at(-1), k.findings.urgent);
   assert.equal(k.overdue.count, 26);
   assert.equal(k.overdue.series.at(-1), k.overdue.count);
-  assert.equal(k.overdue.open, 42);
+  assert.equal(k.overdue.open, 43);
   assert.equal(k.links.awaiting, Number(linksKpis(snap)[0].v));
   assert.equal(k.links.awaiting, snap.links.filter((l) => ['resemblance', 'rule'].includes(l.source) && !l.obsolete && l.status === 'proposed').length);
 });

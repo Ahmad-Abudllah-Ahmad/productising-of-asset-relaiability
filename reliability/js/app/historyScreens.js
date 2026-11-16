@@ -11,7 +11,7 @@
 
 import { h } from '../ui/dom.js';
 import { experimentalBadge } from './badge.js';
-import { createPartsTab } from './partsScreen.js';
+import { loadParts, drawParts } from './partsScreen.js';
 import { openScreen } from './navigation.js';
 import { drillKpis, scopeNote, spark, tag, plural, humanize, SEV_TONE, STATUS_TONE, writeView, field, select, emptyState, mountScreen } from './screenKit.js';
 import { loadHistory, WO_STATUSES } from './historyModel.js';
@@ -27,7 +27,7 @@ const SHOW = [['', 'All repairs'], ['ineffective', 'Ineffective only']];
 
 export function createHistoryScreen(deps) {
   const tab = (name, kind) => ({ name, render: () => `<div class="screen hl" data-testid="maintenance-${kind}" data-hl-root></div>`, mount: (stage) => mountHistory(stage, deps, kind) });
-  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders'), tab('Open findings', 'findings'), createPartsTab(deps)] };
+  return { tabs: [tab('Timeline', 'timeline'), tab('Repairs', 'repairs'), tab('Work orders', 'workorders'), tab('Open findings', 'findings'), tab('Parts & Inventory', 'parts')] };
 }
 
 const openAssetFrom = (id, el) => openAsset(id, { opener: el });
@@ -72,8 +72,8 @@ function mountHistory(stage, deps, kind) {
         h('p', { class: 'a360-muted a360-small' }, 'Transformers have no line: they are listed under All lines.'),
       ];
     },
-    load: (snap, st) => loadHistory(snap, { line: st.line || null, unit: st.unit || null }),
-    draw: (m, ctx) => draw(m, ctx, kind),
+    load: (snap, st) => { const hist = loadHistory(snap, { line: st.line || null, unit: st.unit || null }); return kind === 'parts' ? loadParts(snap, st, hist) : hist; },
+    draw: (m, ctx) => (kind === 'parts' ? drawParts(m, ctx) : draw(m, ctx, kind)),
   });
 }
 

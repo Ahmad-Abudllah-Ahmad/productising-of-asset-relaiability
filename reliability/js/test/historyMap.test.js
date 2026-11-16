@@ -22,7 +22,7 @@ test('history: dates are plain day arithmetic', () => {
 test('history, everything: counts match the data, work orders by status, and nothing after the as-of date', async () => {
   const { snap } = await ready();
   const m = loadHistory(snap);
-  assert.deepEqual([m.findings.length, m.repairs.length, m.workOrders.length], [400, 85, 160]);
+  assert.deepEqual([m.findings.length, m.repairs.length, m.workOrders.length], [400, 85, 161]);
   assert.deepEqual(Object.keys(m.statusCounts), WO_STATUSES);
   assert.equal(Object.values(m.statusCounts).reduce((a, b) => a + b, 0), m.workOrders.length);
   assert.ok(m.findings.every((f) => f.date <= snap.asOf) && m.repairs.every((r) => r.date <= snap.asOf));

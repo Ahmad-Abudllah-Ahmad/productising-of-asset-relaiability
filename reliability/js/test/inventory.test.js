@@ -124,6 +124,8 @@ test('the demo has something to show: all four states and deliberate shortages, 
   const short = inv.lines.filter((l) => l.state === 'short');
   assert.ok(short.length >= 5 && short.every((l) => l.detail.shortfall > 0));
   assert.ok(inv.lines.some((l) => l.state === 'on_order' && l.late), 'a late delivery');
+  const bl = inv.lines.find((l) => l.material_id === 'MAT-36');
+  assert.deepEqual([bl.state, bl.asset_id.startsWith('TX-2C'), bl.detail.delivery_date], ['on_order', true, '2027-01-24'], 'an open transformer work order needs the 500 kV bushing: none in stock, one on order');
   const rows = stockRows(inv);
   const bushing = rows.find((r) => r.material_id === 'MAT-36');
   assert.deepEqual([bushing.onHand, bushing.onOrder, bushing.empty], [0, 1, true], 'the 500 kV bushing: none in stock, one on order');
@@ -153,7 +155,7 @@ test('the dashboard KPI, the Parts & Inventory list and Asset 360 count the same
 test('planned work is not "open": it stays out of the overdue count and the backlog, and shows as its own status', async () => {
   const snap = await snapP;
   const d = loadDashboard(snap);
-  assert.equal(d.kpis.overdue.open, 42);
+  assert.equal(d.kpis.overdue.open, 43);
   const h = loadHistory(snap);
   assert.ok(h.statusCounts.planned >= 20);
   assert.equal(h.workOrders.filter((w) => w.status === 'planned').length, h.statusCounts.planned);

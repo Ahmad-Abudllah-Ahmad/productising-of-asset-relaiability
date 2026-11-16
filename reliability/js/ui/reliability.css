@@ -602,3 +602,4 @@ th .xp-badge { margin-left: 4px; font-weight: 700; }
 @media (max-width: 1500px) { .dash-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
 .a360-wopart { margin: 0 0 14px; } .a360-wopart h4 { margin: 6px 0; font-size: 13px; }
 .pt-line { margin: 2px 0; } .pt-bad { color: var(--red); font-weight: 700; }
+.pt-asof { margin: 2px 0 0; font-size: 11px; font-weight: 600; color: var(--amber); }

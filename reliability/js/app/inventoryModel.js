@@ -68,4 +68,7 @@ export function linesForAsset(snap, assetId, subtree) {
   return inv.lines.filter((l) => ids.has(l.asset_id));
 }
 
+/** Said wherever stock, reservations or purchase orders appear: they are today's position, whatever the as-of date says. */
+export const STOCK_NOTE = 'Stock as of today, not affected by the as-of date.';
+
 export { STATE_WORD };

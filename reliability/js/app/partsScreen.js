@@ -2,8 +2,8 @@
 // that cannot start for want of parts. The same numbers the Asset 360 tab and the dashboard KPI read (inventoryModel.js).
 
 import { h } from '../ui/dom.js';
-import { mountScreen, emptyState, drillKpis, tag, plural, writeView, scopeNote } from './screenKit.js';
-import { stockRows, blockedWorkOrders } from './inventoryModel.js';
+import { emptyState, drillKpis, tag, plural, scopeNote } from './screenKit.js';
+import { stockRows, blockedWorkOrders, STOCK_NOTE } from './inventoryModel.js';
 import { STATE_WORD } from '../domain/inventory.js';
 import { openAsset } from './assetPanel.js';
 
@@ -20,28 +20,24 @@ export function stateTag(l) {
   return h('span', { class: `tag ${STATE_TONE[l.state]}`, title, 'data-state': l.state }, text);
 }
 
-export function createPartsTab(deps) {
-  return { name: 'Parts & Inventory', render: () => '<div class="screen hl" data-testid="maintenance-parts" data-hl-root></div>', mount: (stage) => mountParts(stage, deps) };
+/**
+ * The model of the Parts & Inventory tab. With a line or an asset chosen (the same filters as the other Maintenance History tabs)
+ * the work orders are those of the selection, and the stock tables show the materials those work orders need.
+ * @param {any} snap  @param {{line?: string, unit?: string}} st  @param {{workOrders: Array<{id: string}>}} hist  loadHistory for the same selection
+ */
+export function loadParts(snap, st, hist) {
+  const inv = snap.inventory;
+  const scoped = Boolean(st.line || st.unit);
+  const ids = new Set(hist.workOrders.map((w) => w.id));
+  const needed = scoped ? new Set(inv.lines.filter((l) => ids.has(l.work_order_id)).map((l) => l.material_id)) : null;
+  const rows = stockRows(inv).filter((r) => !needed || needed.has(r.material_id));
+  const blocked = blockedWorkOrders(snap).filter((b) => !scoped || ids.has(b.work_order_id));
+  const low = rows.filter((r) => r.low).sort((a, b) => Number(b.empty) - Number(a.empty) || (a.available / Math.max(1, a.reorder_point)) - (b.available / Math.max(1, b.reorder_point)));
+  const pos = inv.purchaseOrders.filter((l) => l.status !== 'closed' && (!needed || needed.has(l.material_id))).map((l) => ({ ...l, description: inv.materialById.get(l.material_id)?.description ?? l.material_id, supplier: inv.supplierById.get(l.supplier_id)?.name ?? l.supplier_id, late: l.delivery_date < snap.asOf })).sort((a, b) => a.delivery_date.localeCompare(b.delivery_date));
+  return { available: inv.available, scoped, rows, low, pos, blocked, shortLines: blocked.reduce((n, b) => n + b.short, 0), onOrderLines: blocked.reduce((n, b) => n + b.onOrder, 0), latePos: pos.filter((p) => p.late).length, empties: low.filter((r) => r.empty).length, warehouses: inv.warehouses };
 }
 
-function mountParts(stage, deps) {
-  return mountScreen(stage, deps, {
-    view: 'history', noun: 'the parts and inventory',
-    state() { writeView({ view: 'history', line: null, unit: null, show: null, status: null, sev: null }); return {}; },
-    controls: () => [h('div', { class: 'filter-label' }, 'About this tab'), h('p', { class: 'a360-muted a360-small' }, 'Stock, purchase orders and reservations are the current position in the demo data. The global filters (voltage, label, category) narrow the work orders waiting on parts.')],
-    load: (snap) => {
-      const inv = snap.inventory;
-      const rows = stockRows(inv);
-      const blocked = blockedWorkOrders(snap);
-      const low = rows.filter((r) => r.low).sort((a, b) => Number(b.empty) - Number(a.empty) || (a.available / Math.max(1, a.reorder_point)) - (b.available / Math.max(1, b.reorder_point)));
-      const pos = inv.purchaseOrders.filter((l) => l.status !== 'closed').map((l) => ({ ...l, description: inv.materialById.get(l.material_id)?.description ?? l.material_id, supplier: inv.supplierById.get(l.supplier_id)?.name ?? l.supplier_id, late: l.delivery_date < snap.asOf })).sort((a, b) => a.delivery_date.localeCompare(b.delivery_date));
-      return { available: inv.available, rows, low, pos, blocked, shortLines: blocked.reduce((n, b) => n + b.short, 0), onOrderLines: blocked.reduce((n, b) => n + b.onOrder, 0), latePos: pos.filter((p) => p.late).length, empties: low.filter((r) => r.empty).length, warehouses: inv.warehouses };
-    },
-    draw: (m, ctx) => draw(m, ctx),
-  });
-}
-
-function draw(m, ctx) {
+export function drawParts(m, ctx) {
   const kit = ctx.deps.kit;
   if (!m.available) return [emptyState('parts-empty', 'No inventory data', 'The data source has no materials, stock or purchase orders.')];
   const kpiHost = h('div', { 'data-testid': 'hl-kpis' });
@@ -53,7 +49,8 @@ function draw(m, ctx) {
   ]);
   drillKpis(kpiHost, {});
   const head = h('div', { class: 'hl-head', 'data-testid': 'hl-head' }, h('div', {}, h('h2', {}, 'Parts & Inventory'),
-    h('p', { class: 'a360-muted a360-small' }, `${plural(m.rows.length, 'material')} in ${m.warehouses.map((w) => w.name).join(' and ')} · ${plural(m.blocked.length, 'work order')} waiting on parts`)));
+    h('p', { class: 'a360-muted a360-small' }, `${plural(m.rows.length, 'material')}${m.scoped ? ' needed by this selection' : ''} in ${m.warehouses.map((w) => w.name).join(' and ')} · ${plural(m.blocked.length, 'work order')} waiting on parts`),
+    h('p', { class: 'pt-asof', 'data-testid': 'stock-asof' }, STOCK_NOTE)));
 
   const open = (id) => (e) => openAsset(id, { opener: e.currentTarget, tab: 'inventory' });
   const blocked = m.blocked.length
@@ -83,7 +80,7 @@ function draw(m, ctx) {
   const card = (id, title, note, body) => h('section', { class: 'card hl-card', 'data-testid': id }, h('h3', {}, title), note ? h('p', { class: 'a360-muted a360-small' }, note) : null, body);
   return [h('div', { class: 'hl-main' }, head, kpiHost,
     card('blocked-card', `Work orders waiting on parts (${m.blocked.length})`, 'A work order waits when a part it needs is on order (with its delivery date) or short. Click an asset to see its parts.', blocked),
-    card('low-card', `Low stock (${m.low.length})`, null, lowTable),
-    card('po-card', `Open purchase order lines (${m.pos.length})`, null, poTable),
-    card('stock-card', `Stock (${m.rows.length} materials)`, 'On hand and reserved per warehouse; free is on hand less reserved.', stock))];
+    card('low-card', `Low stock (${m.low.length})`, STOCK_NOTE, lowTable),
+    card('po-card', `Open purchase order lines (${m.pos.length})`, `${STOCK_NOTE} Delivery dates are the orders' own.`, poTable),
+    card('stock-card', `Stock (${m.rows.length} materials)`, `On hand and reserved per warehouse; free is on hand less reserved. ${STOCK_NOTE}`, stock))];
 }

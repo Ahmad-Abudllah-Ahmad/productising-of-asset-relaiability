@@ -67,7 +67,7 @@ function kpiRow(m, kit) {
     h('div', { class: 'dash-rows' }, k.assets.byCategory.map((c) => h('div', { class: 'dash-row', 'data-cat': c.id }, h('button', { class: 'dash-rlabel', type: 'button', onClick: () => openBand(c.id, null), title: `Open the ${c.title} registry` }, c.title), BANDS.map((b) => chip(c, b))))),
     h('div', { class: 'sub sub-warn' }, `${k.assets.attention} need attention`, k.assets.stale ? h('span', { class: 'dash-stale', title: 'Scores older than the inspection interval are greyed out' }, ` · ${k.assets.stale} stale`) : null, h('span', { class: 'dash-key' }, 'poor · moderate · normal · not assessed')));
   const button = (id, cls, testid, label, value, sub, tone, series, onClick) => {
-    const b = h('button', { class: `kpi card dash-kpi ${cls}`, type: 'button', 'data-testid': testid, 'aria-label': `${label}: ${value}. ${sub}`, onClick });
+    const b = h('button', { class: `kpi card dash-kpi ${cls}`, type: 'button', 'data-testid': testid, 'aria-label': `${label}: ${value}. ${sub}`, ...(cls.includes('parts') ? { title: 'Stock as of today, not affected by the as-of date.' } : {}), onClick });
     b.innerHTML = `<div class="k">${esc(label)}</div><div class="n">${esc(value)}</div><div class="sub sub-${tone}">${esc(sub)}</div>`;
     b.append(sparkSvg(kit, series, id));
     return b;
