@@ -195,7 +195,8 @@ export function createHistoryScreen(net, d) {
   /* ---------- Before / after */
   function beforeAfterBody(m) {
     return `<div class="nx-row nx-c2">${ui.card({ title: 'Health index before and after repair', sub: 'Repaired assets: HI the day before the repair vs the day of it', body: ui.chart('ba', 'lg') })}${ui.card({ title: 'Repair effect by work type', sub: 'Mean HI gain (points) per completed repair type', body: ui.chart('gain', 'lg') })}</div>
-      <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s4', title: 'Repair outcomes', sub: 'Did the defect stay fixed? Re-sighted = same class seen again on the same asset', body: ui.chart('out', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Defect-to-repair time by work type', sub: 'Days from first sighting to completed repair (min · median · max)', body: ui.chart('ttr', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Repeat defects', sub: 'Repairs whose defect came back: candidates for a design change, not another repair', flush: true, body: '<div data-rep></div>' })}</div>`;
+      <div class="nx-row nx-c2">${ui.card({ title: 'Repair outcomes', sub: 'Did the defect stay fixed? Re-sighted = same class seen again on the same asset', body: ui.chart('out', 'lg') })}${ui.card({ title: 'Defect-to-repair time by work type', sub: 'Days from first sighting to completed repair (min · median · max)', body: ui.chart('ttr', 'lg') })}</div>
+      ${ui.card({ title: 'Repeat defects', sub: 'Repairs whose defect came back: candidates for a design change, not another repair', flush: true, body: '<div data-rep></div>' })}`;
   }
   function mountBeforeAfter(m, st, ctx) {
     wire(ctx, 'beforeafter');
@@ -213,7 +214,13 @@ export function createHistoryScreen(net, d) {
     const stat = types.map((t) => { const v = m.workOrders.filter((w) => w.type === t && w.completed).map((w) => woRaw.get(w.id)?.ttrDays).filter((x) => x != null && x >= 0).sort((a, b) => a - b); return { t, min: v[0] ?? 0, med: v[Math.floor(v.length / 2)] ?? 0, max: v[v.length - 1] ?? 0, n: v.length }; }).sort((a, b) => b.med - a.med);
     ctx.chart('ttr', { grid: ch.grid({ top: 26 }), legend: { top: 0, right: 0 }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps) => { const s0 = stat[ps[0].dataIndex]; return `<b>${esc(fmt.title(s0.t))}</b> · ${s0.n} repairs<br/>min ${s0.min} d · median <b>${s0.med} d</b> · max ${s0.max} d`; } }, xAxis: { type: 'value', name: 'days' }, yAxis: { type: 'category', inverse: true, data: stat.map((x) => fmt.title(x.t)), axisLabel: { fontSize: 10.5 } },
       series: [{ type: 'bar', name: 'min', stack: 'r', itemStyle: { color: 'transparent' }, data: stat.map((x) => x.min) }, { type: 'bar', name: 'min → median', stack: 'r', itemStyle: { color: '#93c5fd', borderRadius: [4, 0, 0, 4] }, data: stat.map((x) => x.med - x.min) }, { type: 'bar', name: 'median → max', stack: 'r', itemStyle: { color: '#2563eb', borderRadius: [0, 4, 4, 0] }, data: stat.map((x) => x.max - x.med) }] });
-    st.querySelector('[data-rep]').innerHTML = ui.table({ id: 'rept', rowId: (r) => r.workOrderId, rows: m.ineffective, cols: [{ label: 'Repair', sort: (r) => r.id, render: (r) => `<b>${esc(r.id)}</b><span class="nx-sub">${fmt.date(r.date)}</span>` }, { label: 'Asset', sort: (r) => r.ownerName, render: assetCell }, { label: 'Action', sort: (r) => r.action, render: (r) => esc(fmt.title(r.action)) }], empty: 'No repeat defects: every repair has held.' });
+    st.querySelector('[data-rep]').innerHTML = ui.table({ id: 'rept', rowId: (r) => r.workOrderId, rows: m.ineffective, cols: [
+      { label: 'Repair', sort: (r) => r.id, render: (r) => `<b>${esc(r.id)}</b><span class="nx-sub">${fmt.date(r.date)}</span>` },
+      { label: 'Asset', sort: (r) => r.ownerName, render: assetCell },
+      { label: 'Action', sort: (r) => r.action, render: (r) => esc(fmt.title(r.action)) },
+      { label: 'Health index before → after', align: 'r', sort: (r) => r.delta ?? -999, render: (r) => hiText(r) },
+      { label: 'Seen again', sort: false, render: (r) => r.seenAgain.slice(0, 2).map((x) => `<div>${link('data-finding', x.id, x.id)} <span class="nx-sub" style="display:inline">${esc(x.date)} (+${x.daysAfter} d)</span></div>`).join('') + (r.seenAgain.length > 2 ? `<span class="nx-sub">+${r.seenAgain.length - 2} more</span>` : '') },
+    ], empty: 'No repeat defects: every repair has held.' });
     ctx.on('click', '#rept tr[data-row]', (e, r) => { if (!e.target.closest('[data-asset]')) woDrawer(r.dataset.row); });
   }
 
