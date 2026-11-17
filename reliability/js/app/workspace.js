@@ -411,6 +411,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           { label: 'Assets with open work', value: woAssets.size, icon: 'tower', tone: 'ok', sub: `${openWos.filter((w) => w.outage).length} orders need an outage` },
           { label: 'Poor-band towers without an order', value: poorNoWo.length, icon: 'alert', tone: poorNoWo.length ? 'warn' : 'ok', sub: poorNoWo.length ? poorNoWo.slice(0, 3).map((t) => t.name).join(', ') : 'every poor tower is covered' },
         ])}
+        ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Open work by status and type', sub: 'Order status in SAP PM', body: ui.chart('wstage', 'lg') })}
         ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Open and planned work orders', sub: 'Every order that is not completed, highest-risk asset first. Click a row for the order.', tools: ui.search('#wo-open', 'Filter work orders…'), flush: true, body: ui.table({ id: 'wo-open', rowId: (w) => w.id, rows: openWos, empty: 'No open work orders in SAP PM.', cols: [
           { label: 'Work order', sort: (w) => w.id, render: (w) => `<b>${esc(w.id)}</b><span class="nx-sub nx-mono">SAP ${esc(w.sap)}</span>` },
           { label: 'Asset', sort: (w) => w.towerName || w.asset, render: (w) => `${esc(w.towerName || w.asset)}<span class="nx-sub">${esc(w.line || 'Substation')}</span>` },
@@ -420,8 +421,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           { label: 'Crew', sort: (w) => w.crewName, render: (w) => `<span style="white-space:normal;display:block;min-width:90px">${esc(w.crewName)}</span>` },
           { label: 'Planned', sort: (w) => w.planned_date, render: (w) => (w.planned_date && w.planned_date < asOf ? `<span style="color:#dc2626;font-weight:600">${fmt.short(w.planned_date)}</span>` : fmt.short(w.planned_date)) },
           { label: 'Estimate', align: 'r', sort: (w) => w.estCost, render: (w) => `<span class="nx-num">${fmt.money(w.estCost)}</span>` },
-        ] }) })}
-        ${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Open work by status and type', sub: 'Order status in SAP PM', body: ui.chart('wstage', 'lg') })}</div>`;
+        ] }) })}</div>`;
       },
       mount: (st, ctx) => {
         const stages = ['requested', 'approved', 'planned', 'scheduled', 'in_progress'];
