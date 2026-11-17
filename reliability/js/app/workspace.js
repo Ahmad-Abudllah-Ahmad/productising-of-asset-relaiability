@@ -455,16 +455,15 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           { label: 'Longest lead time (short items)', value: short.length ? Math.max(...short.map((r) => r.lead)) : 0, unit: 'days', icon: 'clock', tone: 'warn', sub: short.length ? short.slice().sort((a, b) => b.lead - a.lead)[0].supplierName : 'nothing to order' },
           { label: 'Suppliers involved', value: partSuppliers.length, icon: 'factory', tone: 'ok', sub: `${partSuppliers.filter((sp) => sp.short).length} with a short item` },
         ])}
-        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', erp: ['SAP MM', 'inventory'], title: 'Parts needed for open findings', sub: 'Bill of materials for every open finding against available stock (on hand minus reserved), largest shortfall first', tools: ui.search('#parts-need', 'Filter parts…'), flush: true, body: ui.table({ id: 'parts-need', rows: partRows, empty: 'No open finding needs a catalogue part.', cols: [
-          { label: 'Material', sort: (r) => r.sku, render: (r) => `<b class="nx-mono">${esc(r.sku)}</b><span class="nx-sub">${esc(r.name)}</span>` },
+        ${ui.card({ erp: ['SAP MM', 'inventory'], title: 'Need vs available stock', sub: 'The ten items with the highest need', body: ui.chart('pneed', 'lg') })}
+        ${ui.card({ erp: ['SAP MM', 'inventory'], title: 'Parts needed for open findings', sub: 'Bill of materials for every open finding against available stock (on hand minus reserved), largest shortfall first', tools: ui.search('#parts-need', 'Filter parts…'), flush: true, body: ui.table({ id: 'parts-need', rows: partRows, empty: 'No open finding needs a catalogue part.', cols: [
+          { label: 'Material', sort: (r) => r.sku, render: (r) => `<b class="nx-mono">${esc(r.sku)}</b><span class="nx-sub" style="white-space:normal;min-width:120px">${esc(r.name)}</span>` },
           { label: 'Needed for', sort: (r) => r.nFindings, render: (r) => `${r.nFindings} finding${r.nFindings === 1 ? '' : 's'}<span class="nx-sub">${r.nAssets} asset${r.nAssets === 1 ? '' : 's'}</span>` },
           { label: 'Need', align: 'r', sort: (r) => r.need, render: (r) => `<span class="nx-num">${fmt.n(r.need)}</span> ${esc(r.uom)}` },
           { label: 'Available', align: 'r', sort: (r) => r.available, render: (r) => `<span class="nx-num">${fmt.n(r.available)}</span><span class="nx-sub">${fmt.n(r.onHand)} on hand · ${fmt.n(r.reserved)} reserved</span>` },
           { label: 'Cover', sort: (r) => r.short, render: (r) => (r.short ? ui.badge(`Short by ${fmt.n(r.short)}`, r.available > 0 ? 'warn' : 'crit') : ui.badge('In stock', 'ok')) },
-          { label: 'Lead time', align: 'r', sort: (r) => r.lead, render: (r) => `${r.lead} d` },
-          { label: 'Supplier', sort: (r) => r.supplierName, render: (r) => esc(r.supplierName) },
+          { label: 'Supplier', sort: (r) => r.supplierName, render: (r) => `<span style="white-space:normal;display:block;min-width:90px">${esc(r.supplierName)}</span><span class="nx-sub">${r.lead} d lead time</span>` },
         ] }) })}
-        ${ui.card({ cls: 'nx-s4', erp: ['SAP MM', 'inventory'], title: 'Need vs available stock', sub: 'The ten items with the highest need', body: ui.chart('pneed', 'lg') })}</div>
         ${ui.card({ erp: ['SAP MM', 'suppliers'], title: 'Suppliers of these parts', sub: `Vendor master and delivery performance · ${esc(net.erp.syncedText('suppliers'))}`, flush: true, body: ui.table({ id: 'parts-sup', rows: partSuppliers, cols: [
           { label: 'Supplier', sort: (x) => x.name, render: (x) => `<b>${esc(x.name)}</b><span class="nx-sub">${esc(x.id)} · ${esc(x.country)}</span>` },
           { label: 'Supplies', sort: (x) => x.cat, render: (x) => esc(x.cat) },
