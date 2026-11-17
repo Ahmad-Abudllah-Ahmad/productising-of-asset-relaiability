@@ -172,21 +172,17 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           ])}
           <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Component condition — digital twin', sub: 'Each part of the structure is coloured by its component-group score (5 = as new, 1 = failed). Pick any tower.', tools: `<select class="nx-select" data-twin>${towers.slice().sort((a, b) => (a.hi ?? 101) - (b.hi ?? 101)).map((t) => `<option value="${esc(t.id)}" ${t.id === twinId ? 'selected' : ''}>${esc(t.name)} · ${esc(t.line)} · HI ${t.hi == null ? '—' : Math.round(t.hi)}</option>`).join('')}</select>`, body: `<div data-twin-body>${towerTwin(net.towerById.get(twinId))}</div>` })}
           ${ui.card({ cls: 'nx-s5', title: 'Health index distribution', sub: 'Towers per 10-point HI bucket, coloured by band (normal ≥ 70, poor < 40)', body: ui.chart('hist', 'md') })}</div>
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s7', title: 'Worst-condition towers', sub: 'Lowest health index first. Click a row for Asset 360.', tools: ui.search('#tw-worst', 'Filter towers…'), flush: true, body: ui.table({ id: 'tw-worst', rowId: (t) => t.id, rows: towers.filter((t) => t.hi != null).sort((a, b) => a.hi - b.hi).slice(0, 25), cols: [
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s12', title: 'Worst-condition towers', sub: 'Lowest health index first. Click a row for Asset 360.', tools: ui.search('#tw-worst', 'Filter towers…'), flush: true, body: ui.table({ id: 'tw-worst', rowId: (t) => t.id, rows: towers.filter((t) => t.hi != null).sort((a, b) => a.hi - b.hi).slice(0, 25), cols: [
             { key: 'name', label: 'Tower', render: (t) => `<b>${esc(t.name)}</b><span class="nx-sub">${esc(t.line)} · ${esc(t.type || '')}</span>` },
             { key: 'hi', label: 'HI', align: 'r', render: (t) => hiScore(t.hi, t.band) },
             { label: 'Weakest group', sort: (t) => Math.min(...t.hiGroups.map((g) => g.score)), render: (t) => { const w = t.hiGroups.slice().sort((a, b) => a.score - b.score)[0]; return w ? `${esc(GROUP_LABEL[w.group] || w.group)} <span class="nx-note">(${fmt.n(w.score, 1)})</span>` : '—'; } },
             { key: 'open', label: 'Open', align: 'r' }, { key: 'zone', label: 'Zone', align: 'c' }, { key: 'age', label: 'Age', align: 'r' },
             { key: 'risk', label: 'Risk', render: (t) => riskBadge(t.riskBand, t.risk) },
-          ] }) })}
-          ${ui.card({ cls: 'nx-s5', title: 'Health vs age', sub: 'Each dot a tower; colour = corrosion zone (ISO 9223 C3–C5). Coastal C5 towers decay faster.', body: ui.chart('age', 'lg') })}</div></div>`;
+          ] }) })}</div></div>`;
         },
         mount: (st, ctx) => {
           const buckets = Array.from({ length: 10 }, (_, i) => i * 10);
           ctx.chart('hist', ch.bar({ x: buckets.map((b) => `${b}–${b + 9}`), series: [{ name: 'Towers', data: buckets.map((b) => ({ value: assessed.filter((t) => t.hi >= b && t.hi < b + 10 + (b === 90 ? 1 : 0)).length, itemStyle: { color: b < 40 ? BAND_C.poor : b < 70 ? BAND_C.moderate : BAND_C.normal } })) }], labels: true }));
-          const zones = [...new Set(assessed.map((t) => t.zone))].sort();
-          const zc = { C3: '#0ea5e9', C4: '#8b5cf6', C5: '#ef4444', C2: '#14b8a6' };
-          ctx.chart('age', { grid: ch.grid({ top: 30 }), legend: { top: 0, right: 0 }, tooltip: { formatter: (p) => `<b>${esc(p.data[2])}</b><br/>Age ${p.data[0]} y · HI ${fmt.n(p.data[1], 1)}` }, xAxis: { type: 'value', name: 'Age (years)', nameLocation: 'middle', nameGap: 26, scale: true }, yAxis: { type: 'value', name: 'HI', min: 0, max: 100 }, series: zones.map((z) => ({ type: 'scatter', name: `Zone ${z}`, symbolSize: 9, itemStyle: { color: zc[z] || '#64748b', opacity: 0.8 }, data: assessed.filter((t) => t.zone === z).map((t) => [+(t.age + (((t.idx || 0) * 37) % 17) / 10 - 0.8).toFixed(2), t.hi, t.name, t.id]), markLine: z === zones[0] ? { silent: true, symbol: 'none', lineStyle: { color: '#dc2626', type: 'dashed' }, data: [{ yAxis: 40, label: { formatter: 'Poor', color: '#dc2626' } }, { yAxis: 70, lineStyle: { color: '#d97706' }, label: { formatter: 'Normal', color: '#d97706' } }] } : undefined })) }, { onClick: (p) => { twinId = p.data[3]; st.querySelector('[data-twin]').value = twinId; st.querySelector('[data-twin-body]').innerHTML = towerTwin(net.towerById.get(twinId)); } });
           ctx.on('change', '[data-twin]', (e, s) => { twinId = s.value; st.querySelector('[data-twin-body]').innerHTML = towerTwin(net.towerById.get(twinId)); });
           ctx.on('click', '[data-a360]', (e, b) => open360(b.dataset.a360));
           ctx.on('click', '[data-fv]', (e, b) => openFinding?.(b.dataset.fv));
