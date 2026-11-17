@@ -162,17 +162,16 @@ export function createHistoryScreen(net, d) {
     const st = scope.status;
     const list = st === 'overdue' ? m.workOrders.filter((w) => w.overdue) : st ? m.workOrders.filter((w) => w.status === st) : m.workOrders;
     const t = m.turnaround;
-    const summary = `${ui.stats(WO_STATUSES.map((s) => ({ label: STATUS_LABEL[s], value: String(m.statusCounts[s]) })).concat([{ label: 'Overdue', value: String(m.overdue), color: m.overdue ? '#dc2626' : undefined }]))}${ui.callout(`Completed work orders took a median of <b>${esc(dayWord(t.woMedianDays))}</b> (mean ${fnum(t.woMeanDays)}) from being raised to being completed. From finding to repair: median ${esc(dayWord(t.medianDays))}, slowest ${t.maxDays ?? '–'} days. ${plural(m.overdue, 'work order')} ${m.overdue === 1 ? 'is' : 'are'} past the planned date and not completed.`, 'info', 'clock')}`;
+    const summary = ui.card({ title: 'Work order status', sub: `${plural(m.workOrders.length, 'work order')} in this selection`, body: `${ui.stats(WO_STATUSES.map((s) => ({ label: STATUS_LABEL[s], value: String(m.statusCounts[s]) })).concat([{ label: 'Overdue', value: String(m.overdue), color: m.overdue ? '#dc2626' : undefined }]))}<p class="nx-sub" style="margin:12px 0 0;font-size:12.5px;line-height:1.5" data-testid="turnaround">Completed work orders took a median of <b>${esc(dayWord(t.woMedianDays))}</b> (mean ${fnum(t.woMeanDays)}) from being raised to being completed. From finding to repair: median ${esc(dayWord(t.medianDays))}, slowest ${t.maxDays ?? '–'} days. ${plural(m.overdue, 'work order')} ${m.overdue === 1 ? 'is' : 'are'} past the planned date and not completed.</p>` });
     if (!list.length) return `${summary}${ui.card({ body: ui.empty('No work order has this status in this selection.') })}`;
     return `${summary}${ui.card({ erp: ['SAP PM', 'workOrders'], title: `Work orders (${list.length}${list.length !== m.workOrders.length ? ` of ${m.workOrders.length}` : ''})`, tools: ui.search('#wot', 'Filter work orders…'), flush: true, body: ui.table({ id: 'wot', rowId: (w) => w.id, rows: list, cols: [
-      { key: 'id', label: 'Work order', render: (w) => `<b>${esc(w.id)}</b>` },
+      { key: 'id', label: 'Work order', render: (w) => `<b>${esc(w.id)}</b>${w.repairId ? `<span class="nx-sub">repair ${esc(w.repairId)}</span>` : ''}` },
       { label: 'Type', sort: (w) => w.type, render: (w) => `${esc(fmt.title(w.type))}<span class="nx-sub">${esc(w.priority)} priority</span>` },
       { label: 'Asset', sort: (w) => w.ownerName, render: assetCell },
       { label: 'Status', sort: (w) => w.status, render: (w) => `${ui.badge(STATUS_LABEL[w.status], STATUS_TONE[w.status])}${w.overdue ? ` ${ui.badge('Overdue', 'crit')}` : ''}` },
       { label: 'Raised', sort: (w) => w.created, render: (w) => fmt.date(w.created) }, { label: 'Planned', sort: (w) => w.planned || '', render: (w) => (w.planned ? fmt.date(w.planned) : '–') },
       { label: 'Completed', sort: (w) => w.completed || '', render: (w) => (w.completed ? fmt.date(w.completed) : '–') }, { label: 'Days open', align: 'r', sort: (w) => w.daysOpen, render: (w) => w.daysOpen },
       { label: 'Findings', sort: false, render: (w) => `${w.findingIds.slice(0, 3).map((id) => link('data-finding', id, id)).join(' ')}${w.findingIds.length > 3 ? ` +${w.findingIds.length - 3}` : ''}` },
-      { label: 'Repair', sort: (w) => w.repairId || '', render: (w) => esc(w.repairId || '–') },
     ] }) })}`;
   }
 
