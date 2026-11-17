@@ -201,6 +201,66 @@ test.describe('Asset 360 panel', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a tower\'s Components tab: Schematic (the tower structure) and LiDAR (the simulated point cloud)', async ({ page }) => {
+    const errors = await open(page, '/reliability#asset=TWR-220-03-013');
+    await expect(panel(page)).toBeVisible();
+    await ptab(page, 'components').click();
+    await expect(page.getByTestId('ctab-schematic')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('tower-schematic').locator('svg')).toBeVisible();
+    await expect(page.getByTestId('tower-schematic')).toContainText('insulator strings');
+    await expect(page.getByTestId('cond-key')).toContainText('very poor');
+    await expect(page.getByTestId('components').locator('tbody tr')).toHaveCount(7);
+    await page.getByTestId('ctab-lidar').click();
+    await expect(page.getByTestId('ctab-lidar')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('lidar-label')).toHaveText('Simulated LiDAR');
+    await expect(page.getByTestId('asset-lidar').locator('canvas').first()).toBeVisible();
+    await expect(page.getByTestId('asset-lidar')).toContainText('Clearance');
+    await page.getByTestId('ctab-schematic').click();
+    await expect(page.getByTestId('tower-schematic').locator('svg')).toBeVisible();
+    // a span or a transformer has no tower view toggle
+    expect(errors.filter((e) => !/tile|ERR_|Failed to load/.test(e))).toEqual([]);
+  });
+
+  test('Line Health: the tower LiDAR card (LiDAR only) follows the selected line and its tower picker', async ({ page }) => {
+    const errors = await open(page, '/reliability?screen=line&tab=0');
+    const body = page.locator('[data-lt-body]');
+    await expect(body.locator('.ld-badge')).toHaveText('Simulated LiDAR');
+    await expect(body.locator('canvas').first()).toBeVisible();
+    await expect(page.locator('[data-seg="lt-view"]')).toHaveCount(0); // no Schematic button
+    const first = await page.locator('[data-lt-tower]').inputValue();
+    await page.locator('[data-seg="prof"] [data-v="L-132-01"]').click();
+    await expect.poll(() => page.locator('[data-lt-tower]').inputValue()).not.toBe(first);
+    await expect(body.locator('canvas').first()).toBeVisible();
+    expect(errors.filter((e) => !/tile|ERR_|Failed to load/.test(e))).toEqual([]);
+  });
+
+  test('Components tab: every kind of asset has its own drawing, coloured by condition like the tower', async ({ page }) => {
+    const errors = await open(page, '/reliability');
+    const cases = [
+      ['SPN-132-01-009-010', 'span', 'Span and components'], ['TX-2C', 'power_transformer', 'Transformer and components'], ['L-132-01', 'line', 'Line overview'],
+      ['INS-132-01-001-A', 'insulator_string', 'Insulator string'], ['DMP-132-01-001-1', 'damper', 'Vibration damper'], ['EW-132-01-001', 'earthwire', 'Earth wire'],
+      ['FND-132-01-001', 'foundation', 'Foundation'], ['CND-132-01-001', 'conductor', 'Conductor'], ['ROW-132-01-001', 'span_corridor_segment', 'Right-of-way corridor'],
+      ['TX-1A-BSH-HV', 'bushing', 'Bushing'], ['TX-1A-OLTC', 'tap_changer', 'On-load tap changer'], ['TX-1A-COOL', 'cooling', 'Cooling system'],
+      ['TX-1A-TANK', 'tank_oil', 'Tank and oil'], ['BAY-S1-4', 'bay', 'Bay'], ['SUB-S1', 'substation', 'Substation'],
+    ];
+    for (const [id, cls, title] of cases) {
+      await page.goto(`/reliability#asset=${id}`);
+      await expect(panel(page)).toBeVisible();
+      await ptab(page, 'components').click();
+      const vis = page.getByTestId('asset-schematic');
+      await expect(vis, id).toHaveAttribute('data-visual', cls);
+      await expect(vis.locator('svg[role="img"]'), id).toBeVisible();
+      await expect(section(page, 'twin'), id).toContainText(title);
+      await expect(page.getByTestId('cond-key'), id).toBeVisible();
+    }
+    // a span also has LiDAR
+    await page.goto('/reliability#asset=SPN-132-01-009-010');
+    await ptab(page, 'components').click();
+    await page.getByTestId('ctab-lidar').click();
+    await expect(page.getByTestId('asset-lidar').locator('canvas').first()).toBeVisible();
+    expect(errors.filter((e) => !/tile|ERR_|Failed to load/.test(e))).toEqual([]);
+  });
+
   test('a span: opened from its hash, with the same sections and a cap', async ({ page }) => {
     const errors = await open(page, '/reliability#asset=SPN-132-01-009-010');
     await expect(panel(page)).toBeVisible();

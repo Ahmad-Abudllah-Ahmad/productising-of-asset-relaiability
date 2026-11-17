@@ -45,7 +45,7 @@ test.describe('page structure', () => {
     const html = await (await request.get('/reliability')).text();
     expect(html).toContain('nexus-apps.css?v=39');
     expect(html).toContain('nexus-reliability.js?v=2');
-    expect(html).toContain('boot.js?v=5');
+    expect(html).toContain('boot.js?v=11');
     expect(html).toContain('/assets/console/console.css');
     for (const m of ['operations', 'grid', 'inventory', 'forecast', 'finance', 'workforce']) {
       expect(await (await request.get(`/${m}`)).text()).toContain(`/assets/console/modules/${m}.js`);

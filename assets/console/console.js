@@ -190,7 +190,7 @@ export const ui = {
   },
   score(v, color) {
     const c = color || healthColor(v);
-    return `<span class="nx-score" style="background:${c}1f;color:${c}">${v == null ? '—' : fmt.n(v)}</span>`;
+    return `<span class="nx-score" style="--c:${c};background:${c}1f;color:${c}">${v == null ? '—' : fmt.n(v)}</span>`;
   },
   stats: (items) => `<div class="nx-stats">${items.map((s) => `<div><small>${esc(s.label)}</small><b${s.live ? ` data-live="${esc(s.live)}"` : ''}${s.color ? ` style="color:${s.color}"` : ''}>${esc(s.value)}</b></div>`).join('')}</div>`,
   kv: (rows) => `<dl class="nx-kv">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>`,
@@ -866,6 +866,141 @@ function sortTable(th) {
   tb.append(...rows);
 }
 
+/* ================================================================== table kit */
+// Every data table gets the same professional behaviour, without any module wiring it up:
+//   - the header row stays pinned while the body scrolls inside its card
+//   - sort (click a heading), a quick filter, and per-column filters (text, or > < >= <= = with numbers)
+//   - a column picker and CSV export of exactly what is on screen (visible rows, visible columns)
+// ui.table() tables get all of it; the Module 01 registry tables (their own filter panel and sorting) get the column
+// picker and export. A MutationObserver upgrades tables as modules draw them, so new views and dialogs need nothing.
+const TS = new WeakMap();
+const TB_MIN_FILTER = 8;
+const cellText = (c) => (c?.textContent ?? '').replace(/\s+/g, ' ').trim();
+const headLabel = (th, i) => cellText(th).replace(/[▲▼]/g, '').trim() || `Column ${i + 1}`;
+const dataRows = (table) => [...(table.tBodies[0]?.rows ?? [])].filter((r) => !r.querySelector('.nx-table-empty'));
+function matchCell(cell, expr) {
+  const text = cellText(cell);
+  const m = /^(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)$/.exec(expr.trim());
+  if (m) {
+    const raw = cell?.getAttribute?.('data-v');
+    const n = raw != null && raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : Number(text.replace(/[^0-9.+-]/g, '').replace(/(?!^)[+-]/g, ''));
+    if (Number.isNaN(n) || (raw == null && text.replace(/[^0-9]/g, '') === '')) return false;
+    const v = Number(m[2]);
+    return { '>': n > v, '<': n < v, '>=': n >= v, '<=': n <= v, '=': n === v }[m[1]];
+  }
+  return text.toLowerCase().includes(expr.trim().toLowerCase());
+}
+function tablePaint(wrap) {
+  const st = TS.get(wrap); const table = wrap.querySelector('table'); if (!st || !table) return;
+  const rows = dataRows(table);
+  for (const tr of table.rows) for (let i = 0; i < tr.cells.length; i += 1) {
+    const c = tr.cells[i]; if (c.colSpan > 1) continue;
+    if (st.hidden.has(i)) c.style.display = 'none'; else if (c.style.display === 'none') c.style.display = '';
+  }
+  let shown = 0;
+  if (st.full) {
+    const q = st.q.trim().toLowerCase();
+    for (const r of rows) {
+      let ok = !q || r.textContent.toLowerCase().includes(q);
+      for (let i = 0; ok && i < st.filters.length; i += 1) if (st.filters[i]) ok = matchCell(r.cells[i], st.filters[i]);
+      if (ok) delete r.dataset.tfHide; else r.dataset.tfHide = '1';
+      if (ok && !r.hidden) shown += 1;
+    }
+    const n = wrap.querySelector('.nx-tb-n'); if (n) n.textContent = shown === rows.length ? `${rows.length} rows` : `${shown} of ${rows.length} rows`;
+    let none = table.tBodies[0].querySelector('.nx-tf-none');
+    if (!shown && rows.length) {
+      if (!none) { none = document.createElement('tr'); none.className = 'nx-tf-none'; none.innerHTML = `<td colspan="${table.rows[0].cells.length}" class="nx-table-empty">No rows match the filters.</td>`; table.tBodies[0].append(none); }
+    } else none?.remove();
+  }
+  st.sig = `${rows.length}|${rows[0]?.dataset.row ?? ''}|${rows[rows.length - 1]?.dataset.row ?? ''}`;
+}
+function tableExport(wrap) {
+  const table = wrap.querySelector('table'); const st = TS.get(wrap);
+  const head = [...table.tHead.rows[0].cells]; const keep = head.map((_, i) => !st.hidden.has(i));
+  const esc2 = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const line = (cells) => cells.filter((_, i) => keep[i]).map((c) => esc2(cellText(c))).join(',');
+  const body = dataRows(table).filter((r) => !r.hidden && !r.dataset.tfHide);
+  const csv = `﻿${[head.map((h, i) => (keep[i] ? esc2(headLabel(h, i)) : null)).filter((x) => x !== null).join(','), ...body.map((r) => line([...r.cells]))].join('\r\n')}`;
+  const title = (wrap.closest('.nx-card')?.querySelector('h3')?.textContent || document.getElementById('nx-title')?.textContent || 'table').trim();
+  const name = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'table'}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  toast(`Exported ${body.length} row${body.length === 1 ? '' : 's'} to ${name}`);
+}
+let colMenu = null;
+function closeColMenu() { colMenu?.remove(); colMenu = null; }
+function openColMenu(wrap, btn) {
+  closeColMenu();
+  const table = wrap.querySelector('table'); const st = TS.get(wrap); const head = [...table.tHead.rows[0].cells];
+  colMenu = document.createElement('div'); colMenu.className = 'nx-colmenu'; colMenu.setAttribute('role', 'dialog'); colMenu.setAttribute('aria-label', 'Choose columns');
+  colMenu.innerHTML = `<div class="nx-colmenu-h"><b>Columns</b><button type="button" data-all>Show all</button></div>${head.map((h, i) => `<label><input type="checkbox" data-c="${i}" ${st.hidden.has(i) ? '' : 'checked'}/><span>${esc(headLabel(h, i))}</span></label>`).join('')}`;
+  document.body.append(colMenu);
+  const r = btn.getBoundingClientRect();
+  colMenu.style.top = `${Math.min(r.bottom + 6, innerHeight - colMenu.offsetHeight - 8)}px`; colMenu.style.left = `${Math.max(8, Math.min(r.right - colMenu.offsetWidth, innerWidth - colMenu.offsetWidth - 8))}px`;
+  colMenu.addEventListener('change', (e) => {
+    const i = Number(e.target.dataset.c);
+    if (!e.target.checked && head.length - st.hidden.size <= 1) { e.target.checked = true; return; } // keep one column
+    if (e.target.checked) st.hidden.delete(i); else st.hidden.add(i);
+    tablePaint(wrap); tableMeasure(wrap);
+  });
+  colMenu.querySelector('[data-all]').addEventListener('click', () => { st.hidden.clear(); colMenu.querySelectorAll('input').forEach((x) => { x.checked = true; }); tablePaint(wrap); tableMeasure(wrap); });
+}
+document.addEventListener('mousedown', (e) => { if (colMenu && !e.target.closest('.nx-colmenu') && !e.target.closest('[data-tb-c]')) closeColMenu(); }, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && colMenu) { closeColMenu(); e.stopPropagation(); } }, true);
+function tableMeasure(wrap) {
+  const bar = wrap.querySelector(':scope > .nx-tb'); const first = wrap.querySelector('thead tr');
+  if (bar) wrap.style.setProperty('--nx-tb-h', `${bar.offsetHeight}px`);
+  if (first) wrap.style.setProperty('--nx-th-h', `${first.offsetHeight}px`);
+}
+function enhanceWrap(wrap, table, full) {
+  let st = TS.get(wrap);
+  if (st && wrap.querySelector(':scope > .nx-tb') && wrap.contains(st.table) && st.table === table) {
+    const rows = dataRows(table); const sig = `${rows.length}|${rows[0]?.dataset.row ?? ''}|${rows[rows.length - 1]?.dataset.row ?? ''}`;
+    if (sig !== st.sig || (st.hidden.size && !table.rows[0].querySelector('[style*="none"]'))) tablePaint(wrap);
+    return;
+  }
+  const rows = dataRows(table); const cols = table.tHead?.rows[0]?.cells.length ?? 0;
+  if (!rows.length || cols < 2 || !table.tHead) return;
+  const prev = st;
+  st = { table, full, hidden: new Set(prev?.hidden ?? []), filters: [], q: '', showFilters: false, sig: '' };
+  TS.set(wrap, st);
+  wrap.querySelector(':scope > .nx-tb')?.remove();
+  wrap.classList.add('nx-tw');
+  const hasOwnSearch = table.id && document.querySelector(`[data-filter-table="#${CSS.escape(table.id)}"]`);
+  const filterable = full && rows.length >= TB_MIN_FILTER;
+  const bar = document.createElement('div'); bar.className = 'nx-tb';
+  bar.innerHTML = `${filterable && !hasOwnSearch ? `<label class="nx-tb-s">${icon('search', 14)}<input type="search" placeholder="Filter rows…" aria-label="Filter rows"/></label>` : ''}${filterable ? `<button type="button" class="nx-btn is-sm is-ghost" data-tb-f aria-pressed="false">${icon('filter', 14)}Column filters</button>` : ''}<span class="nx-tb-n"></span><span class="nx-tb-sp"></span><button type="button" class="nx-btn is-sm is-ghost" data-tb-c>${icon('grid', 14)}Columns</button><button type="button" class="nx-btn is-sm is-ghost" data-tb-x>${icon('download', 14)}Export CSV</button>`;
+  wrap.prepend(bar);
+  if (filterable) {
+    const tr = document.createElement('tr'); tr.className = 'nx-tf';
+    tr.innerHTML = [...table.tHead.rows[0].cells].map((h, i) => `<th>${h.colSpan > 1 ? '' : `<input type="text" data-col="${i}" placeholder="Filter" aria-label="Filter ${esc(headLabel(h, i))}"/>`}</th>`).join('');
+    tr.hidden = true; table.tHead.append(tr);
+    tr.addEventListener('input', (e) => { const i = Number(e.target.dataset.col); st.filters[i] = e.target.value; tablePaint(wrap); });
+    // a heading click sorts; the filter inputs must not trigger that
+    tr.addEventListener('click', (e) => e.stopPropagation());
+    bar.querySelector('[data-tb-f]').addEventListener('click', (e) => {
+      st.showFilters = !st.showFilters; tr.hidden = !st.showFilters; e.currentTarget.setAttribute('aria-pressed', String(st.showFilters)); e.currentTarget.classList.toggle('is-on', st.showFilters);
+      if (!st.showFilters) { st.filters = []; tr.querySelectorAll('input').forEach((x) => { x.value = ''; }); tablePaint(wrap); }
+      tableMeasure(wrap);
+    });
+    bar.querySelector('.nx-tb-s input')?.addEventListener('input', (e) => { st.q = e.target.value; tablePaint(wrap); });
+  }
+  bar.querySelector('[data-tb-c]').addEventListener('click', (e) => { if (colMenu) closeColMenu(); else openColMenu(wrap, e.currentTarget); });
+  bar.querySelector('[data-tb-x]').addEventListener('click', () => tableExport(wrap));
+  tablePaint(wrap); tableMeasure(wrap);
+}
+export function enhanceTables(root = document) {
+  for (const t of root.querySelectorAll('table.nx-table')) { const w = t.closest('.nx-table-wrap'); if (w && w.firstElementChild !== null) enhanceWrap(w, t, true); }
+  for (const t of root.querySelectorAll('table.reg-table:not(.is-nested)')) { const w = t.closest('.table-card'); if (w) enhanceWrap(w, t, false); }
+}
+export function startTableKit() {
+  if (typeof window === 'undefined' || window.__nxTableKit) return;
+  window.__nxTableKit = true;
+  let raf = 0;
+  new MutationObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; try { enhanceTables(document); } catch (e) { console.error('table kit', e); } }); }).observe(document.body, { childList: true, subtree: true });
+  enhanceTables(document);
+}
+
 /* ================================================================== app shell */
 const BRAND_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4l16 16V4"/></svg>';
 export const MODULES = [
@@ -1007,6 +1142,7 @@ export function mountApp(app) {
   };
   APP = { go, rerender: render, app };
   render();
+  startTableKit();
   return APP;
 }
 export const nav = { go: (...a) => APP?.go(...a), rerender: () => APP?.rerender() };

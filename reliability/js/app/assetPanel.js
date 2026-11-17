@@ -15,6 +15,10 @@ import { loadAssetDetail } from './assetModel.js';
 import { parseHash, hashFor } from './hashState.js';
 import { drawChart, historyOption, dgaOption, loadingOption, forecastOption } from './charts.js';
 import { assetOperations } from './assetOps.js';
+import { hasLidar } from './lidarModel.js';
+import { mountLidar } from './lidarView.js';
+import { towerSvg, COND_COLORS, COND_WORDS } from './towerTwin.js';
+import { assetVisual, hasAssetVisual } from './assetVisuals.js';
 import { openLinkInReview } from './navigation.js';
 import { openFinding } from './findingViewer.js';
 
@@ -26,7 +30,7 @@ const STATUS_TONE = { proposed: 'a', confirmed: 'g', rejected: 'r', open: 'a', i
 const COND_TONE = { 1: 'r', 2: 'a', 3: 'a', 4: 'b', 5: 'g' };
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const ctl = { deps: null, root: null, panel: null, body: null, state: { open: false, id: null, token: 0, view: 'loading', detail: null, ops: null, error: null, opener: null, tab: 'health' }, charts: [] };
+const ctl = { deps: null, root: null, panel: null, body: null, state: { open: false, id: null, token: 0, view: 'loading', detail: null, ops: null, error: null, opener: null, tab: 'health', ctab: 'schematic' }, charts: [], lidarOff: null };
 
 /** The six tabs of the asset detail view, in two groups. */
 const TAB_GROUPS = [
@@ -100,7 +104,7 @@ function show(id) {
   const s = ctl.state;
   const first = !s.open;
   s.id = id; s.open = true;
-  if (first) { s.tab = 'health'; s.restore = s.opener ?? document.activeElement; ctl.root.hidden = false; document.body.classList.add('a360-open'); setInert(true); requestAnimationFrame(() => ctl.panel.classList.add('is-in')); }
+  if (first) { s.tab = 'health'; s.ctab = 'schematic'; s.restore = s.opener ?? document.activeElement; ctl.root.hidden = false; document.body.classList.add('a360-open'); setInert(true); requestAnimationFrame(() => ctl.panel.classList.add('is-in')); }
   load();
 }
 
@@ -168,7 +172,7 @@ function focusStart() {
   (close ?? ctl.panel).focus();
 }
 
-function disposeCharts() { for (const c of ctl.charts.splice(0)) c.dispose(); }
+function disposeCharts() { for (const c of ctl.charts.splice(0)) c.dispose(); ctl.lidarOff?.(); ctl.lidarOff = null; }
 
 // -------------------------------------------------------------------- views
 
@@ -236,7 +240,9 @@ function selectTab(id, { focus = false } = {}) {
   ctl.state.tab = id;
   for (const b of ctl.body.querySelectorAll('.a360-tab')) { const on = b.dataset.tab === id; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); }
   for (const p of ctl.body.querySelectorAll('.a360-panel')) p.hidden = p.dataset.panel !== id;
+  if (id !== 'components' && ctl.lidarOff) { ctl.lidarOff(); ctl.lidarOff = null; const hst = ctl.body.querySelector('[data-lidar-host]'); if (hst) { hst.replaceChildren(); delete hst.dataset.mounted; } }
   drawCharts();
+  mountLidarIfNeeded();
 }
 
 function onTabKey(e) {
@@ -457,6 +463,7 @@ function historyView(d) {
 /** Draw the charts of the tab that is showing. A chart in a hidden tab has no size, so it waits for its tab. */
 function drawCharts() {
   const d = ctl.state.detail;
+  mountLidarIfNeeded();
   const ops = ctl.state.ops;
   for (const el of ctl.body.querySelectorAll('.a360-panel:not([hidden]) [data-chart]:not([data-ready])')) {
     const kind = el.dataset.chart;
@@ -484,7 +491,93 @@ function forecastView(d, ops) {
 
 // --------------------------------------------------------------- components
 
+/** Tower: Schematic | LiDAR. The schematic is the same tower structure as Tower Health, coloured by component condition. */
+function towerComponentsView(d) {
+  const net = ctl.deps.getNet?.();
+  const t = net?.towerById.get(d.id);
+  const lidar = hasLidar(ctl.deps.getSnapshot(), d.id);
+  const on = ctl.state.ctab === 'lidar' && lidar ? 'lidar' : 'schematic';
+  const btn = (id, label) => h('button', { type: 'button', class: id === on ? 'is-on' : '', 'aria-pressed': String(id === on), 'data-ctab': id, 'data-testid': `ctab-${id}`, onClick: () => setCtab(id, d) }, label);
+  const seg = h('div', { class: 'a360-seg', role: 'group', 'aria-label': 'Tower view' }, btn('schematic', 'Schematic'), lidar ? btn('lidar', 'LiDAR') : null);
+  if (on === 'lidar') return h('div', { class: 'a360-comp', 'data-testid': 'tower-components' }, seg, h('div', { class: 'a360-lidar-host', 'data-lidar-host': '', 'data-testid': 'asset-lidar' }));
+  const key = h('div', { class: 'a360-condkey', 'data-testid': 'cond-key' }, [1, 2, 3, 4, 5].map((n) => h('span', {}, h('b', { style: { background: COND_COLORS[n] } }, String(n)), COND_WORDS[n])), h('span', {}, h('b', { class: 'na' }, '–'), 'not assessed'));
+  const twin = t && t.hiGroups?.length
+    ? [twinEl(t), key, note('Each zone takes the colour of its scoring group (the worst component in the group). Findings do not say where on the tower they were seen.')]
+    : [note('Not assessed, so the tower structure has no condition to colour.')];
+  return h('div', { class: 'a360-comp', 'data-testid': 'tower-components' }, seg, section('twin', 'Tower and components', ...twin), componentsTable(d));
+}
+
+function twinEl(t) {
+  const el = h('div', { class: 'a360-twin', 'data-testid': 'tower-schematic' });
+  el.innerHTML = towerSvg(t.hiGroups, { labels: true }); // our own drawing from numeric scores, no data becomes markup
+  return el;
+}
+
+function setCtab(id, d) {
+  ctl.state.ctab = id;
+  ctl.lidarOff?.(); ctl.lidarOff = null;
+  const panel = ctl.body.querySelector('[data-panel="components"]');
+  if (!panel) return;
+  panel.replaceChildren(componentsView(d));
+  mountLidarIfNeeded();
+}
+
+/** The LiDAR view only exists while its tab is showing: a WebGL canvas in a hidden panel has no size. */
+function mountLidarIfNeeded() {
+  const s = ctl.state;
+  if (s.tab !== 'components' || s.ctab !== 'lidar' || !s.detail) return;
+  const host = ctl.body.querySelector('[data-lidar-host]');
+  if (!host || host.dataset.mounted) return;
+  host.dataset.mounted = '1';
+  ctl.lidarOff = mountLidar(host, { snap: ctl.deps.getSnapshot(), assetId: s.detail.id });
+}
+
+/** What the drawing of an asset needs: its condition numbers, read from the detail and the shared network. */
+function visualInput(d) {
+  const net = ctl.deps.getNet?.(); const snap = ctl.deps.getSnapshot(); const classId = d.header.classId;
+  const b = d.breakdown; const kvLimit = d.header.voltage_kv >= 500 ? 9.5 : 7;
+  const out = { classId, kind: d.kind, name: d.header.name, level: null };
+  if (d.kind === 'component' || d.kind === 'station' || d.kind === 'bay') out.level = d.findings.rows[0]?.condition ?? 5;
+  else if (d.kind === 'other') { const f = snap.findingsByAsset.get(d.id) ?? []; out.level = f.length ? Math.min(...f.map((x) => x.condition_score)) : 5; }
+  if (b.type === 'groups') out.groups = Object.fromEntries(b.groups.map((g) => [g.group, g.score]));
+  if (b.type === 'transformer') {
+    out.inputs = Object.fromEntries(b.inputs.map((x) => [x.input, x.used ? x.score : null]));
+    out.parts = Object.fromEntries(d.components.map((c) => [c.class.replace(/ /g, '_'), c.worst ?? 5]));
+  }
+  if (classId === 'span') { const sp = net?.spans.find((x) => x.id === d.id); out.span = { lengthM: sp?.length ?? null, clearanceM: sp?.clearance ?? null, limitM: kvLimit }; }
+  if (classId === 'span_corridor_segment') { const e = snap.byId.get(d.id)?.ext ?? {}; out.span = { clearanceM: e.clearance_m ?? null, limitM: kvLimit }; }
+  if (classId === 'line') {
+    const ln = net?.lines.find((x) => x.id === d.id);
+    if (ln) {
+      const dup = snap.dupRecord; const towers = ln.towers.filter((t) => !dup.has(t.id));
+      out.line = { units: [...towers.map((t) => ({ kind: 'tower', band: t.band })), ...ln.spans.map((x) => ({ kind: 'span', band: x.band }))], counts: ln.bandCounts?.all };
+    }
+  }
+  return out;
+}
+
+/** Every asset other than a tower: its own drawing, coloured by condition like the tower, then the components table. A span also has LiDAR. */
+function assetComponentsView(d, vis) {
+  const lidar = d.kind === 'span' && hasLidar(ctl.deps.getSnapshot(), d.id);
+  const on = ctl.state.ctab === 'lidar' && lidar ? 'lidar' : 'schematic';
+  const btn = (id, label) => h('button', { type: 'button', class: id === on ? 'is-on' : '', 'aria-pressed': String(id === on), 'data-ctab': id, 'data-testid': `ctab-${id}`, onClick: () => setCtab(id, d) }, label);
+  const seg = lidar ? h('div', { class: 'a360-seg', role: 'group', 'aria-label': 'Span view' }, btn('schematic', 'Schematic'), btn('lidar', 'LiDAR')) : null;
+  if (on === 'lidar') return h('div', { class: 'a360-comp', 'data-testid': 'asset-components' }, seg, h('div', { class: 'a360-lidar-host', 'data-lidar-host': '', 'data-testid': 'asset-lidar' }));
+  const key = vis.key === 'bands'
+    ? h('div', { class: 'a360-condkey', 'data-testid': 'cond-key' }, [['#16a34a', 'normal'], ['#d97706', 'moderate'], ['#dc2626', 'poor'], ['#cbd5e1', 'not assessed']].map(([c, l]) => h('span', {}, h('b', { style: { background: c } }, ''), l)))
+    : h('div', { class: 'a360-condkey', 'data-testid': 'cond-key' }, [1, 2, 3, 4, 5].map((n) => h('span', {}, h('b', { style: { background: COND_COLORS[n] } }, String(n)), COND_WORDS[n])), h('span', {}, h('b', { class: 'na' }, '–'), 'not assessed'));
+  const el = h('div', { class: 'a360-twin', 'data-testid': 'asset-schematic', 'data-visual': d.header.classId });
+  el.innerHTML = vis.svg; // our own drawing from numeric condition scores; names are escaped in assetVisuals.js
+  return h('div', { class: 'a360-comp', 'data-testid': 'asset-components' }, seg, section('twin', vis.title, el, key, note(vis.note)), d.components.length ? componentsTable(d) : null);
+}
+
 function componentsView(d) {
+  if (d.kind === 'tower') return towerComponentsView(d);
+  const vis = hasAssetVisual(d.header.classId) ? assetVisual(visualInput(d)) : null;
+  return vis ? assetComponentsView(d, vis) : componentsTable(d);
+}
+
+function componentsTable(d) {
   if (!d.components.length) return section('components', 'Components', note(d.kind === 'component' ? 'This is a component. It has no parts of its own in the register; its condition is on the Health & Risk tab.' : 'No components are registered under this asset.'));
   return section('components', `Components (${d.components.length})`,
     note('Condition of each component, from its open findings (1 very poor to 5 very good).'),
