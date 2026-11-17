@@ -8,7 +8,8 @@
 // records behind it: findings, repairs, DGA. Work orders, stock and suppliers come through the ERP integration layer
 // (assets/console/erp.js). The risk score is an unvalidated model, so every risk view is marked Experimental.
 
-import { ui, ch, live, esc, fmt, icon, drawer, toast, addDays, daysBetween } from '/assets/console/console.js';
+import { ui, ch, live, esc, fmt, icon, drawer, toast, addDays, daysBetween, nav } from '/assets/console/console.js';
+import { createHistoryScreen } from './maintenanceHistory.js';
 import * as sx from '/assets/console/schematics.js';
 import { networkLayers, DEFECT_LABEL, SEV_TONE, LINE_NAME, CORRIDOR } from '/assets/console/network.js';
 import { healthIndex } from '../domain/health/healthIndex.js';
@@ -69,6 +70,9 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
   // HI history at each campaign end, for trends
   const hiAt = new Map();
   const histFor = (id) => { if (!hiAt.has(id)) hiAt.set(id, campaigns.map((c) => { try { return healthIndex(ctxHi, id, c.end).score; } catch { return null; } })); return hiAt.get(id); };
+
+  const hiMemo = new Map();
+  const hiOnDate = (id, date) => { const k = `${id}|${date}`; if (!hiMemo.has(k)) { let v = null; try { v = healthIndex(ctxHi, id, date).score ?? null; } catch { v = null; } hiMemo.set(k, v); } return hiMemo.get(k); };
 
   const towerName = (id) => net.towerById.get(id)?.name || id;
   const open360 = (id) => openAsset?.(id);
@@ -365,76 +369,8 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
     return `${conf} verified finding${conf === 1 ? '' : 's'}; weakest ${GROUP_LABEL[w?.group] || '—'} (${fmt.n(w?.score, 1)}/5) on a ${t.kv} kV criticality-${t.criticality} line.`;
   }
 
-  /* ---------- Maintenance History */
-  screens.push({
-    id: 'history', name: 'Maintenance History', icon: 'history',
-    tabs: [
-      {
-        name: 'Lifecycle', icon: 'history',
-        render: () => {
-          const done = workOrders.filter((w) => w.status === 'completed');
-          const ttr = done.map((w) => w.ttrDays).filter((v) => v != null && v >= 0);
-          const med = ttr.sort((a, b) => a - b)[Math.floor(ttr.length / 2)] ?? 0;
-          const reopened = repairs.filter((r) => findings.some((f) => f.date > r.date && (r.closes_finding_ids || []).some((id) => net.findingById.get(id)?.asset_id === f.asset_id && net.findingById.get(id)?.defect_class === f.defect_class))).length;
-          return `<div class="nx-page">${ui.kpis([
-            { label: 'Inspection campaigns', value: campaigns.length, icon: 'drone', sub: campaigns.map((c) => c.name).join(' · '), tone: 'info' },
-            { label: 'Findings recorded', value: fmt.n(findings.length), icon: 'camera', sub: `${findings.filter((f) => f.review_status === 'rejected').length} rejected by reviewers`, spark: campaigns.map((c) => findings.filter((f) => f.campaign_id === c.campaign_id).length) },
-            { label: 'Work orders completed', value: `${done.length}/${workOrders.length}`, icon: 'wrench', tone: 'ok', sub: `${repairs.length} repairs recorded` },
-            { label: 'Median defect-to-repair', value: med, unit: 'days', icon: 'clock', tone: 'violet', sub: 'finding date → completion' },
-            { label: 'Repeat defects after repair', value: reopened, icon: 'sync', tone: reopened ? 'warn' : 'ok', sub: 'same class re-sighted on same asset' },
-          ])}
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s8', title: 'Findings raised vs closed', sub: 'Monthly. Bars = new findings by severity; line = findings closed by repairs.', body: ui.chart('fc', 'lg') })}${ui.card({ cls: 'nx-s4', erp: ['SAP PM', 'workOrders'], title: 'Work by type', sub: 'All work orders, by status', body: ui.chart('wt', 'lg') })}</div>
-          ${ui.card({ title: 'Campaigns and maintenance programme', sub: 'Aerial inspection campaigns and every grouped repair visit, on one timeline', body: ui.gantt({ range: ['2026-01-01', '2026-12-31'], now: asOf, labelW: 220, rows: [
-            { label: 'Aerial inspection', sub: 'RGB · thermal · LiDAR', bars: campaigns.map((c) => ({ start: c.start, end: c.end, color: '#0284c7', text: c.name, tip: `${c.name}: ${c.inspected_tower_ids.length} towers` })) },
-            ...['L-132-01', 'L-220-03', 'L-500-01'].map((l) => ({ label: LINE_NAME[l], sub: `${workOrders.filter((w) => w.line === l).length} work orders`, bars: workOrders.filter((w) => w.line === l && w.planned_date).map((w) => ({ id: w.id, start: w.created_at, end: w.completed_at || w.planned_date, color: w.status === 'completed' ? '#16a34a' : w.status === 'in_progress' ? '#2563eb' : '#d97706', text: '', tip: `${w.id} · ${w.work_type} · ${w.towerName || w.asset} · ${w.status}` })) })),
-            { label: 'Substations', sub: 'Transformer work', bars: workOrders.filter((w) => !w.line).map((w) => ({ id: w.id, start: w.created_at, end: w.completed_at || w.planned_date, color: '#7c3aed', text: '', tip: `${w.id} · ${w.work_type} · ${w.asset}` })) },
-          ] }) })}</div>`;
-        },
-        mount: (st, ctx) => {
-          const months = Array.from({ length: 11 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
-          const sevs = ['critical', 'high', 'medium', 'low'];
-          const closed = months.map((m) => repairs.filter((r) => r.date.startsWith(m)).reduce((a, r) => a + (r.closes_finding_ids?.length || 0), 0));
-          ctx.chart('fc', { ...ch.bar({ x: months.map((m) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })), series: sevs.map((s) => ({ name: fmt.title(s), stack: 'f', color: { critical: '#dc2626', high: '#ea580c', medium: '#f59e0b', low: '#84cc16' }[s], data: months.map((m) => findings.filter((f) => f.date.startsWith(m) && f.severity === s && f.review_status !== 'rejected').length) })), stack: true }), series: [...sevs.map((s) => ({ type: 'bar', name: fmt.title(s), stack: 'f', itemStyle: { color: { critical: '#dc2626', high: '#ea580c', medium: '#f59e0b', low: '#84cc16' }[s] }, data: months.map((m) => findings.filter((f) => f.date.startsWith(m) && f.severity === s && f.review_status !== 'rejected').length) })), { type: 'line', name: 'Closed by repair', data: closed, smooth: true, symbol: 'circle', symbolSize: 7, lineStyle: { color: '#0f172a', width: 2.5 }, itemStyle: { color: '#0f172a' } }] });
-          const types = [...new Set(workOrders.map((w) => w.work_type))];
-          ctx.chart('wt', ch.bar({ x: types.map(fmt.title), horizontal: true, stack: true, series: [['completed', '#16a34a'], ['in_progress', '#2563eb'], ['open', '#d97706']].map(([s, c]) => ({ name: fmt.title(s), color: c, data: types.map((t) => workOrders.filter((w) => w.work_type === t && w.status === s).length) })), grid: { top: 30 } }));
-          ctx.on('click', '.nx-gantt-bar[data-row]', (e, b) => woDrawer(b.dataset.row));
-        },
-      },
-      {
-        name: 'Repairs', icon: 'wrench',
-        render: () => `<div class="nx-page">${ui.card({ erp: ['SAP PM', 'workOrders'], title: 'Repair log', sub: 'Every repair confirmed on a work order, with the findings it closed and whether the defect came back', tools: ui.search('#rpt', 'Filter repairs…'), flush: true, body: ui.table({ id: 'rpt', rowId: (r) => r.work_order_id, rows: repairs.slice().sort((a, b) => b.date.localeCompare(a.date)), cols: [
-          { key: 'date', label: 'Date', render: (r) => fmt.date(r.date) }, { key: 'repair_id', label: 'Repair', render: (r) => `<b>${esc(r.repair_id)}</b><span class="nx-sub">${esc(r.work_order_id)}</span>` },
-          { label: 'Asset', sort: (r) => r.wo?.towerName, render: (r) => `${esc(r.wo?.towerName || r.asset_id)}<span class="nx-sub">${esc(r.wo?.line || 'Substation')}</span>` }, { key: 'action', label: 'Action', render: (r) => esc(fmt.title(r.action)) },
-          { label: 'Findings closed', align: 'r', sort: (r) => r.closes_finding_ids?.length, render: (r) => r.closes_finding_ids?.length || 0 },
-          { label: 'Days to repair', align: 'r', sort: (r) => r.wo?.ttrDays, render: (r) => (r.wo?.ttrDays != null ? r.wo.ttrDays : '—') },
-          { label: 'Outcome', sort: false, render: (r) => { const again = findings.some((f) => f.date > r.date && (r.closes_finding_ids || []).some((id) => { const c = net.findingById.get(id); return c && c.asset_id === f.asset_id && c.defect_class === f.defect_class; })); return again ? ui.badge('Defect re-sighted', 'crit') : r.date > asOf ? ui.badge('Scheduled', 'info') : ui.badge('Effective', 'ok'); } },
-        ] }) })}</div>`,
-        mount: (st, ctx) => { ctx.on('click', '#rpt tr[data-row]', (e, r) => woDrawer(r.dataset.row)); },
-      },
-      {
-        name: 'Before / after', icon: 'scale',
-        render: () => `<div class="nx-page"><div class="nx-row nx-c2">${ui.card({ title: 'Health index before and after repair', sub: 'Towers with a completed repair: HI at the campaign before vs the latest score', body: ui.chart('ba', 'lg') })}${ui.card({ title: 'Repair effect by work type', sub: 'Mean HI gain (points) per completed repair type', body: ui.chart('gain', 'lg') })}</div>
-        <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s4', title: 'Repair outcomes', sub: 'Did the defect stay fixed? Re-sighted = same class seen again on the same asset', body: ui.chart('out', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Defect-to-repair time by work type', sub: 'Days from first sighting to completed repair (min · median · max)', body: ui.chart('ttr', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Repeat defects', sub: 'Repairs whose defect came back — candidates for a design change, not another repair', flush: true, body: '<div data-rep></div>' })}</div></div>`,
-        mount: (st, ctx) => {
-          const rows = [];
-          for (const r of repairs) { const tw = r.wo?.towerId; if (!tw || r.date > asOf) continue; const h = histFor(tw); const before = h.slice().reverse().find((v, i) => v != null && campaigns[h.length - 1 - i].end <= r.date) ?? h[0]; const t = net.towerById.get(tw); if (before == null || t?.hi == null) continue; rows.push({ t, before, after: t.hi, type: r.wo.work_type }); }
-          const uniq = [...new Map(rows.map((r) => [r.t.id, r])).values()].slice(0, 18);
-          ctx.chart('ba', { grid: ch.grid({ top: 30 }), legend: { top: 0, right: 0 }, tooltip: ch.tip({ axisPointer: { type: 'shadow' } }), xAxis: { type: 'category', data: uniq.map((r) => r.t.name), axisLabel: { rotate: 40, fontSize: 10 } }, yAxis: { type: 'value', min: 0, max: 100, name: 'HI' }, series: [{ type: 'bar', name: 'Before', data: uniq.map((r) => +r.before.toFixed(1)), itemStyle: { color: '#cbd5e1' } }, { type: 'bar', name: 'After', data: uniq.map((r) => ({ value: +r.after.toFixed(1), itemStyle: { color: bandColor(r.t.band) } })) }] });
-          const by = {}; for (const r of rows) { (by[r.type] ||= []).push(r.after - r.before); }
-          const ent = Object.entries(by).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length]).sort((a, b) => b[1] - a[1]);
-          ctx.chart('gain', ch.bar({ x: ent.map((e) => fmt.title(e[0])), series: [{ name: 'Mean HI change', data: ent.map((e) => ({ value: +e[1].toFixed(1), itemStyle: { color: e[1] >= 0 ? '#16a34a' : '#dc2626' } })) }], horizontal: true, labels: true, grid: { top: 6, right: 40 } }));
-          const again = (r) => findings.some((f) => f.date > r.date && (r.closes_finding_ids || []).some((fid) => { const c = net.findingById.get(fid); return c && c.asset_id === f.asset_id && c.defect_class === f.defect_class; }));
-          const done = repairs.filter((r) => r.date <= asOf); const reps = done.filter(again);
-          ctx.chart('out', ch.donut({ data: [{ name: 'Effective', value: done.length - reps.length, color: '#16a34a' }, { name: 'Defect re-sighted', value: reps.length, color: '#dc2626' }, { name: 'Scheduled (future)', value: repairs.length - done.length, color: '#94a3b8' }], center: 'repairs' }));
-          const types = [...new Set(workOrders.filter((w) => w.ttrDays != null).map((w) => w.work_type))];
-          const stat = types.map((t) => { const v = workOrders.filter((w) => w.work_type === t && w.ttrDays != null && w.ttrDays >= 0).map((w) => w.ttrDays).sort((a, b) => a - b); return { t, min: v[0] ?? 0, med: v[Math.floor(v.length / 2)] ?? 0, max: v[v.length - 1] ?? 0, n: v.length }; }).sort((a, b) => b.med - a.med);
-          ctx.chart('ttr', { grid: ch.grid({ top: 26 }), legend: { top: 0, right: 0 }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (ps) => { const s0 = stat[ps[0].dataIndex]; return `<b>${esc(fmt.title(s0.t))}</b> · ${s0.n} repairs<br/>min ${s0.min} d · median <b>${s0.med} d</b> · max ${s0.max} d`; } }, xAxis: { type: 'value', name: 'days' }, yAxis: { type: 'category', inverse: true, data: stat.map((x) => fmt.title(x.t)), axisLabel: { fontSize: 10.5 } }, series: [{ type: 'bar', name: 'min', stack: 'r', itemStyle: { color: 'transparent' }, data: stat.map((x) => x.min) }, { type: 'bar', name: 'min → median', stack: 'r', itemStyle: { color: '#93c5fd', borderRadius: [4, 0, 0, 4] }, data: stat.map((x) => x.med - x.min) }, { type: 'bar', name: 'median → max', stack: 'r', itemStyle: { color: '#2563eb', borderRadius: [0, 4, 4, 0] }, data: stat.map((x) => x.max - x.med) }] });
-          st.querySelector('[data-rep]').innerHTML = ui.table({ id: 'rept', rowId: (r) => r.work_order_id, rows: reps, cols: [{ label: 'Repair', sort: (r) => r.repair_id, render: (r) => `<b>${esc(r.repair_id)}</b><span class="nx-sub">${fmt.date(r.date)}</span>` }, { label: 'Asset', sort: (r) => r.wo?.towerName, render: (r) => `${esc(r.wo?.towerName || r.asset_id)}<span class="nx-sub">${esc(r.wo?.line || '')}</span>` }, { label: 'Action', sort: (r) => r.action, render: (r) => esc(fmt.title(r.action)) }], empty: 'No repeat defects — every repair has held.' });
-          ctx.on('click', '#rept tr[data-row]', (e, r) => woDrawer(r.dataset.row));
-        },
-      },
-    ],
-  });
+  /* ---------- Maintenance History (scope, repairs with HI before/after, work orders, open findings: maintenanceHistory.js) */
+  screens.push(createHistoryScreen(net, { ui, ch, fmt, esc, nav, LINE_NAME, SEV_TONE, hiOn: hiOnDate, bandColor, woDrawer, findingDrawer, open360 }));
   function woDrawer(id) {
     const w = workOrders.find((x) => x.id === id); if (!w) return;
     const rp = repairs.filter((r) => r.work_order_id === id);
