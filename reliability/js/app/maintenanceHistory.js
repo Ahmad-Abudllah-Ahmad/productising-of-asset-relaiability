@@ -148,12 +148,13 @@ export function createHistoryScreen(net, d) {
     const list = scope.show === 'ineffective' ? m.repairs.filter((r) => !r.effective) : m.repairs;
     if (!list.length) return ui.card({ body: ui.empty(scope.show ? 'No repair in this selection was followed by the same defect. Choose All repairs to see them.' : 'No repair is recorded for this selection.') });
     return ui.card({ erp: ['SAP PM', 'workOrders'], title: `Repair log (${list.length}${list.length !== m.repairs.length ? ` of ${m.repairs.length}` : ''})`, sub: 'The health index of the repaired asset the day before the repair and on the repair day. A repair is ineffective when the defect it closed is sighted again afterwards.', tools: ui.search('#rpt', 'Filter repairs…'), flush: true, body: ui.table({ id: 'rpt', rowId: (r) => r.workOrderId, rows: list, cols: [
-      { key: 'date', label: 'Date', render: (r) => fmt.date(r.date) },
-      { key: 'id', label: 'Repair', render: (r) => `<b>${esc(r.id)}</b><span class="nx-sub">${esc(fmt.title(r.action))} · ${esc(r.workOrderId)}</span>` },
-      { label: 'Asset', sort: (r) => r.ownerName, render: assetCell },
-      { label: 'Findings closed (days from finding)', sort: (r) => r.closes.length, render: (r) => r.closes.map((c) => `<div>${link('data-finding', c.id, c.id)} <span class="nx-sub" style="display:inline">${esc(c.label)} · ${c.days} d</span></div>`).join('') || '–' },
-      { label: 'Health index before → after', align: 'r', sort: (r) => r.delta ?? -999, render: (r) => `${hiText(r)}${r.delta != null ? `<span class="nx-sub" style="color:${r.delta > 0 ? '#16a34a' : r.delta < 0 ? '#dc2626' : 'inherit'}">${r.delta > 0 ? '+' : ''}${r.delta}</span>` : ''}` },
-      { label: 'Result', sort: (r) => (r.effective ? 0 : 1), render: (r) => (r.effective ? ui.badge('Held', 'ok') : `${ui.badge('Ineffective', 'crit')}${r.seenAgain.map((x) => `<span class="nx-sub">seen again ${link('data-finding', x.id, x.id)} ${esc(x.date)} (+${x.daysAfter} d)</span>`).join('')}`) },
+      { key: 'date', label: 'Date', render: (r) => esc(fmt.short(r.date)) },
+      { key: 'id', label: 'Repair', render: (r) => `<b>${esc(r.id)}</b><span class="nx-sub">${esc(r.workOrderId)}</span>` },
+      { label: 'Action', sort: (r) => r.action, render: (r) => `<span style="white-space:normal;display:block;min-width:80px">${esc(fmt.title(r.action))}</span>` },
+      { label: 'Asset', sort: (r) => r.ownerName, render: (r) => `<span style="white-space:normal;display:block;min-width:70px">${assetCell(r)}</span>` },
+      { label: 'Findings closed', sort: (r) => r.closes.length, render: (r) => `<span style="white-space:normal;display:block;min-width:120px">${r.closes.map((c) => `<div>${link('data-finding', c.id, c.id)} <span class="nx-sub" style="display:inline">${esc(c.label)} · ${c.days} d</span></div>`).join('') || '–'}</span>` },
+      { label: 'HI before → after', align: 'r', sort: (r) => r.delta ?? -999, render: (r) => `${hiText(r)}${r.delta != null ? `<span class="nx-sub" style="color:${r.delta > 0 ? '#16a34a' : r.delta < 0 ? '#dc2626' : 'inherit'}">${r.delta > 0 ? '+' : ''}${r.delta}</span>` : ''}` },
+      { label: 'Result', sort: (r) => (r.effective ? 0 : 1), render: (r) => `<span style="white-space:normal;display:block;min-width:110px">${r.effective ? ui.badge('Held', 'ok') : `${ui.badge('Ineffective', 'crit')}${r.seenAgain.slice(0, 2).map((x) => `<span class="nx-sub">seen again ${link('data-finding', x.id, x.id)} ${esc(x.date)} (+${x.daysAfter} d)</span>`).join('')}`}</span>` },
     ] }) });
   }
 
@@ -166,12 +167,13 @@ export function createHistoryScreen(net, d) {
     if (!list.length) return `${summary}${ui.card({ body: ui.empty('No work order has this status in this selection.') })}`;
     return `${summary}${ui.card({ erp: ['SAP PM', 'workOrders'], title: `Work orders (${list.length}${list.length !== m.workOrders.length ? ` of ${m.workOrders.length}` : ''})`, tools: ui.search('#wot', 'Filter work orders…'), flush: true, body: ui.table({ id: 'wot', rowId: (w) => w.id, rows: list, cols: [
       { key: 'id', label: 'Work order', render: (w) => `<b>${esc(w.id)}</b>${w.repairId ? `<span class="nx-sub">repair ${esc(w.repairId)}</span>` : ''}` },
-      { label: 'Type', sort: (w) => w.type, render: (w) => `${esc(fmt.title(w.type))}<span class="nx-sub">${esc(w.priority)} priority</span>` },
-      { label: 'Asset', sort: (w) => w.ownerName, render: assetCell },
-      { label: 'Status', sort: (w) => w.status, render: (w) => `${ui.badge(STATUS_LABEL[w.status], STATUS_TONE[w.status])}${w.overdue ? ` ${ui.badge('Overdue', 'crit')}` : ''}` },
-      { label: 'Raised', sort: (w) => w.created, render: (w) => fmt.date(w.created) }, { label: 'Planned', sort: (w) => w.planned || '', render: (w) => (w.planned ? fmt.date(w.planned) : '–') },
-      { label: 'Completed', sort: (w) => w.completed || '', render: (w) => (w.completed ? fmt.date(w.completed) : '–') }, { label: 'Days open', align: 'r', sort: (w) => w.daysOpen, render: (w) => w.daysOpen },
-      { label: 'Findings', sort: false, render: (w) => `${w.findingIds.slice(0, 3).map((id) => link('data-finding', id, id)).join(' ')}${w.findingIds.length > 3 ? ` +${w.findingIds.length - 3}` : ''}` },
+      { label: 'Type', sort: (w) => w.type, render: (w) => `<span style="white-space:normal;display:block;min-width:80px">${esc(fmt.title(w.type))}</span><span class="nx-sub">${esc(w.priority)} priority</span>` },
+      { label: 'Asset', sort: (w) => w.ownerName, render: (w) => `<span style="white-space:normal;display:block;min-width:70px">${assetCell(w)}</span>` },
+      { label: 'Status', sort: (w) => w.status, render: (w) => `${ui.badge(STATUS_LABEL[w.status], STATUS_TONE[w.status])}${w.overdue ? `<span class="nx-sub" style="color:#dc2626;font-weight:600">Overdue</span>` : ''}` },
+      { label: 'Raised', sort: (w) => w.created, render: (w) => esc(fmt.short(w.created)) },
+      { label: 'Planned / done', sort: (w) => w.completed || w.planned || '', render: (w) => (w.completed ? `${esc(fmt.short(w.completed))}<span class="nx-sub">completed</span>` : w.planned ? `${esc(fmt.short(w.planned))}<span class="nx-sub">planned</span>` : '–') },
+      { label: 'Days open', align: 'r', sort: (w) => w.daysOpen, render: (w) => w.daysOpen },
+      { label: 'Findings', sort: false, render: (w) => `<span style="white-space:normal;display:block;min-width:56px">${w.findingIds.slice(0, 2).map((id) => link('data-finding', id, id)).join(' ')}${w.findingIds.length > 2 ? ` +${w.findingIds.length - 2}` : ''}</span>` },
     ] }) })}`;
   }
 
@@ -217,7 +219,7 @@ export function createHistoryScreen(net, d) {
       { label: 'Repair', sort: (r) => r.id, render: (r) => `<b>${esc(r.id)}</b><span class="nx-sub">${fmt.date(r.date)}</span>` },
       { label: 'Asset', sort: (r) => r.ownerName, render: assetCell },
       { label: 'Action', sort: (r) => r.action, render: (r) => esc(fmt.title(r.action)) },
-      { label: 'Health index before → after', align: 'r', sort: (r) => r.delta ?? -999, render: (r) => hiText(r) },
+      { label: 'HI before → after', align: 'r', sort: (r) => r.delta ?? -999, render: (r) => hiText(r) },
       { label: 'Seen again', sort: false, render: (r) => r.seenAgain.slice(0, 2).map((x) => `<div>${link('data-finding', x.id, x.id)} <span class="nx-sub" style="display:inline">${esc(x.date)} (+${x.daysAfter} d)</span></div>`).join('') + (r.seenAgain.length > 2 ? `<span class="nx-sub">+${r.seenAgain.length - 2} more</span>` : '') },
     ], empty: 'No repeat defects: every repair has held.' });
     ctx.on('click', '#rept tr[data-row]', (e, r) => { if (!e.target.closest('[data-asset]')) woDrawer(r.dataset.row); });
