@@ -15,6 +15,9 @@ import { networkLayers, DEFECT_LABEL, SEV_TONE, LINE_NAME, CORRIDOR } from '/ass
 import { healthIndex } from '../domain/health/healthIndex.js';
 import { drawingTabs } from '/assets/console/drawings.js';
 import { erpRequest } from '/assets/console/erp.js';
+import { towerSvg } from './towerTwin.js';
+import { hasLidar } from './lidarModel.js';
+import { mountLidar } from './lidarView.js';
 
 /* ------------------------------------------------------------------ shared vocabulary */
 const BAND_C = { normal: '#16a34a', moderate: '#d97706', poor: '#dc2626' };
@@ -29,6 +32,8 @@ const riskC = (b) => RISK_C[b] || '#94a3b8';
 const hiScore = (v, band) => ui.score(v == null ? null : Math.round(v), bandColor(band));
 const riskBadge = (band, score) => (band ? ui.badge(`${fmt.title(band)}${score != null ? ` · ${fmt.n(score)}` : ''}`, RISK_T[band]) : ui.badge('Not assessed', 'muted'));
 const STRUCTURAL = new Set(['steel_structure', 'foundation']);
+const BANDS = [['poor', 'poor', '#ef6b6b'], ['moderate', 'moderate', '#f2c14e'], ['normal', 'normal', '#4cc38a'], ['na', 'not assessed', '#b8c0cc']];
+const bandOf = (hi) => (hi == null ? 'na' : hi < 40 ? 'poor' : hi < 70 ? 'moderate' : 'normal');
 
 export function buildScreens(net, { registryTabs = [], openAsset, openFinding, go }) {
   const { towers, lines, spans, transformers, findings, workOrders, repairs, substations, snap } = net;
@@ -102,18 +107,8 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
 
   /* ---------- tower elevation (digital twin of component condition) */
   function towerTwin(t) {
-    const g = Object.fromEntries((t.hiGroups || []).map((x) => [x.group, x.score]));
-    const c = (k) => COND_C[Math.round(g[k] ?? 5)] || '#16a34a';
-    const steel = c('steel_structure'); const ins = c('insulators'); const fnd = c('foundation'); const acc = c('conductor_accessories'); const lp = c('lightning_protection'); const ta = c('tower_accessories');
-    const legs = `<path d="M120 60 L82 330 M120 60 L158 330" stroke="${steel}" stroke-width="5" fill="none"/>`;
-    const lattice = [100, 140, 180, 220, 260, 300].map((y, i) => { const w = 7 + (y - 60) * 0.142; return `<path d="M${120 - w} ${y} L${120 + w} ${y}" stroke="${steel}" stroke-width="2.4"/>${i < 5 ? `<path d="M${120 - w} ${y} L${120 + w + 5.6} ${y + 40} M${120 + w} ${y} L${120 - w - 5.6} ${y + 40}" stroke="${steel}" stroke-width="1.4" opacity=".75"/>` : ''}`; }).join('');
-    const arms = [[105, 64], [150, 54]].map(([y, w]) => `<path d="M${120 - w} ${y} L${120 + w} ${y} L120 ${y - 14} Z" fill="none" stroke="${steel}" stroke-width="2.6"/>`).join('');
-    const strings = [[56, 105], [184, 105], [66, 150], [174, 150]].map(([x, y]) => `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + 30}" stroke="${ins}" stroke-width="3"/>${[0, 1, 2, 3, 4].map((k) => `<ellipse cx="${x}" cy="${y + 5 + k * 5.5}" rx="6" ry="2" fill="${ins}"/>`).join('')}<path d="M${x - 40} ${y + 36} Q${x} ${y + 30} ${x + 40} ${y + 36}" stroke="#94a3b8" stroke-width="1.6" fill="none"/><rect x="${x - 15}" y="${y + 31}" width="7" height="4" rx="1" fill="${acc}"/><rect x="${x + 9}" y="${y + 31}" width="7" height="4" rx="1" fill="${acc}"/>`).join('');
-    const peak = `<line x1="120" y1="60" x2="120" y2="36" stroke="${steel}" stroke-width="3"/><circle cx="120" cy="34" r="4" fill="${lp}"/><path d="M60 30 Q120 26 180 30" stroke="${lp}" stroke-width="2" fill="none"/>`;
-    const found = `<rect x="66" y="330" width="32" height="18" rx="2" fill="${fnd}" opacity=".9"/><rect x="142" y="330" width="32" height="18" rx="2" fill="${fnd}" opacity=".9"/><line x1="40" y1="331" x2="200" y2="331" stroke="#cbd5e1" stroke-dasharray="4 3"/>`;
-    const plate = `<rect x="111" y="250" width="18" height="12" rx="2" fill="${ta}"/>`;
     const legend = (t.hiGroups || []).map((x) => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--nx-line-2)"><i style="width:10px;height:10px;border-radius:3px;background:${COND_C[Math.round(x.score)]}"></i><span style="flex:1">${esc(GROUP_LABEL[x.group] || x.group)}</span><b class="nx-num">${fmt.n(x.score, 1)}</b><span class="nx-note">/5</span>${x.findingIds?.length ? ui.badge(`${x.findingIds.length} finding${x.findingIds.length > 1 ? 's' : ''}`, x.score <= 2 ? 'crit' : 'warn', { dot: false }) : ''}</div>`).join('');
-    return `<div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:center"><svg viewBox="0 0 240 360" style="width:100%;max-height:330px">${peak}${arms}${legs}${lattice}${strings}${plate}${found}</svg><div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><b style="font-size:20px">${esc(t.name)}</b>${hiScore(t.hi, t.band)}${riskBadge(t.riskBand, t.risk)}</div><div class="nx-note" style="margin-bottom:8px">${esc(t.type || '')} · ${t.height ?? '—'} m · corrosion zone ${esc(t.zone || '—')} · built ${String(t.install).slice(0, 4)} · ${esc(t.line)}</div>${legend || ui.empty('Not assessed')}<div class="nx-toolbar" style="margin-top:10px">${ui.btn('Asset 360', { sm: true, primary: true, ic: 'eye', attrs: `data-a360="${esc(t.id)}"` })}${t.findings[0] ? ui.btn('Worst finding', { sm: true, ic: 'camera', attrs: `data-fv="${esc(t.findings.slice().sort((a, b) => a.condition_score - b.condition_score)[0].finding_id)}"` }) : ''}</div></div></div>`;
+    return `<div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:center">${towerSvg(t.hiGroups)}<div><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><b style="font-size:20px">${esc(t.name)}</b>${hiScore(t.hi, t.band)}${riskBadge(t.riskBand, t.risk)}</div><div class="nx-note" style="margin-bottom:8px">${esc(t.type || '')} · ${t.height ?? '—'} m · corrosion zone ${esc(t.zone || '—')} · built ${String(t.install).slice(0, 4)} · ${esc(t.line)}</div>${legend || ui.empty('Not assessed')}<div class="nx-toolbar" style="margin-top:10px">${ui.btn('Asset 360', { sm: true, primary: true, ic: 'eye', attrs: `data-a360="${esc(t.id)}"` })}${t.findings[0] ? ui.btn('Worst finding', { sm: true, ic: 'camera', attrs: `data-fv="${esc(t.findings.slice().sort((a, b) => a.condition_score - b.condition_score)[0].finding_id)}"` }) : ''}</div></div></div>`;
   }
 
   /* ================================================================ screens */
@@ -220,8 +215,67 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
     ],
   });
 
+  /* ---------- Line detail: one line, unit by unit (towers and spans in order, health along the line, how the score is built) */
+  function lineUnits(l) {
+    // duplicate records (listed in the registry until merged) are not part of the line, so they are not drawn
+    const towersIn = l.towers.filter((t) => !snap.dupRecord.has(t.id)); const inSet = new Set(towersIn.map((t) => t.id));
+    const sp = new Map(l.spans.filter((x) => inSet.has(x.from) && inSet.has(x.to)).map((x) => [x.from, x]));
+    const units = [];
+    towersIn.forEach((t) => { units.push({ kind: 'tower', id: t.id, name: t.name, hi: t.hi, band: t.band, open: t.open, unrev: t.unreviewed, t }); const x = sp.get(t.id); if (x) units.push({ kind: 'span', id: x.id, name: x.name, hi: x.hi, band: x.band, open: x.open, clearance: x.clearance, length: x.length, s: x }); });
+    return units;
+  }
+  function lineDetail(l) {
+    const units = lineUnits(l); const towersU = units.filter((u) => u.kind === 'tower'); const spansU = units.filter((u) => u.kind === 'span');
+    const b = (list) => ({ normal: list.filter((u) => u.band === 'normal').length, moderate: list.filter((u) => u.band === 'moderate').length, poor: list.filter((u) => u.band === 'poor').length, na: list.filter((u) => u.hi == null).length });
+    const bt = b(towersU); const bs = b(spansU);
+    const bd = snap.scores.get(l.id)?.hi?.breakdown;
+    const cov = bd?.coverageByLength != null ? Math.round(bd.coverageByLength * 1000) / 10 : null;
+    const naUnits = units.filter((u) => u.hi == null);
+    const worst = units.filter((u) => u.hi != null).sort((a, c) => a.hi - c.hi).slice(0, 5);
+    const openN = units.reduce((a, u) => a + (u.open || 0), 0); const unrevN = towersU.reduce((a, u) => a + (u.unrev || 0), 0);
+    const notDrawn = l.towers.filter((t) => snap.dupRecord.has(t.id)).map((t) => t.name);
+    const need = bt.poor + bt.moderate + bs.poor + bs.moderate;
+    const strip = units.map((u) => (u.kind === 'tower'
+      ? `<button type="button" class="nx-st" data-a360="${esc(u.id)}" title="${esc(u.name)} · HI ${u.hi == null ? 'not assessed' : fmt.n(u.hi, 1)} · ${u.open} open finding${u.open === 1 ? '' : 's'}"><span class="nx-st-sq" style="background:${u.hi == null ? '#cbd5e1' : bandColor(u.band)}${u.hi == null ? ';border:1.5px dashed #94a3b8' : ''}">${u.hi == null ? '–' : Math.round(u.hi)}${u.open ? `<i>${u.open}</i>` : ''}</span><small>${esc(u.name)}</small></button>`
+      : `<button type="button" class="nx-sp" data-a360="${esc(u.id)}" title="${esc(u.name)} · HI ${u.hi == null ? 'not assessed' : fmt.n(u.hi, 1)} · clearance ${u.clearance} m"><span class="nx-sp-bar" style="background:${u.hi == null ? '#cbd5e1' : bandColor(u.band)}"></span><small>${fmt.n(u.clearance, 1)} m</small></button>`)).join('');
+    return `<div class="nx-ld-head"><b>${esc(l.id)}</b> · ${l.kv} kV · ${fmt.n(l.lengthKm, 2)} km · ends ${esc((l.ends || []).join(', ') || '—')}<span class="nx-note"> ${towersU.length} towers, ${spansU.length} spans.${notDrawn.length ? ` ${notDrawn.length} duplicate record${notDrawn.length > 1 ? 's' : ''} (${esc(notDrawn.join(', '))}) are not drawn; they are in the registry until merged.` : ''}</span><span class="nx-ld-badge">${hiScore(l.hi, l.band)}<em>${esc(l.band || '')}</em></span></div>
+    ${ui.kpis([
+      { label: 'Line health index', value: fmt.n(l.hi, 1), icon: 'gauge', tone: l.band === 'poor' ? 'crit' : l.band === 'moderate' ? 'warn' : 'ok', sub: `${l.band || 'not assessed'} · length-weighted`, spark: campaigns.map((c, i) => histFor(l.id)[i]).filter((v) => v != null) },
+      { label: 'Assessed by length', value: cov == null ? '—' : `${fmt.n(cov, 1)}%`, icon: 'checkCircle', tone: 'info', sub: `${towersU.length - bt.na} of ${towersU.length} towers · ${naUnits.length} units not assessed` },
+      { label: 'Needs attention', value: need, icon: 'alert', tone: need ? 'warn' : 'ok', sub: `${bt.poor + bs.poor} poor · ${bt.moderate + bs.moderate} moderate` },
+      { label: 'Open findings', value: openN, icon: 'camera', tone: 'info', sub: `${unrevN} unreviewed` },
+    ])}
+    ${ui.card({ title: 'Towers and spans in order', sub: 'Squares are towers (health index inside, open findings in the corner). The bar between two towers is the span: its clearance in metres is below it.', body: `<div class="nx-bandkey">${BANDS.map(([k, lbl, c]) => `<span><i style="background:${c}"></i>${lbl}</span>`).join('')}</div><div class="nx-strip">${strip}</div>` })}
+    ${ui.card({ title: 'Health index along the line', sub: 'Circles are towers, diamonds are spans, grey rings are units with no score. Click a point to open it.', body: ui.chart('ldx', 'lg') })}
+    ${ui.card({ title: 'How the line score is built', sub: 'HI = sum(length weight × asset HI) / sum(length weight), over assessed towers and spans. The line is not capped by the worst one.', body: `<div class="nx-ld-built"><div>
+      <div class="nx-h4">Units by band</div>${ui.table({ cls: 'nx-mini', cols: [{ label: '', sort: false, render: (r) => r[0] }, { label: 'normal', align: 'r', sort: false, render: (r) => r[1].normal }, { label: 'moderate', align: 'r', sort: false, render: (r) => r[1].moderate }, { label: 'poor', align: 'r', sort: false, render: (r) => r[1].poor }], rows: [['towers', bt], ['spans', bs], ['All assessed', { normal: bt.normal + bs.normal, moderate: bt.moderate + bs.moderate, poor: bt.poor + bs.poor }]] })}
+      <p class="nx-note" style="margin:8px 0">Coverage by length: ${cov == null ? '—' : `${fmt.n(cov, 1)}%`}</p>
+      <div class="nx-h4">Five worst</div><ol class="nx-worst">${worst.map((u) => `<li><button type="button" class="nx-tlink" data-a360="${esc(u.id)}">${esc(u.name)}</button> ${u.kind} <span class="nx-pill-lg" style="background:${bandColor(u.band)};color:#fff">${fmt.n(u.hi, 1)} · ${esc(u.band)}</span></li>`).join('')}</ol></div>
+      <div><div class="nx-h4">Not assessed (${naUnits.length})</div><p class="nx-note">Left out of the score and the coverage, not scored as good. The reason is the same for each: no inspection evidence on or before the as-of date.</p><ul class="nx-na">${naUnits.map((u) => `<li><button type="button" class="nx-tlink" data-a360="${esc(u.id)}">${esc(u.name)}</button> ${u.kind}</li>`).join('') || '<li class="nx-note">Every unit has evidence.</li>'}</ul></div></div>` })}`;
+  }
+  function lineDetailChart(l, ctx) {
+    const units = lineUnits(l); const towersU = units.filter((u) => u.kind === 'tower');
+    const idx = new Map(towersU.map((u, i) => [u.id, i]));
+    const spanX = units.filter((u) => u.kind === 'span').map((u) => [(idx.get(u.s.from) ?? 0) + 0.5, u]);
+    const pt = (u, x, symbol, size) => ({ value: [x, u.hi ?? 0], itemStyle: { color: u.hi == null ? '#fff' : bandColor(u.band), borderColor: u.hi == null ? '#94a3b8' : bandColor(u.band), borderWidth: 1.5 }, symbol, symbolSize: size, unit: u });
+    const tp = towersU.map((u, i) => pt(u, i, 'circle', 10)); const sp = spanX.map(([x, u]) => pt(u, x, 'diamond', 9));
+    ctx.chart('ldx', {
+      grid: ch.grid({ top: 34, bottom: 34, right: 18 }), legend: { top: 0, right: 0, data: ['Towers', 'Spans'] },
+      tooltip: { trigger: 'item', formatter: (p) => { const u = p.data.unit; return `<b>${esc(u.name)}</b> ${u.kind}<br/>${u.hi == null ? 'Not assessed' : `HI ${fmt.n(u.hi, 1)} · ${esc(u.band)}`}<br/>${u.open} open finding${u.open === 1 ? '' : 's'}`; } },
+      xAxis: { type: 'value', min: -0.5, max: towersU.length - 0.5, interval: 4, axisLabel: { formatter: (v) => towersU[Math.round(v)]?.name || '' } },
+      yAxis: { type: 'value', min: 0, max: 100, name: 'Health index' },
+      series: [
+        { name: 'Towers', type: 'line', data: tp.filter((d) => d.unit.hi != null), symbol: 'circle', lineStyle: { color: '#94a3b8', width: 1.2 }, itemStyle: { color: '#16a34a' }, markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#94a3b8' }, data: [{ yAxis: 70, label: { formatter: 'normal from 70', position: 'insideEndTop' } }, { yAxis: 40, label: { formatter: 'poor below 40', position: 'insideEndTop' } }] } },
+        { name: 'Spans', type: 'scatter', data: sp.filter((d) => d.unit.hi != null), symbol: 'diamond', symbolSize: 9, itemStyle: { color: '#3b82f6' } },
+        { name: 'Not assessed', type: 'scatter', data: [...tp, ...sp].filter((d) => d.unit.hi == null), symbolSize: 9, itemStyle: { color: '#fff', borderColor: '#94a3b8', borderWidth: 1.5 } },
+      ],
+    }, { onClick: (p) => { const u = p.data?.unit; if (u) open360(u.id); } });
+  }
+
   /* ---------- Line Health */
   let lineSel = 'L-220-03';
+  let ldSel = 'L-132-01';
+  let ltTower = null;
   screens.push({
     id: 'line', name: 'Line Health', icon: 'line',
     tabs: [
@@ -229,6 +283,7 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
         name: 'Corridors', icon: 'dashboard',
         render: () => `<div class="nx-page"><div class="nx-row nx-c3">${lines.map((l) => ui.card({ title: l.name, sub: `${l.lengthKm} km · ${l.towers.length} towers · rating ${l.rating} MVA`, tools: ui.badge(`${l.kv} kV`, 'accent', { dot: false }), body: `<div style="display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center"><div class="nx-chart" style="height:130px" data-g="${esc(l.id)}"></div><div>${ui.kv([['Health index', hiScore(l.hi, l.band)], ['Risk', riskBadge(l.riskBand, l.risk)], ['Loading now', `<b data-live="${esc(l.id)}.LOAD">—</b> %`], ['Conductor temp.', `<b data-live="${esc(l.id)}.TC">—</b> °C`], ['Open findings', fmt.n(l.towers.reduce((a, t) => a + t.open, 0) + l.spans.reduce((a, s) => a + s.open, 0))]])}</div></div>`, foot: `<span>Poor: <b style="color:${BAND_C.poor}">${l.bandCounts?.all?.poor ?? 0}</b> · Moderate: <b style="color:${BAND_C.moderate}">${l.bandCounts?.all?.moderate ?? 0}</b></span><span style="margin-left:auto">${ui.btn('Profile', { sm: true, attrs: `data-prof="${esc(l.id)}"` })}</span>` })).join('')}</div>
         ${ui.card({ title: 'Condition profile along the line', sub: 'Health index of every tower (bars) and span (line) from start substation to end. Red bands are poor-condition sections that set the line’s risk.', tools: ui.seg('prof', lines.map((l) => [l.id, l.id]), lineSel), body: ui.chart('prof', 'lg') })}
+        ${ui.card({ title: 'Tower LiDAR', sub: 'Pick a tower on the selected line to see its spans as a simulated LiDAR point cloud.', tools: '<select class="nx-select" data-lt-tower aria-label="Tower"></select>', body: '<div data-lt-body></div>' })}
         <div class="nx-row nx-c2">${ui.card({ title: 'Findings by component group', sub: 'Open, non-rejected findings per line', body: ui.chart('grp', 'md') })}${ui.card({ title: 'Weak sections', sub: 'Consecutive towers/spans below HI 70 — candidates for one grouped outage', flush: true, body: '<div data-weak></div>' })}</div></div>`,
         mount: (st, ctx) => {
           for (const l of lines) ctx.chart(`[data-g="${l.id}"]`, ch.gauge({ value: +(l.hi ?? 0).toFixed(1), name: 'HI', bands: [[0.4, '#dc2626'], [0.7, '#d97706'], [1, '#16a34a']], dec: 1, compact: true }));
@@ -241,12 +296,43 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
             ts.forEach((t, i) => { const s = sp.get(t.id); const weak = (t.hi ?? 100) < 70 || (s?.hi ?? 100) < 70; if (weak) { if (!cur) cur = { from: t, to: t, items: [] }; cur.to = t; cur.items.push(t); } else if (cur) { secs.push(cur); cur = null; } if (i === ts.length - 1 && cur) secs.push(cur); });
             st.querySelector('[data-weak]').innerHTML = ui.table({ id: 'weak', rows: secs.sort((a, b) => b.items.length - a.items.length), rowId: (s) => s.from.id, cols: [{ label: 'Section', render: (s) => `<b>${esc(s.from.name)} → ${esc(s.to.name)}</b><span class="nx-sub">${s.items.length} tower${s.items.length > 1 ? 's' : ''}</span>`, sort: (s) => s.from.idx }, { label: 'Min HI', align: 'r', sort: (s) => Math.min(...s.items.map((t) => t.hi ?? 100)), render: (s) => { const m = s.items.slice().sort((a, b) => (a.hi ?? 100) - (b.hi ?? 100))[0]; return hiScore(m.hi, m.band); } }, { label: 'Findings', align: 'r', sort: (s) => s.items.reduce((a, t) => a + t.open, 0), render: (s) => s.items.reduce((a, t) => a + t.open, 0) }, { label: 'Suggested', render: (s) => (s.items.length >= 3 ? ui.badge('Group outage', 'warn') : ui.badge('Single visit', 'muted')) }], empty: 'No weak sections on this line.' });
           };
-          drawProf(lineSel); ctx.onPick('prof', drawProf);
+          // tower structure / LiDAR for the selected line
+          let ltOff = null; ctx.cleanup(() => ltOff?.());
+          const ltList = () => lines.find((x) => x.id === lineSel).towers.filter((t) => !snap.dupRecord.has(t.id) && t.lat != null);
+          const drawLt = () => {
+            ltOff?.(); ltOff = null;
+            const t = net.towerById.get(ltTower); const body = st.querySelector('[data-lt-body]');
+            if (!t) { body.innerHTML = ui.empty('No tower on this line.'); return; }
+            if (hasLidar(snap, t.id)) { body.replaceChildren(); ltOff = mountLidar(body, { snap, assetId: t.id }); return; }
+            body.innerHTML = ui.empty(`${t.name} has no span, so there is no LiDAR view for it.`);
+          };
+          const fillLt = () => {
+            const list = ltList(); const sel = st.querySelector('[data-lt-tower]');
+            if (!list.some((t) => t.id === ltTower)) ltTower = (list.filter((t) => hasLidar(snap, t.id) && t.hi != null).sort((a, b) => a.hi - b.hi)[0] || list[0])?.id ?? null;
+            sel.innerHTML = list.map((t) => `<option value="${esc(t.id)}" ${t.id === ltTower ? 'selected' : ''}>${esc(t.name)} · HI ${t.hi == null ? '—' : Math.round(t.hi)}</option>`).join('');
+            drawLt();
+          };
+          ctx.on('change', '[data-lt-tower]', (e, el) => { ltTower = el.value; drawLt(); });
+          drawProf(lineSel); ctx.onPick('prof', (id) => { drawProf(id); fillLt(); }); fillLt();
           ctx.on('click', '[data-prof]', (e, b) => { st.querySelector(`[data-seg="prof"] [data-v="${b.dataset.prof}"]`)?.click(); st.querySelector('[data-chart="prof"]').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
           ctx.on('click', '#weak tr[data-row]', (e, r) => open360(r.dataset.row));
           const groups = ['insulators', 'steel_structure', 'foundation', 'conductor_accessories', 'conductor', 'lightning_protection', 'tower_accessories', 'clearance'];
           const of = openFindings;
           ctx.chart('grp', ch.bar({ x: groups.map((g) => GROUP_LABEL[g] || g), series: lines.map((l) => ({ name: l.id, color: l.color, stack: 's', data: groups.map((g) => of.filter((f) => f.line === l.id && f.group === g).length) })), stack: true, horizontal: true, grid: { top: 30 } }));
+        },
+      },
+      {
+        name: 'Line detail', icon: 'tower',
+        render: () => `<div class="nx-page"><div class="nx-toolbar" style="justify-content:space-between">${ui.seg('ld-line', lines.map((l) => [l.id, l.id]), ldSel)}</div><div data-ld>${lineDetail(lines.find((l) => l.id === ldSel))}</div></div>`,
+        mount: (st, ctx) => {
+          const paint = (id) => {
+            ldSel = id; const l = lines.find((x) => x.id === id);
+            st.querySelector('[data-ld]').innerHTML = lineDetail(l);
+            lineDetailChart(l, ctx);
+          };
+          lineDetailChart(lines.find((x) => x.id === ldSel), ctx);
+          ctx.onPick('ld-line', paint);
+          ctx.on('click', '[data-a360]', (e, b) => open360(b.dataset.a360));
         },
       },
       {
@@ -476,6 +562,17 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
     }],
   });
 
+  /** Health index by category: one bar per category, the length of a segment is its share of that category. */
+  function categoryBars() {
+    const cats = [['Lines', lines], ['Towers', towers], ['Spans', spans], ['Transformers', transformers]];
+    return `<div class="nx-catbars">${cats.map(([name, list]) => {
+      const n = { poor: 0, moderate: 0, normal: 0, na: 0 }; for (const a of list) n[bandOf(a.hi)] += 1;
+      return `<div class="nx-catrow"><b>${name} <span>${list.length}</span></b><div class="nx-catbar">${BANDS.filter(([k]) => n[k]).map(([k, l, c]) => `<span style="flex:${n[k]} 1 0;background:${c}" title="${n[k]} ${l}">${n[k]}</span>`).join('')}</div></div>`;
+    }).join('')}</div>`;
+  }
+  const evidenceDays = (a) => { const d = snap.scores.get(a.id)?.hi?.breakdown?.freshness?.newestEvidenceDate; return d ? daysBetween(d, asOf) : null; };
+  const top10 = ranked.slice(0, 10);
+
   /* ---------- Reliability Dashboard */
   screens.push({
     id: 'dashboard', name: 'Reliability Dashboard', icon: 'pulse',
@@ -496,17 +593,35 @@ export function buildScreens(net, { registryTabs = [], openAsset, openFinding, g
           <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', exp: true, title: 'Where the risk is', sub: 'Towers by risk band on the corridors — click a dot', flush: true, body: '<div class="nx-map" id="dmap" style="height:380px;border-radius:0 0 12px 12px"></div>' })}
           ${ui.card({ cls: 'nx-s4', exp: true, title: 'Top risks', sub: 'Condition × criticality × consequence', flush: true, body: `<div class="nx-list" style="padding:0 16px">${ranked.slice(0, 7).map((a) => ui.li({ ic: a.kind === 'transformer' ? 'transformer' : a.kind === 'span' ? 'line' : 'tower', color: riskC(a.riskBand), title: `${a.kind === 'transformer' ? a.name : a.kind === 'span' ? `Span ${a.name}` : `Tower ${a.name}`} · ${a.line || a.sub || ''}`, sub: esc(explain(a)), end: `<b class="nx-num" style="color:${riskC(a.riskBand)}">${fmt.n(a.risk)}</b>`, row: a.id })).join('')}</div>` })}
           ${ui.card({ cls: 'nx-s3', exp: true, title: 'Risk distribution', sub: 'Scored towers, spans, transformers', body: ui.chart('rd', 'md') })}</div>
-          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', title: 'Line health by campaign', sub: 'Length-weighted line health index, re-scored at each campaign end', body: ui.chart('lh', 'md') })}${ui.card({ cls: 'nx-s4', title: 'Defect Pareto', sub: 'Open findings by defect class — the vital few', body: ui.chart('par', 'md') })}${ui.card({ cls: 'nx-s3', title: 'Transformer condition', sub: 'Online DGA & HI', flush: true, body: `<div class="nx-list" style="padding:0 16px">${transformers.map((t) => ui.li({ ic: 'transformer', color: bandColor(t.band), title: `${t.name} · ${t.rating} MVA`, sub: `${esc(t.duval?.label || 'Normal ageing')} · H₂ <span data-live="${t.id}.H2">—</span> ppm`, end: hiScore(t.hi, t.band), row: t.id })).join('')}</div>` })}</div></div>`;
+          <div class="nx-row nx-c12">${ui.card({ cls: 'nx-s5', title: 'Condition across campaigns', sub: '', body: `<div class="nx-bandkey">${BANDS.map(([k, l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>${ui.chart('cc', 'md')}<p class="nx-bandnote">Left bar: towers, right bar: spans. Assets count from the day they were installed. Click a segment to open the registry on that band (it lists today's state).</p>` })}${ui.card({ cls: 'nx-s4', title: 'Health index by category', sub: '', body: `<div class="nx-bandkey">${BANDS.map(([k, l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>${categoryBars()}<p class="nx-bandnote">One bar per category; the length of a segment is its share. Not assessed means no inspection evidence yet, not a good score.</p>` })}${ui.card({ cls: 'nx-s3', title: 'Transformer condition', sub: 'Online DGA & HI', flush: true, body: `<div class="nx-list" style="padding:0 16px">${transformers.map((t) => ui.li({ ic: 'transformer', color: bandColor(t.band), title: `${t.name} · ${t.rating} MVA`, sub: `${esc(t.duval?.label || 'Normal ageing')} · H₂ <span data-live="${t.id}.H2">—</span> ppm`, end: hiScore(t.hi, t.band), row: t.id })).join('')}</div>` })}</div></div>
+          ${ui.card({ title: 'Top 10 risks', sub: 'Risk = (100 − health index) × criticality × consequence, with the linked-asset uplift. Towers and transformers together.', flush: true, body: ui.table({ id: 'top10', rowId: (a) => a.id, rows: top10, cols: [
+            { label: '#', sort: (a) => top10.indexOf(a), render: (a) => top10.indexOf(a) + 1 },
+            { label: 'Asset', sort: (a) => a.name, render: (a) => `<span class="nx-tlink">${esc(a.name)}</span> ${a.kind === 'transformer' ? 'transformer' : a.kind === 'span' ? 'span' : 'tower'}` },
+            { label: 'Line', sort: (a) => a.line || a.sub || '', render: (a) => (a.line ? `<span class="nx-tlink">${esc(a.line)}</span>` : esc(net.byId.get(a.sub)?.name || a.sub || '—')) },
+            { label: 'Health index', sort: (a) => a.hi, render: (a) => `<span class="nx-pill-lg" style="background:${bandColor(a.band)};color:#1b1b1b">${fmt.n(a.hi, 1)} · ${esc(a.band)}</span>` },
+            { label: 'Evidence', align: 'r', sort: (a) => evidenceDays(a) ?? 9999, render: (a) => (evidenceDays(a) == null ? '—' : `${evidenceDays(a)} d`) },
+            { label: 'Condition', align: 'r', sort: (a) => 100 - a.hi, render: (a) => fmt.n(100 - a.hi, 1) },
+            { label: 'Criticality', align: 'r', sort: (a) => net.byId.get(a.id)?.criticality, render: (a) => net.byId.get(a.id)?.criticality ?? '—' },
+            { label: 'Consequence', align: 'r', sort: (a) => snap.scores.get(a.id)?.risk?.breakdown?.factors?.consequence?.value, render: (a) => snap.scores.get(a.id)?.risk?.breakdown?.factors?.consequence?.value ?? '—' },
+            { label: 'Risk', align: 'r', sort: (a) => a.risk, render: (a) => `<b class="nx-num">${fmt.n(a.risk)}</b> <span class="nx-pill-lg" style="background:${riskC(a.riskBand)};color:#fff">${esc(a.riskBand)}</span>` },
+          ] }) })}`;
         },
         mount: (st, ctx) => {
           ctx.on('click', '[data-a360]', (e, b) => open360(b.dataset.a360));
           ctx.on('click', '.nx-li[data-row]', (e, r) => open360(r.dataset.row));
           const rb = ['critical', 'high', 'medium', 'low'];
           ctx.chart('rd', ch.donut({ data: rb.map((b) => ({ name: fmt.title(b), value: ranked.filter((a) => a.riskBand === b).length, color: RISK_C[b] })), center: 'assets', legend: false, radius: ['58%', '82%'] }));
-          ctx.chart('lh', ch.line({ x: campaigns.map((c) => c.name), series: lines.map((l) => ({ name: l.id, color: l.color, symbol: true, smooth: false, data: histFor(l.id).map((v) => (v == null ? null : +v.toFixed(1))) })), yName: 'HI', yMin: 80, yMax: 100 }));
-          const by = {}; for (const f of openFindings) by[f.label] = (by[f.label] || 0) + 1;
-          const ent = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 8); const tot = ent.reduce((a, e) => a + e[1], 0); let cum = 0;
-          ctx.chart('par', { grid: ch.grid({ top: 26, bottom: 4 }), tooltip: ch.tip({ axisPointer: { type: 'shadow' } }), xAxis: { type: 'category', data: ent.map((e) => e[0].replace(/ /, '\n')), axisLabel: { fontSize: 9.5, interval: 0 } }, yAxis: [{ type: 'value' }, { type: 'value', max: 100, axisLabel: { formatter: '{value}%' }, splitLine: { show: false } }], series: [{ type: 'bar', name: 'Findings', data: ent.map((e) => e[1]), itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] } }, { type: 'line', name: 'Cumulative %', yAxisIndex: 1, data: ent.map((e) => { cum += e[1]; return +((cum / tot) * 100).toFixed(1); }), lineStyle: { color: '#ea580c' }, itemStyle: { color: '#ea580c' }, symbol: 'circle' }] });
+          // condition across campaigns: towers (T) and spans (S) by band at the end of each campaign, and today
+          const points = [...campaigns.map((c, i) => ({ label: c.name, date: c.end, i })), { label: 'Today', date: asOf, i: -1 }];
+          const stack = (list, pt) => {
+            const n = { poor: 0, moderate: 0, normal: 0, na: 0 };
+            for (const a of list) { const inst = net.byId.get(a.id)?.install_date; if (inst && inst > pt.date) continue; const hi = pt.i < 0 ? a.hi : histFor(a.id)[pt.i]; n[bandOf(hi)] += 1; }
+            return n;
+          };
+          const T = points.map((pt) => stack(towers, pt)); const S = points.map((pt) => stack(spans, pt));
+          const bar = (kind, data, [key, name, color], top) => ({ type: 'bar', name: `${name} (${kind === 'T' ? 'towers' : 'spans'})`, stack: kind, barWidth: '30%', itemStyle: { color, borderColor: '#fff', borderWidth: 0.5 }, data: data.map((d) => d[key]), label: top ? { show: true, position: 'top', formatter: kind, color: '#64748b', fontSize: 10.5, fontWeight: 700 } : { show: false }, emphasis: { focus: 'series' } });
+          ctx.chart('cc', { grid: ch.grid({ top: 18, bottom: 6, right: 14 }), tooltip: ch.tip({ axisPointer: { type: 'shadow' } }), legend: { show: false }, xAxis: { type: 'category', data: points.map((x) => x.label) }, yAxis: { type: 'value' }, series: [...BANDS.map((b, k) => bar('T', T, b, k === BANDS.length - 1)), ...BANDS.map((b, k) => bar('S', S, b, k === BANDS.length - 1))] }, { onClick: () => go('registry', 'Towers') });
+          ctx.on('click', '#top10 tr[data-row]', (e, r) => open360(r.dataset.row));
           const layers = networkLayers(net, { onLine: lineInfo, towers: true, towerColor: (t) => riskC(t.riskBand), towerInfo });
           ctx.map('#dmap', { layers, panel: false, padding: [20, 20] });
         },
