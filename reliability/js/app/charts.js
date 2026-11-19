@@ -76,6 +76,27 @@ export function loadingOption(loading, p) {
 }
 
 /**
+ * Measured health index at the campaign dates, then the EXPERIMENTAL projection (dashed) for the next five years.
+ * The projection starts at today's measured value, so the two lines meet.
+ */
+export function forecastOption(history, forecast, p) {
+  const measured = history.hasHi ? history.hi : [];
+  const labels = [...history.labels.slice(0, measured.length), ...forecast.points.map((x) => x.label)];
+  const pad = (n) => Array.from({ length: n }, () => null);
+  const last = Math.max(0, measured.length - 1);
+  return {
+    ...base(p), grid: { left: 38, right: 18, top: 34, bottom: 26 }, tooltip: { trigger: 'axis' }, legend: { top: 0, textStyle: { color: p.muted } },
+    xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { color: p.line } }, axisLabel: { color: p.muted } },
+    series: [
+      { name: 'Measured health index', type: 'line', data: [...measured, ...pad(forecast.points.length)], symbolSize: 9, lineStyle: { width: 2.5, color: p.blue }, itemStyle: { color: p.blue },
+        markLine: { silent: true, symbol: 'none', label: { color: p.muted, fontSize: 10, position: 'insideStartTop', formatter: ({ value }) => (value === 70 ? 'normal from 70' : 'poor below 40') }, lineStyle: { color: p.muted, type: 'dashed' }, data: [{ yAxis: 70 }, { yAxis: 40 }] } },
+      { name: 'Projected', type: 'line', data: [...pad(last), forecast.now, ...forecast.points.map((x) => x.hi)], symbolSize: 7, symbol: 'emptyCircle', lineStyle: { width: 2, type: 'dashed', color: p.amber }, itemStyle: { color: p.amber }, areaStyle: { color: `${p.amber}14` } },
+    ],
+  };
+}
+
+/**
  * Draw a chart into el. Returns { dispose } or throws if ECharts is unavailable.
  * The chart resizes with its container and is disposed with it.
  */

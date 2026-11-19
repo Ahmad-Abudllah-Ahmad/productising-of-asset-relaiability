@@ -254,6 +254,17 @@ export const CONFIG = deepFreeze({
     },
   },
 
+  // Simulated LiDAR (no scan data exists; each span's point cloud is generated from the seed). Limits per nominal voltage,
+  // clearance is a straight-line distance in metres. The limits are placeholders for the client's own standard.
+  lidar: {
+    minClearanceM: { 132: 7.0, 220: 7.0, 500: 9.5 },
+    defaultMinClearanceM: 7.0,
+    maxPoints: 14000,
+    corridorHalfWidthM: { 132: 28, 220: 38, 500: 55 },
+    crossarmHalfWidthM: { 132: 4.2, 220: 6, 500: 10 },
+    attachDropM: 3,
+  },
+
   // Seed generator parameters (plan, Technical approach: Seed data).
   seed: {
     seed: 20261111,

@@ -7,9 +7,11 @@ const SHOTS = `docs/screens/${process.env.SHOTS_DIR || 'step3a'}`;
 fs.mkdirSync(SHOTS, { recursive: true });
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
-const RAIL = ['Drawing', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History', 'Reliability Dashboard'];
-const REGISTRY_TABS = ['Lines', 'Towers', 'Spans', 'Components', 'Substations', 'Transformers', 'Links'];
-const OLD_TABS = ['Production', 'Sourcing', 'Overview', 'Matrix', 'Forecast', 'Issues', 'Entities', 'Recommendations', 'Blackboard', 'Schedule', 'Graph', 'Register', 'Hierarchy'];
+const RAIL = ['Reliability Dashboard', 'Asset Registry', 'Tower Health', 'Line Health', 'Risk Map', 'Maintenance History', 'Work Orders', 'Inventory & Parts', 'Substation Schematics'];
+// the rail is grouped: Asset Health (condition) and Operations (maintenance, work orders, inventory) together are Asset Reliability
+const RAIL_GROUPS = ['Overview', 'Asset Health', 'Operations', 'Engineering'];
+const REGISTRY_TABS = ['Overview', 'Lines', 'Towers', 'Spans', 'Components', 'Substations', 'Transformers', 'Links'];
+const OLD_TABS = ['Production', 'Sourcing', 'Matrix', 'Forecast', 'Issues', 'Entities', 'Recommendations', 'Blackboard', 'Schedule', 'Graph', 'Register', 'Hierarchy'];
 // seed: 150 towers + 4 newly built + 5 unmerged duplicates; 151 spans; 2 stations + 10 bays; 6 transformers + 1 duplicate
 const ROWS = { Lines: 3, Towers: 159, Spans: 151, Components: 1382, Substations: 12, Transformers: 7 };
 
@@ -30,11 +32,12 @@ async function open(page, url = '/reliability') {
 const openRegistry = async (page, name) => { await rail(page).nth(1).click(); await tab(page, name).click(); };
 
 test.describe('page structure', () => {
-  test('six screens and the drawing, no new navigation entries, no script errors', async ({ page }) => {
+  test('six module screens plus the live schematics, no script errors', async ({ page }) => {
     const errors = await open(page);
-    await expect(rail(page)).toHaveCount(7);
+    await expect(rail(page)).toHaveCount(RAIL.length);
     for (let i = 0; i < RAIL.length; i += 1) await expect(rail(page).nth(i)).toHaveAttribute('aria-label', RAIL[i]);
-    await expect(page).toHaveTitle('Asset Reliability Intelligence');
+    await expect(page.locator('.nx-nav .nx-nav-label')).toHaveText(RAIL_GROUPS);
+    await expect(page).toHaveTitle('Asset Reliability Intelligence · NEXUS OS');
     expect(errors).toEqual([]);
   });
 
@@ -42,9 +45,10 @@ test.describe('page structure', () => {
     const html = await (await request.get('/reliability')).text();
     expect(html).toContain('nexus-apps.css?v=39');
     expect(html).toContain('nexus-reliability.js?v=2');
-    expect(html).toContain('boot.js?v=2');
+    expect(html).toContain('boot.js?v=11');
+    expect(html).toContain('/assets/console/console.css');
     for (const m of ['operations', 'grid', 'inventory', 'forecast', 'finance', 'workforce']) {
-      expect(await (await request.get(`/${m}`)).text()).toContain('nexus-apps.css?v=38');
+      expect(await (await request.get(`/${m}`)).text()).toContain(`/assets/console/modules/${m}.js`);
     }
   });
 });
@@ -55,7 +59,7 @@ test.describe('Asset Registry', () => {
     await rail(page).nth(1).click();
     expect(await tabs(page).allTextContents()).toEqual(REGISTRY_TABS);
     for (const old of OLD_TABS) await expect(tab(page, old)).toHaveCount(0);
-    await expect(tab(page, 'Lines')).toHaveClass(/is-on/);
+    await expect(tab(page, 'Overview')).toHaveClass(/is-on/);
   });
 
   for (const name of Object.keys(ROWS)) {
@@ -287,7 +291,7 @@ test.describe('Links tab (Link Review)', () => {
 test.describe('the other screens keep working', () => {
   test('every other screen and tab opens without errors', async ({ page }) => {
     const errors = await open(page);
-    for (const s of [0, 2, 3, 4, 5, 6]) {
+    for (const s of [0, 2, 3, 4, 5, 6, 7, 8]) {
       await rail(page).nth(s).click();
       const n = await tabs(page).count();
       for (let t = 0; t < n; t += 1) { await tabs(page).nth(t).click(); await expect(page.locator('#stage')).not.toBeEmpty(); }
