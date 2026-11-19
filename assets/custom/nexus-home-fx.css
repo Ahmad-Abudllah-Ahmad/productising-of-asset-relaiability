@@ -26,26 +26,11 @@
 .navbar5_link::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px; border-radius: 2px; background: var(--fx-grad); transform: scaleX(0); transform-origin: 0 50%; transition: transform .45s var(--fx-ease); }
 .navbar5_dropdown-toggle:hover .navbar5_link::after, .navbar5_link:hover::after { transform: scaleX(1); }
 
-/* ---------------------------------------------------------------- hero */
-.fx-hero-clip { position: relative; z-index: 1; overflow: hidden; }
-.fx-hero-clip .home_logo-image { animation: fx-kenburns 26s ease-in-out infinite alternate; transform-origin: 62% 46%; }
-@keyframes fx-kenburns { from { transform: scale(1); } to { transform: scale(1.085) translate3d(-1%, -.6%, 0); } }
-.fx-hero { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
-.fx-hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.fx-hero::before { /* slow light sweep across the dusk sky */
-  content: ""; position: absolute; top: -20%; bottom: -20%; width: 38%; left: -45%;
-  background: linear-gradient(100deg, transparent, rgba(255, 214, 160, .07) 40%, rgba(147, 197, 253, .09) 55%, transparent);
-  transform: skewX(-14deg); animation: fx-sweep 11s var(--fx-ease) 1.5s infinite;
-}
-.fx-hero::after { /* horizon glow breathing behind the substation */
-  content: ""; position: absolute; left: -10%; right: -10%; top: 48%; height: 26%;
-  background: radial-gradient(60% 100% at 50% 50%, rgba(245, 158, 11, .14), transparent 70%);
-  animation: fx-breathe 7s ease-in-out infinite; mix-blend-mode: screen;
-}
-@keyframes fx-sweep { 0% { left: -45%; } 55%, 100% { left: 120%; } }
-@keyframes fx-breathe { 50% { opacity: .45; transform: scaleY(1.15); } }
-.fx-scan { position: absolute; left: 0; right: 0; height: 1px; top: 0; background: linear-gradient(90deg, transparent, rgba(34, 211, 238, .55), transparent); box-shadow: 0 0 18px rgba(34, 211, 238, .5); animation: fx-scanline 9s linear infinite; opacity: .5; }
-@keyframes fx-scanline { from { top: 8%; } to { top: 92%; } }
+/* ---------------------------------------------------------------- hero (bubbles/scanline/sweep disabled) */
+.fx-hero,
+.fx-hero canvas,
+.fx-scan { display: none !important; }
+.fx-hero-clip .home_logo-image { animation: none !important; }
 
 /* hero headline: luminous gradient that slowly drifts through the words */
 .home-hero-heading .spark-word, .home-hero-heading.fx-plain {

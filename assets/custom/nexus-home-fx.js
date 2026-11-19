@@ -39,17 +39,7 @@
       (function follow() { gx += (tx - gx) * 0.12; gy += (ty - gy) * 0.12; glow.style.transform = 'translate3d(' + gx.toFixed(1) + 'px,' + gy.toFixed(1) + 'px,0)'; requestAnimationFrame(follow); })();
     }
 
-    /* -------- hero: clip frame for the slow zoom, light sweep, scan line and drifting sparks */
-    var logos = document.querySelector('.section_logos');
-    var video = logos && logos.querySelector('.home_logo-image');
-    if (video && !video.parentNode.classList.contains('fx-hero-clip')) {
-      var clip = document.createElement('div'); clip.className = 'fx-hero-clip';
-      video.parentNode.insertBefore(clip, video); clip.appendChild(video);
-      var hero = document.createElement('div'); hero.className = 'fx-hero'; hero.setAttribute('aria-hidden', 'true');
-      hero.innerHTML = '<canvas></canvas><div class="fx-scan"></div>';
-      clip.appendChild(hero);
-      if (!reduce) sparks(hero.querySelector('canvas'), clip);
-    }
+    /* -------- hero: keep video clean (no particle bubbles, scan line, or artificial zoom) */
     var heading = document.querySelector('.home-hero-heading');
     if (heading && !heading.querySelector('.spark-word')) heading.classList.add('fx-plain');
 
