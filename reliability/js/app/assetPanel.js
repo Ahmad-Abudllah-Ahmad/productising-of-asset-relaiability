@@ -257,7 +257,7 @@ function onTabKey(e) {
 /** Where a set of records comes from: the ERP, through the integration layer. Read-only, never entered here. */
 function erpSource(system, what, synced) {
   return h('div', { class: 'a360-source', 'data-testid': 'erp-source' },
-    h('span', { class: 'a360-mark a360-mark-erp' }, `ERP · ${system}`),
+    h('span', { class: 'a360-mark a360-mark-erp' }, /\bSAP\b/.test(system) ? h('img', { class: 'a360-brand', src: '/assets/brand/sap.svg', alt: '' }) : null, `ERP · ${system}`),
     h('span', {}, `${what} read from the ERP through the integration layer${synced ? ` · ${synced.replace(/^.*? · /, '')}` : ''}. The ERP is the system of record; nothing is entered here.`));
 }
 

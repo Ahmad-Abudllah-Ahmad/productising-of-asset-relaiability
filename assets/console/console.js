@@ -145,6 +145,27 @@ export function spark(values, color = '#3b82f6', { h = 40, fill = true } = {}) {
 }
 export function hash(s) { let x = 0; for (let i = 0; i < s.length; i += 1) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; }
 
+/**
+ * Vendor logos for the systems the platform integrates with (SAP, IBM Maximo, Oracle, Microsoft Dynamics 365). The files
+ * are the vendors' own marks, kept locally in /assets/brand. brandOf('SAP PM') → { key, name, src }; brandLogo() returns
+ * the <img>, decorative (alt="") by default because the system name is always written next to it.
+ */
+const BRANDS = [
+  [/maximo|\bibm\b/i, 'ibm', 'IBM'],
+  [/oracle/i, 'oracle', 'Oracle'],
+  [/dynamics|microsoft/i, 'dynamics365', 'Microsoft Dynamics 365'],
+  [/\bsap\b|s\/4hana|\bhana\b/i, 'sap', 'SAP'],
+];
+export function brandOf(text) {
+  const t = String(text || '');
+  for (const [re, key, name] of BRANDS) if (re.test(t)) return { key, name, src: `/assets/brand/${key}.svg` };
+  return null;
+}
+export function brandLogo(text, { h = 12, alt = '', cls = '' } = {}) {
+  const b = brandOf(text);
+  return b ? `<img class="nx-brand-logo is-${b.key}${cls ? ` ${cls}` : ''}" src="${b.src}" alt="${esc(alt)}" style="height:${h}px" decoding="async">` : '';
+}
+
 export const ui = {
   badge: (text, t = 'muted', { dot = true, tip } = {}) => `<span class="nx-badge t-${tone(t)}${dot ? '' : ' no-dot'}"${tip ? ` data-tip="${esc(tip)}"` : ''}>${esc(text)}</span>`,
   /**
@@ -157,7 +178,7 @@ export const ui = {
    * Marks a record set as read from the customer's ERP through the integration layer (erp.js), not entered here.
    * system: 'SAP PM' | 'SAP MM' | …; dataset: key in the integration layer ('workOrders', 'inventory', 'suppliers', 'purchasing').
    */
-  erp: (system = 'SAP', dataset = '') => `<button type="button" class="nx-badge nx-erp" data-nx-erp="${esc(dataset)}" data-tip="Read from the ERP through the integration layer. The ERP stays the system of record; nothing is re-entered here. Click for the connection.">${icon('database', 12)}ERP · ${esc(system)}</button>`,
+  erp: (system = 'SAP', dataset = '') => `<button type="button" class="nx-badge nx-erp" data-nx-erp="${esc(dataset)}" data-tip="Read from the ERP through the integration layer. The ERP stays the system of record; nothing is re-entered here. Click for the connection.">${brandLogo(system) || icon('database', 12)}ERP · ${esc(system)}</button>`,
   delta(v, { suffix = '%', invert = false, d = 1 } = {}) {
     if (v == null) return '';
     const good = invert ? v < 0 : v > 0;
@@ -1038,7 +1059,7 @@ export function mountApp(app) {
     if (s.group) navGroup = s.group;
     return `${label}<button type="button" data-go="${i}" class="${i === cur ? 'is-on' : ''}" title="${esc(s.name)}" aria-label="${esc(s.name)}">${icon(s.icon)}<span>${esc(s.name)}</span>${s.count ? `<em class="nx-nav-count">${esc(s.count)}</em>` : ''}</button>`;
   }).join('');
-  document.body.innerHTML = `<div class="nx-app shell${collapsed ? ' is-collapsed' : ''}"><aside class="nx-rail"><a class="nx-brand" href="/" aria-label="NEXUS OS home"><svg class="nx-logo" width="158" height="36" viewBox="0 0 158 36" role="img" aria-label="NEXUS OS"><text class="nx-word" x="0" y="27" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.03em">NEXUS OS</text></svg></a><div class="nx-module"><small>Module ${esc(app.code)}</small><b title="${esc(app.product)}">${esc(app.product)}</b></div><nav class="nx-nav" aria-label="Application screens">${app.screens[0]?.group ? '' : '<div class="nx-nav-label">Application screens</div>'}${nav}</nav><div class="nx-rail-foot"><button type="button" data-collapse>${icon('collapse')}<span>Collapse</span></button><a href="${esc(app.back || '/')}">${icon('back')}<span>Back to suite</span></a><button type="button" data-logout>${icon('logout')}<span>Log out</span></button></div></aside><header class="nx-top"><div class="nx-crumb"><small>NEXUS OS · Module ${esc(app.code)} · ${esc(app.product)}</small><h1 id="nx-title"></h1></div><div class="nx-top-spacer"></div><label class="nx-search">${icon('search', 15)}<input type="search" id="nx-gsearch" placeholder="Search towers, lines, work orders…" autocomplete="off"/><kbd>/</kbd></label><span class="nx-pill is-live" data-tip="Telemetry and records refresh every second from the simulated SCADA/EMS historian."><span class="nx-dot is-pulse"></span>Live · <span id="nx-clock" class="nx-num"></span></span><button type="button" class="nx-pill is-erp" data-nx-erp="" data-tip="Open the data connectors. Work orders, inventory, suppliers and purchasing are read from the customer ERP (SAP) through the integration layer.">${icon('database', 14)}ERP<span> · SAP</span><i class="nx-erp-dot"></i><em>Simulated</em></button><span class="nx-pill" data-tip="Records are scored as of this date.">${icon('calendar', 14)}As of ${esc(fmt.date(app.asOf || '2026-11-11'))}</span><button type="button" class="nx-iconbtn" id="nx-bell" aria-label="Alarms">${icon('bell')}<span class="nx-badge-dot" hidden></span></button><span class="nx-avatar" title="Signed in · Reliability engineer">RE</span></header><main class="nx-main"><div class="nx-tabs" id="tabs" role="tablist"></div><div class="nx-expbar" id="nx-expbar" hidden></div><div class="nx-stage" id="stage"></div></main></div><div id="nx-gresults" class="nx-map-panel" style="position:fixed;display:none;z-index:70;width:360px;max-height:380px;overflow:auto;padding:6px"></div>`;
+  document.body.innerHTML = `<div class="nx-app shell${collapsed ? ' is-collapsed' : ''}"><aside class="nx-rail"><a class="nx-brand" href="/" aria-label="NEXUS OS home"><svg class="nx-logo" width="158" height="36" viewBox="0 0 158 36" role="img" aria-label="NEXUS OS"><text class="nx-word" x="0" y="27" fill="#FFFFFF" font-family="DM Sans, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.03em">NEXUS OS</text></svg></a><div class="nx-module"><small>Module ${esc(app.code)}</small><b title="${esc(app.product)}">${esc(app.product)}</b></div><nav class="nx-nav" aria-label="Application screens">${app.screens[0]?.group ? '' : '<div class="nx-nav-label">Application screens</div>'}${nav}</nav><div class="nx-rail-foot"><button type="button" data-collapse>${icon('collapse')}<span>Collapse</span></button><a href="${esc(app.back || '/')}">${icon('back')}<span>Back to suite</span></a><button type="button" data-logout>${icon('logout')}<span>Log out</span></button></div></aside><header class="nx-top"><div class="nx-crumb"><small>NEXUS OS · Module ${esc(app.code)} · ${esc(app.product)}</small><h1 id="nx-title"></h1></div><div class="nx-top-spacer"></div><label class="nx-search">${icon('search', 15)}<input type="search" id="nx-gsearch" placeholder="Search towers, lines, work orders…" autocomplete="off"/><kbd>/</kbd></label><span class="nx-pill is-live" data-tip="Telemetry and records refresh every second from the simulated SCADA/EMS historian."><span class="nx-dot is-pulse"></span>Live · <span id="nx-clock" class="nx-num"></span></span><button type="button" class="nx-pill is-erp" data-nx-erp="" data-tip="Open the data connectors. Work orders, inventory, suppliers and purchasing are read from the customer ERP (SAP) through the integration layer.">${icon('database', 14)}ERP<span> · ${brandLogo('SAP', { h: 11, alt: 'SAP' })}</span><i class="nx-erp-dot"></i><em>Simulated</em></button><span class="nx-pill" data-tip="Records are scored as of this date.">${icon('calendar', 14)}As of ${esc(fmt.date(app.asOf || '2026-11-11'))}</span><button type="button" class="nx-iconbtn" id="nx-bell" aria-label="Alarms">${icon('bell')}<span class="nx-badge-dot" hidden></span></button><span class="nx-avatar" title="Signed in · Reliability engineer">RE</span></header><main class="nx-main"><div class="nx-tabs" id="tabs" role="tablist"></div><div class="nx-expbar" id="nx-expbar" hidden></div><div class="nx-stage" id="stage"></div></main></div><div id="nx-gresults" class="nx-map-panel" style="position:fixed;display:none;z-index:70;width:360px;max-height:380px;overflow:auto;padding:6px"></div>`;
 
   document.body.append(tipEl, toastsEl); // the shell markup replaced the body; keep the shared overlays
   const shell = document.querySelector('.nx-app');

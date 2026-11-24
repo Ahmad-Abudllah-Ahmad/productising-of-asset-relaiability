@@ -684,3 +684,11 @@ button.nx-tlink { cursor: pointer; }
 [data-lt-body] .ld { gap: 10px; } [data-lt-body] .ld-canvas { height: 380px; }
 @media (max-width: 1100px) { .nx-lt { grid-template-columns: 1fr; } }
 
+/* vendor logos (SAP, IBM, Oracle, Microsoft Dynamics 365) beside the systems they name */
+.nx-brand-logo { display: inline-block; width: auto; flex: 0 0 auto; vertical-align: -2px; object-fit: contain; }
+.nx-badge.nx-erp .nx-brand-logo { height: 10px !important; margin-right: 1px; }
+.nx-pill.is-erp .nx-brand-logo { vertical-align: -1px; }
+.nx-with-logo { display: inline-flex; align-items: center; gap: 6px; }
+.nx-flow3 b .nx-flow-logo { margin-right: 6px; vertical-align: -2px; }
+.nx-conn-logo.is-brand { background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(15, 23, 42, .06); }
+.nx-conn-logo.is-brand .nx-brand-logo { width: 74%; height: auto !important; max-height: 62%; }

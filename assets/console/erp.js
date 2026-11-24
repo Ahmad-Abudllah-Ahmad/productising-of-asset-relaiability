@@ -19,7 +19,7 @@
 // BAPIs. The prototype ships one adapter, SIMULATED: it returns the seeded demo records, shaped the way the SAP
 // extract would be, so every screen already works against the integration contract. No live SAP system is connected.
 
-import { drawer, ui, esc, fmt, toast } from './console.js';
+import { drawer, ui, esc, fmt, toast, brandLogo } from './console.js';
 
 /** The datasets the ERP owns, and how each one is read. */
 export const ERP_DATASETS = {
@@ -93,18 +93,18 @@ function ago(ts) {
 
 function openDetails(focus) {
   const sets = Object.keys(ERP_DATASETS).map((k) => erp.source(k));
-  const flow = `<div class="nx-flow3"><div><b>Customer ERP / SAP</b><span>${esc(erp.system.name)} · ${esc(erp.system.modules)}<br/>Inventory, suppliers, purchasing, work orders. The system of record.</span></div><i></i><div class="is-mid"><b>Integration layer</b><span>Fetches the existing data on a schedule and on change events.<br/>No manual re-entry.</span></div><i></i><div><b>NEXUS dashboards</b><span>Inventory, suppliers, purchasing, maintenance and analytics, read-only on ERP records.</span></div></div>`;
+  const flow = `<div class="nx-flow3"><div><b>${brandLogo('SAP', { h: 14, cls: 'nx-flow-logo' })}Customer ERP / SAP</b><span>${esc(erp.system.name)} · ${esc(erp.system.modules)}<br/>Inventory, suppliers, purchasing, work orders. The system of record.</span></div><i></i><div class="is-mid"><b>Integration layer</b><span>Fetches the existing data on a schedule and on change events.<br/>No manual re-entry.</span></div><i></i><div><b>NEXUS dashboards</b><span>Inventory, suppliers, purchasing, maintenance and analytics, read-only on ERP records.</span></div></div>`;
   const body = `<div class="nx-sec">${ui.callout(`<b>Connected to ${esc(erp.system.name)}.</b> Work orders, stock, suppliers and purchasing are read through the integration layer. The ERP stays the system of record.`, 'ok', 'database')}</div>
   <div class="nx-sec"><h4>How ERP data reaches the dashboard</h4>${flow}</div>
   <div class="nx-sec"><h4>Datasets read from the ERP</h4>${ui.table({ rowId: (s) => s.id, sel: focus || undefined, cols: [
     { label: 'Dataset', sort: (s) => s.label, render: (s) => `<b>${esc(s.label)}</b><span class="nx-sub">${esc(s.object)}</span>` },
-    { label: 'Source', sort: (s) => s.system, render: (s) => `${esc(s.system)}<span class="nx-sub nx-mono">${esc(s.tables)}</span>` },
+    { label: 'Source', sort: (s) => s.system, render: (s) => `<span class="nx-with-logo">${brandLogo(s.system)}${esc(s.system)}</span><span class="nx-sub nx-mono">${esc(s.tables)}</span>` },
     { label: 'Interface', wrap: true, sort: false, render: (s) => `<span class="nx-mono" style="font-size:11.5px">${esc(s.api)}</span><span class="nx-sub">${esc(s.direction)}</span>` },
     { label: 'Records', align: 'r', sort: (s) => s.count ?? -1, render: (s) => (s.count == null ? '<span class="nx-note">not used here</span>' : `<b class="nx-num">${fmt.n(s.count)}</b>`) },
     { label: 'Last sync', sort: (s) => s.syncedAt ?? 0, render: (s) => (s.syncedAt ? `${esc(ago(s.syncedAt))}<span class="nx-sub">${esc(s.cadence)}</span>` : `<span class="nx-note">${esc(s.cadence)}</span>`) },
   ], rows: sets })}</div>
   <div class="nx-sec"><h4>Requests sent to the ERP this session</h4>${state.outbox.length ? ui.table({ cols: [
-    { label: 'Request reference', render: (o) => `<b class="nx-mono">${esc(o.ref)}</b>` }, { label: 'System', render: (o) => esc(o.system) }, { label: 'Request', wrap: true, render: (o) => esc(o.what) },
+    { label: 'Request reference', render: (o) => `<b class="nx-mono">${esc(o.ref)}</b>` }, { label: 'System', render: (o) => `<span class="nx-with-logo">${brandLogo(o.system)}${esc(o.system)}</span>` }, { label: 'Request', wrap: true, render: (o) => esc(o.what) },
     { label: 'Sent', render: (o) => esc(new Date(o.at).toLocaleTimeString('en-GB')) }, { label: 'Status', render: (o) => ui.badge(o.status === 'Simulated' ? 'Sent' : o.status, 'ok') },
   ], rows: state.outbox }) : ui.empty('No requests yet. When a planner asks for a requisition, a reservation or a work request, it is sent to the ERP and listed here; the ERP creates the document.')}</div>
   <div class="nx-sec"><h4>Integration rules</h4><div class="nx-list">${[
@@ -147,7 +147,7 @@ const stamp = (d = new Date()) => d.toLocaleTimeString('en-GB');
 state.log = state.log || LOG0.map(([lv, t], i) => ({ lv, t, at: new Date(Date.now() - (LOG0.length - i) * 60000) }));
 let galleryEl = null; let connecting = false;
 
-const logo = (c, size = 36) => `<span class="nx-conn-logo" style="width:${size}px;height:${size}px;background:${c.color}">${esc(c.logo)}</span>`;
+const logo = (c, size = 36) => { const img = brandLogo(`${c.name} ${c.by}`, { h: Math.round(size * 0.5), alt: c.by.replace(/^by /, '') }); return img ? `<span class="nx-conn-logo is-brand" style="width:${size}px;height:${size}px">${img}</span>` : `<span class="nx-conn-logo" style="width:${size}px;height:${size}px;background:${c.color}">${esc(c.logo)}</span>`; };
 function cardHtml(c, connected) {
   const on = c.available && connected;
   return `<button type="button" class="nx-conn-card${on ? ' is-on' : ''}${c.available ? '' : ' is-off'}" data-conn="${esc(c.id)}"${c.available ? '' : ' disabled'}>${logo(c)}<span class="nx-conn-t"><b>${esc(c.name)}</b><small>${esc(c.by)}${c.sub ? ` · ${esc(c.sub)}` : ''}</small></span>${c.available ? `<span class="nx-conn-st">${on ? '<i class="nx-conn-dot"></i>Connected' : connecting ? 'Connecting…' : 'Connect'}<em class="nx-conn-sim">Simulated</em></span>` : '<span class="nx-conn-st is-muted">Not configured</span>'}</button>`;
