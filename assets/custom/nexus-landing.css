@@ -352,7 +352,7 @@ html:has(.nxl), html:has(.nxl) body, html body .page-wrapper:has(.nxl) { backgro
 html body .page-wrapper:has(.nxl) > .navbar5_component {
   width: calc(100% - 32px) !important;
   max-width: calc(100% - 32px) !important;
-  margin: 14px auto -74px !important;
+  margin: 0 !important; top: 14px !important;
   padding-left: 28px !important; padding-right: 10px !important;
   border-radius: 999px !important;
   border: 1px solid rgba(255, 255, 255, .12) !important;
@@ -368,7 +368,7 @@ html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us { align-items
 html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_logo-link,
 html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_menu-button { align-self: center !important; margin-top: 0 !important; margin-bottom: 0 !important; }
 @media (max-width: 991px) {
-  html body .page-wrapper:has(.nxl) > .navbar5_component { width: calc(100% - 24px) !important; max-width: calc(100% - 24px) !important; margin-top: 10px !important; margin-bottom: -70px !important; padding-left: 18px !important; padding-right: 8px !important; }
+  html body .page-wrapper:has(.nxl) > .navbar5_component { width: calc(100% - 24px) !important; max-width: calc(100% - 24px) !important; margin: 0 !important; top: 10px !important; left: 12px !important; right: 12px !important; padding-left: 18px !important; padding-right: 8px !important; }
 }
 /* vendor logos (SAP, IBM, Oracle) where the page names the systems it integrates with */
 .nxl-logos { display: inline-flex; align-items: center; gap: 7px; }
