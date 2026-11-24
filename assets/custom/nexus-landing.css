@@ -346,66 +346,11 @@ html body .nxl .spark-word, html body .nxl .spark-blur-reveal, html body .nxl .s
   .nxl-tab button { min-height: 0; }
   .nxl-tab button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
-/* homepage navbar as a floating pill spanning the page side to side; it floats over the top of the hero, and the page
-   behind it is light so no dark band shows above it (also on overscroll) */
+/* the page behind the floating navbar is light, so no dark band shows above it (also on overscroll) */
 html:has(.nxl), html:has(.nxl) body, html body .page-wrapper:has(.nxl) { background-color: var(--nxl-bg, #f6f8fb) !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component {
-  width: calc(100% - 32px) !important;
-  max-width: calc(100% - 32px) !important;
-  margin: 0 !important; top: 14px !important;
-  padding-left: 28px !important; padding-right: 10px !important;
-  border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, .12) !important;
-  background-color: rgba(8, 11, 17, .82) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 14px 34px -16px rgba(15, 23, 42, .45) !important;
-}
-html body .page-wrapper:has(.nxl) > .navbar5_component::after { left: 32px; right: 32px; }
-/* everything inside the pill sits on its vertical centre: the shared container's top padding is dropped here */
-html body .page-wrapper:has(.nxl) > .navbar5_component { display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: stretch !important; min-height: 60px !important; padding-right: 12px !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component > .navbar5_container { padding-top: 0 !important; padding-bottom: 0 !important; height: auto !important; min-height: 0 !important; display: flex !important; align-items: center !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_menu,
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us { align-items: center !important; align-self: center !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_logo-link,
-html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_menu-button { align-self: center !important; margin-top: 0 !important; margin-bottom: 0 !important; }
-@media (max-width: 991px) {
-  html body .page-wrapper:has(.nxl) > .navbar5_component { width: calc(100% - 24px) !important; max-width: calc(100% - 24px) !important; margin: 0 !important; top: 10px !important; left: 12px !important; right: 12px !important; padding-left: 18px !important; padding-right: 8px !important; }
-}
 /* vendor logos (SAP, IBM, Oracle) where the page names the systems it integrates with */
 .nxl-logos { display: inline-flex; align-items: center; gap: 7px; }
 .nxl-logos img { display: block; width: auto; }
 .nxl-logos.is-row { display: flex; gap: 14px; margin-top: 10px; }
 .nxl-stat-logos { grid-row: span 2; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border-radius: 10px; background: #fff; border: 1px solid var(--nxl-line); }
 .nxl-stat-logos img { display: block; width: auto; }
-/* navbar pill in the page's light theme: frosted glass, dark type, and the brand blue on the demo button */
-html body .page-wrapper:has(.nxl) > .navbar5_component,
-html body .page-wrapper:has(.nxl) > .navbar5_component.fx-scrolled {
-  background-color: rgba(255, 255, 255, .72) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(170%) !important; backdrop-filter: blur(18px) saturate(170%) !important;
-  border: 1px solid rgba(15, 23, 42, .08) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 12px 32px -14px rgba(15, 23, 42, .22) !important;
-}
-html body .page-wrapper:has(.nxl) > .navbar5_component .nx-word { fill: #0b1324 !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component .w-nav-button,
-html body .page-wrapper:has(.nxl) > .navbar5_component .w-nav-button * { color: #0b1324 !important; }
-@media (min-width: 992px) {
-  html body .page-wrapper:has(.nxl) > .navbar5_component .drop-down-menu .navbar5_link { color: #1e293b !important; }
-  html body .page-wrapper:has(.nxl) > .navbar5_component .drop-down-menu .navbar5_link:hover,
-  html body .page-wrapper:has(.nxl) > .navbar5_component .navbar5_dropdown-toggle:hover .navbar5_link { color: #0b1324 !important; }
-  html body .page-wrapper:has(.nxl) > .navbar5_component .drop-down-menu .dropdown-chevron svg path { fill: #1e293b !important; }
-}
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us a.button {
-  background: linear-gradient(135deg, #2a6be6, #1d5fd8 55%, #1546a8) !important; background-color: #1d5fd8 !important;
-  color: #fff !important; border: 1px solid rgba(255, 255, 255, .22) !important;
-  box-shadow: 0 6px 18px -6px rgba(29, 95, 216, .55), 0 1px 2px rgba(15, 23, 42, .15) !important;
-}
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us a.button:hover { background: #1546a8 !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us a.button *,
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us a.button .button-icon-orange { color: #fff !important; }
-html body .page-wrapper:has(.nxl) > .navbar5_component .contact-us a.button svg path { stroke: #fff !important; }
-/* phones and tablets: the opened menu is a light glass panel under the pill, with dark links */
-@media (max-width: 991px) {
-  html body .page-wrapper:has(.nxl) > .navbar5_component .w-nav-overlay { top: calc(100% + 8px) !important; }
-  html body .page-wrapper:has(.nxl) > .navbar5_component [data-nav-menu-open] { background: rgba(255, 255, 255, .97) !important; -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); border: 1px solid rgba(15, 23, 42, .08); border-radius: 20px; height: auto !important; min-height: 0 !important; transform: none !important; padding: 18px 0 22px !important; box-shadow: 0 18px 40px -16px rgba(15, 23, 42, .3); }
-  html body .page-wrapper:has(.nxl) > .navbar5_component [data-nav-menu-open] .navbar5_link { color: #1e293b !important; }
-  html body .page-wrapper:has(.nxl) > .navbar5_component [data-nav-menu-open] .dropdown-chevron svg path { fill: #1e293b !important; }
-}

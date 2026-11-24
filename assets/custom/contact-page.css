@@ -667,3 +667,10 @@ html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"]:not([data-nexus-form]) .contact-he
     animation: none !important;
   }
 }
+
+/* social links in the contact facts, and the heading above the message form */
+html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"] .contact-fact dd span.contact-social { display: flex !important; flex-wrap: wrap !important; gap: 0.4rem 1rem !important; }
+html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"] .contact-form-head { margin: 0 0 1rem !important; }
+html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"] .contact-form-head h2 { margin: 0 0 0.3rem !important; color: #1C2430 !important; font-family: Dmsans, "DM Sans", sans-serif !important; font-size: 1.35rem !important; font-weight: 600 !important; line-height: 1.2 !important; letter-spacing: -0.01em !important; }
+html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"] .contact-form-head p { margin: 0 !important; color: #5B6472 !important; font-size: 0.95rem !important; line-height: 1.45 !important; }
+html[data-wf-page="68d4eeb3cc0a4cf57359dbdb"] .contact_map-left .heading-content.is-tiny a.footer_text { display: block !important; }

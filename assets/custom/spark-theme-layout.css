@@ -2092,3 +2092,73 @@ html[data-wf-page="68c12a5a87c0cd3e02e9e5bb"] .home_logo-image {
   height: calc(100svh - var(--nx-hero-nav)) !important;
   min-height: 30rem !important;
 }
+
+/* ==========================================================================
+   One navbar on every page: a light frosted-glass pill that floats over the top of the page (fixed), so each
+   page's first visual starts at the very top with no band above it. Dark type, brand-blue demo button, and on
+   phones a matching light menu panel. (Moved here from the homepage stylesheet so every page shares it.)
+   ========================================================================== */
+html body .navbar5_component.w-nav {
+  position: fixed !important; left: 16px !important; right: 16px !important; transform: none !important; z-index: 2000 !important;
+}
+html body .navbar5_component.w-nav {
+  width: calc(100% - 32px) !important;
+  max-width: calc(100% - 32px) !important;
+  margin: 0 !important; top: 14px !important;
+  padding-left: 28px !important; padding-right: 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, .12) !important;
+  background-color: rgba(8, 11, 17, .82) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 14px 34px -16px rgba(15, 23, 42, .45) !important;
+}
+html body .navbar5_component.w-nav::after { left: 32px; right: 32px; }
+/* everything inside the pill sits on its vertical centre: the shared container's top padding is dropped here */
+html body .navbar5_component.w-nav { display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: stretch !important; min-height: 60px !important; padding-right: 12px !important; }
+html body .navbar5_component.w-nav > .navbar5_container { padding-top: 0 !important; padding-bottom: 0 !important; height: auto !important; min-height: 0 !important; display: flex !important; align-items: center !important; }
+html body .navbar5_component.w-nav .navbar5_menu,
+html body .navbar5_component.w-nav .contact-us { align-items: center !important; align-self: center !important; }
+html body .navbar5_component.w-nav .navbar5_logo-link,
+html body .navbar5_component.w-nav .navbar5_menu-button { align-self: center !important; margin-top: 0 !important; margin-bottom: 0 !important; }
+@media (max-width: 991px) {
+  html body .navbar5_component.w-nav { width: calc(100% - 24px) !important; max-width: calc(100% - 24px) !important; margin: 0 !important; top: 10px !important; left: 12px !important; right: 12px !important; padding-left: 18px !important; padding-right: 8px !important; }
+}
+/* navbar pill in the page's light theme: frosted glass, dark type, and the brand blue on the demo button */
+html body .navbar5_component.w-nav,
+html body .navbar5_component.w-nav.fx-scrolled {
+  background-color: rgba(255, 255, 255, .72) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%) !important; backdrop-filter: blur(18px) saturate(170%) !important;
+  border: 1px solid rgba(15, 23, 42, .08) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 12px 32px -14px rgba(15, 23, 42, .22) !important;
+}
+html body .navbar5_component.w-nav .nx-word { fill: #0b1324 !important; }
+html body .navbar5_component.w-nav .w-nav-button,
+html body .navbar5_component.w-nav .w-nav-button * { color: #0b1324 !important; }
+@media (min-width: 992px) {
+  html body .navbar5_component.w-nav .drop-down-menu .navbar5_link { color: #1e293b !important; }
+  html body .navbar5_component.w-nav .drop-down-menu .navbar5_link:hover,
+  html body .navbar5_component.w-nav .navbar5_dropdown-toggle:hover .navbar5_link { color: #0b1324 !important; }
+  html body .navbar5_component.w-nav .drop-down-menu .dropdown-chevron svg path { fill: #1e293b !important; }
+}
+html body .navbar5_component.w-nav .contact-us a.button {
+  background: linear-gradient(135deg, #2a6be6, #1d5fd8 55%, #1546a8) !important; background-color: #1d5fd8 !important;
+  color: #fff !important; border: 1px solid rgba(255, 255, 255, .22) !important;
+  box-shadow: 0 6px 18px -6px rgba(29, 95, 216, .55), 0 1px 2px rgba(15, 23, 42, .15) !important;
+}
+html body .navbar5_component.w-nav .contact-us a.button:hover { background: #1546a8 !important; }
+html body .navbar5_component.w-nav .contact-us a.button *,
+html body .navbar5_component.w-nav .contact-us a.button .button-icon-orange { color: #fff !important; }
+html body .navbar5_component.w-nav .contact-us a.button svg path { stroke: #fff !important; }
+/* phones and tablets: the opened menu is a light glass panel under the pill, with dark links */
+@media (max-width: 991px) {
+  html body .navbar5_component.w-nav .w-nav-overlay { top: calc(100% + 8px) !important; }
+  html body .navbar5_component.w-nav [data-nav-menu-open] { background: rgba(255, 255, 255, .97) !important; -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); border: 1px solid rgba(15, 23, 42, .08); border-radius: 20px; height: auto !important; min-height: 0 !important; transform: none !important; padding: 18px 0 22px !important; box-shadow: 0 18px 40px -16px rgba(15, 23, 42, .3); }
+  html body .navbar5_component.w-nav [data-nav-menu-open] .navbar5_link { color: #1e293b !important; }
+  html body .navbar5_component.w-nav [data-nav-menu-open] .dropdown-chevron svg path { fill: #1e293b !important; }
+}
+/* pages whose top section is text or a form (blog, case studies, authors, contact) keep their content clear of the
+   floating pill; the section's own background still runs to the very top. Pages with a full-bleed image or video
+   hero (.hero_image-wrapper) start that visual at the top. */
+html body .main-wrapper > .section_hero:first-child:not(:has(.hero_image-wrapper)) { padding-top: 88px !important; }
+@media (max-width: 991px) {
+  html body .main-wrapper > .section_hero:first-child:not(:has(.hero_image-wrapper)) { padding-top: 80px !important; }
+}
